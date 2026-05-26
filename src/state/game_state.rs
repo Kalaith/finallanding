@@ -305,8 +305,8 @@ impl GameplayState {
     fn update_side_panel_click(&mut self, mouse_x: f32, mouse_y: f32, panel: Rect) {
         let section_y = panel.y + 10.0;
         let btn_start_y = section_y + 45.0;
-        let btn_height = 32.0;
-        let btn_padding = 4.0;
+        let btn_height = 28.0;
+        let btn_padding = 3.0;
         let btn_x = panel.x + 10.0;
         let btn_w = panel.w - 20.0;
 
@@ -326,7 +326,7 @@ impl GameplayState {
                 return;
             }
 
-            let mission_y = undo_y + 54.0;
+            let mission_y = undo_y + 52.0;
             if mouse_y >= mission_y && mouse_y <= mission_y + 28.0 {
                 self.launch_perimeter_scan();
             }
@@ -669,6 +669,7 @@ impl State for GameplayState {
             self.data.priority.active,
         );
 
+        let colony_summary = SummarySystem::colony_pressure_summary(&self.data);
         let _panel_result = draw_side_panel(
             &self.layout,
             self.selected_building,
@@ -685,6 +686,7 @@ impl State for GameplayState {
                 .duration_minutes,
             MissionSystem::perimeter_scan_danger_percent(&self.data),
             &self.data.technology,
+            &colony_summary,
             &self.data.event_log,
         );
 
