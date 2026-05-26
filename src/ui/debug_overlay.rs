@@ -1,6 +1,7 @@
 //! Debug overlay - development information display
 
 use crate::data::colonist::{relationship_label, ActivityLocation, Colonist, ColonistState};
+use crate::data::priority::ColonyPriority;
 use crate::data::resources::ResourceState;
 use crate::data::scenario::ScenarioOutcome;
 use crate::data::technology::{TechId, TechnologyState};
@@ -20,6 +21,7 @@ pub fn draw_debug_overlay(
     outcome: ScenarioOutcome,
     active_mission_count: usize,
     technology: &TechnologyState,
+    priority: ColonyPriority,
 ) {
     let x = 10.0;
     let y = 60.0; // Below top bar
@@ -48,6 +50,13 @@ pub fn draw_debug_overlay(
 
     // Tick
     draw_text(&format!("Tick: {}", tick), x, y + line_height, 16.0, WHITE);
+    draw_text(
+        &format!("Priority: {}", priority.label()),
+        x + 130.0,
+        y + line_height,
+        16.0,
+        LIGHTGRAY,
+    );
 
     // Hovered cell
     if let Some(pos) = hovered_cell {

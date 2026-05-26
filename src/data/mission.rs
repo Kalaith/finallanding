@@ -1,3 +1,4 @@
+use crate::data::priority::ColonyPriority;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -61,6 +62,7 @@ pub struct ActiveMission {
     pub started_tick: u64,
     pub completes_at_tick: u64,
     pub danger_percent: u32,
+    pub priority: ColonyPriority,
 }
 
 impl ActiveMission {

@@ -20,8 +20,9 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 
 - Mouse: place buildings and use the interface.
 - Q, W, E, R, T: select building tools.
-- 1-3: adjust priority modes.
+- 1-3: set Recovery, Stockpile, or Survey priority.
 - Space: pause or resume time.
+- Top bar buttons: adjust time speed.
 - Z: undo placement.
 - Esc: cancel current tool.
 

@@ -2,6 +2,7 @@
 
 use super::Layout;
 use crate::data::game_state::TimeSpeed;
+use crate::data::priority::ColonyPriority;
 use crate::data::resources::ResourceState;
 use crate::systems::time_system::TimeSystem;
 use macroquad::prelude::*;
@@ -17,6 +18,7 @@ pub fn draw_top_bar(
     colonist_count: usize,
     average_mood: f32,
     resources: &ResourceState,
+    current_priority: ColonyPriority,
 ) -> Option<TimeSpeed> {
     let rect = layout.top_bar();
 
@@ -92,20 +94,65 @@ pub fn draw_top_bar(
         }
     }
 
-    draw_text(
-        &format!(
-            "C:{} Mood:{:.0} Supplies:{} Salvage:{} {}",
-            colonist_count,
+    draw_text("Priority", 650.0, 30.0, 13.0, GRAY);
+    let priority_btn_y = 10.0;
+    let priority_btn_h = 30.0;
+    let priority_btn_w = 68.0;
+    let priority_start_x = 725.0;
+
+    for (i, priority) in ColonyPriority::all().iter().enumerate() {
+        let btn_x = priority_start_x + (i as f32 * (priority_btn_w + 5.0));
+        let is_active = current_priority == *priority;
+        let bg_color = if is_active {
+            Color::new(0.25, 0.42, 0.34, 1.0)
+        } else {
+            dark::PANEL_HEADER
+        };
+
+        let btn_surface = SurfaceStyle::new(bg_color).with_border(1.0, GRAY);
+        draw_surface(
+            Rect::new(btn_x, priority_btn_y, priority_btn_w, priority_btn_h),
+            &btn_surface,
+        );
+
+        let label = format!("[{}] {}", priority.shortcut(), priority.short_label());
+        let text_w = measure_text(&label, None, 13, 1.0).width;
+        draw_text(
+            &label,
+            btn_x + (priority_btn_w - text_w) / 2.0,
+            priority_btn_y + 20.0,
+            13.0,
+            WHITE,
+        );
+    }
+
+    let priority_end =
+        priority_start_x + ColonyPriority::all().len() as f32 * (priority_btn_w + 5.0) - 5.0;
+    let status_label = format!(
+        "C:{} Mood:{:.0} Supplies:{} Salvage:{} {}",
+        colonist_count,
+        average_mood,
+        resources.supplies,
+        resources.salvage,
+        resources.condition.label()
+    );
+    let status_x = priority_end + 18.0;
+    let status_width = measure_text(&status_label, None, 16, 1.0).width;
+    if status_x + status_width <= rect.w - 10.0 {
+        draw_text(&status_label, status_x, 32.0, 16.0, LIGHTGRAY);
+    } else {
+        let compact_status = format!(
+            "Mood:{:.0} S:{} {}",
             average_mood,
             resources.supplies,
-            resources.salvage,
             resources.condition.label()
-        ),
-        rect.w - 430.0,
-        32.0,
-        16.0,
-        LIGHTGRAY,
-    );
+        );
+        let compact_width = measure_text(&compact_status, None, 14, 1.0).width;
+        let compact_x = rect.w - compact_width - 10.0;
+        if compact_x > priority_end + 10.0 {
+            draw_text(&compact_status, compact_x, 32.0, 14.0, LIGHTGRAY);
+        }
+    }
 
     new_speed
 }

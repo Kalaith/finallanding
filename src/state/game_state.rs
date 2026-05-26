@@ -4,6 +4,7 @@ use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
 use crate::data::game_state::TimeSpeed;
 use crate::data::grid::{Grid, CELL_SIZE};
+use crate::data::priority::ColonyPriority;
 use crate::data::types::Position;
 use crate::game::building_system::PlacementResult;
 use crate::state::{State, StateTransition};
@@ -171,6 +172,19 @@ impl GameplayState {
         }
     }
 
+    fn set_priority(&mut self, priority: ColonyPriority) {
+        if self.data.priority.active == priority {
+            return;
+        }
+
+        self.data.priority.active = priority;
+        self.data.push_log(
+            LogCategory::System,
+            format!("Priority set: {}", priority.label()),
+            priority.description(),
+        );
+    }
+
     /// Handle building placement via mouse click
     fn update_building_placement(&mut self) {
         // Only allow placement in the game area (not over UI)
@@ -266,6 +280,23 @@ impl GameplayState {
             let btn_x = btn_start_x + (i as f32 * (btn_w + 5.0));
             if mouse_x >= btn_x && mouse_x <= btn_x + btn_w {
                 self.data.time.speed = *speed;
+                return;
+            }
+        }
+
+        let priority_btn_y = 10.0;
+        let priority_btn_h = 30.0;
+        let priority_btn_w = 68.0;
+        let priority_start_x = 725.0;
+
+        if mouse_y < priority_btn_y || mouse_y > priority_btn_y + priority_btn_h {
+            return;
+        }
+
+        for (i, priority) in ColonyPriority::all().iter().enumerate() {
+            let btn_x = priority_start_x + (i as f32 * (priority_btn_w + 5.0));
+            if mouse_x >= btn_x && mouse_x <= btn_x + priority_btn_w {
+                self.set_priority(*priority);
                 return;
             }
         }
@@ -572,7 +603,7 @@ impl State for GameplayState {
             self.debug_mode = !self.debug_mode;
         }
 
-        // Time speed controls (keyboard)
+        // Time speed and priority controls (keyboard)
         if is_key_pressed(KeyCode::Space) {
             self.data.time.speed = if self.data.time.speed == TimeSpeed::Paused {
                 TimeSpeed::Normal
@@ -581,13 +612,13 @@ impl State for GameplayState {
             };
         }
         if is_key_pressed(KeyCode::Key1) {
-            self.data.time.speed = TimeSpeed::Normal;
+            self.set_priority(ColonyPriority::Recovery);
         }
         if is_key_pressed(KeyCode::Key2) {
-            self.data.time.speed = TimeSpeed::Fast;
+            self.set_priority(ColonyPriority::Stockpile);
         }
         if is_key_pressed(KeyCode::Key3) {
-            self.data.time.speed = TimeSpeed::SuperFast;
+            self.set_priority(ColonyPriority::Survey);
         }
 
         self.update_pointer_ui_input();
@@ -635,6 +666,7 @@ impl State for GameplayState {
             self.data.colonists.len(),
             self.average_mood(),
             &self.data.resources,
+            self.data.priority.active,
         );
 
         let _panel_result = draw_side_panel(
@@ -651,10 +683,7 @@ impl State for GameplayState {
             crate::data::mission::MissionType::PerimeterScan
                 .definition()
                 .duration_minutes,
-            crate::data::mission::MissionType::PerimeterScan
-                .definition()
-                .danger_percent
-                .saturating_sub(self.data.technology.mission_danger_reduction()),
+            MissionSystem::perimeter_scan_danger_percent(&self.data),
             &self.data.technology,
             &self.data.event_log,
         );
@@ -673,6 +702,7 @@ impl State for GameplayState {
                 self.data.scenario.outcome,
                 self.data.missions.active_count(),
                 &self.data.technology,
+                self.data.priority.active,
             );
         }
 

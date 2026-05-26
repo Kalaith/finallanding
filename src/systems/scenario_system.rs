@@ -62,6 +62,12 @@ impl ScenarioSystem {
         )
     }
 
+    pub fn estimated_real_minutes_to_target(state: &GameState, seconds_per_tick: f32) -> f32 {
+        let target_tick =
+            state.scenario.target_day.saturating_sub(1) as u64 * TimeSystem::TICKS_PER_DAY;
+        target_tick.saturating_sub(state.tick) as f32 * seconds_per_tick / 60.0
+    }
+
     fn finish(
         state: &mut GameState,
         outcome: ScenarioOutcome,
@@ -121,5 +127,15 @@ mod tests {
 
         assert_eq!(state.scenario.outcome, ScenarioOutcome::Failure);
         assert_eq!(state.time.speed, TimeSpeed::Paused);
+    }
+
+    #[test]
+    fn test_day_7_target_sits_in_30_to_40_minute_run_window() {
+        let mut state = GameState::new();
+        state.tick = 420;
+
+        let minutes = ScenarioSystem::estimated_real_minutes_to_target(&state, 0.25);
+
+        assert!((30.0..=40.0).contains(&minutes));
     }
 }

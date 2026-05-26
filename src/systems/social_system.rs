@@ -2,6 +2,7 @@ use crate::data::building::BuildingType;
 use crate::data::colonist::{relationship_label, ActivityLocation, ColonistState};
 use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
+use crate::data::priority::ColonyPriority;
 use std::collections::HashMap;
 
 pub struct SocialSystem;
@@ -132,7 +133,7 @@ impl SocialSystem {
         let avg_mood = (mood_a + mood_b) * 0.5;
         let relationship = Self::relationship_value(state, id_a, id_b);
 
-        match source {
+        let base_delta = match source {
             RelationshipSource::Work => {
                 if avg_mood < 35.0 || relationship < -20 {
                     -1
@@ -154,6 +155,25 @@ impl SocialSystem {
                     2
                 }
             }
+        };
+
+        Self::priority_relationship_delta(state.priority.active, source, base_delta)
+    }
+
+    fn priority_relationship_delta(
+        priority: ColonyPriority,
+        source: RelationshipSource,
+        base_delta: i32,
+    ) -> i32 {
+        match (priority, source, base_delta) {
+            (ColonyPriority::Recovery, RelationshipSource::Meal, value) if value > 0 => value + 1,
+            (ColonyPriority::Recovery, RelationshipSource::SharedHabitat, value) if value > 0 => {
+                value + 1
+            }
+            (ColonyPriority::Recovery, RelationshipSource::Work, value) if value < 0 => 0,
+            (ColonyPriority::Stockpile, RelationshipSource::Work, value) if value > 0 => value + 1,
+            (ColonyPriority::Survey, RelationshipSource::Work, value) if value < 0 => value - 1,
+            _ => base_delta,
         }
     }
 
@@ -225,5 +245,41 @@ impl SocialSystem {
             .find(|c| c.id == colonist_id)
             .map(|c| c.name.clone())
             .unwrap_or_else(|| format!("Colonist {}", colonist_id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::colonist::{ActivityLocation, Colonist, JobPreference, Trait};
+    use crate::data::priority::ColonyPriority;
+    use crate::data::types::Position;
+
+    #[test]
+    fn test_recovery_priority_strengthens_shared_meals() {
+        let mut state = GameState::new();
+        state.priority.active = ColonyPriority::Recovery;
+
+        for id in 1..=2 {
+            let mut colonist = Colonist::new(
+                id,
+                format!("Colonist {}", id),
+                Position::new(id as i32, 0),
+                Trait::Gourmet,
+                JobPreference::Cook,
+            );
+            colonist.state = ColonistState::Eating;
+            colonist.activity_location = ActivityLocation::Building {
+                building_id: 7,
+                building_type: BuildingType::MessHall,
+            };
+            colonist.mood = 60.0;
+            state.colonists.push(colonist);
+        }
+
+        SocialSystem::check_eating_together(&mut state);
+
+        assert_eq!(state.colonists[0].relationships.get(&2), Some(&2));
+        assert_eq!(state.colonists[1].relationships.get(&1), Some(&2));
     }
 }

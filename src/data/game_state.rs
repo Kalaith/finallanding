@@ -1,6 +1,7 @@
 use super::grid::Grid;
 use crate::data::event_log::{ColonyLogEntry, LogCategory};
 use crate::data::mission::MissionState;
+use crate::data::priority::PriorityState;
 use crate::data::resources::ResourceState;
 use crate::data::scenario::ScenarioState;
 use crate::data::technology::TechnologyState;
@@ -44,6 +45,7 @@ pub struct GameState {
     pub event_log: Vec<ColonyLogEntry>,
     pub resources: ResourceState,
     pub missions: MissionState,
+    pub priority: PriorityState,
     pub technology: TechnologyState,
     pub scenario: ScenarioState,
 
@@ -63,6 +65,7 @@ impl GameState {
             event_log: Vec::new(),
             resources: ResourceState::default(),
             missions: MissionState::default(),
+            priority: PriorityState::default(),
             technology: TechnologyState::default(),
             scenario: ScenarioState::default(),
             building_system: BuildingSystem::new(),

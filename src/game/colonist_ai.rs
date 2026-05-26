@@ -58,6 +58,7 @@ pub fn update_colonists(state: &mut GameState, elapsed_ticks: u64) {
         .map(|b| (b.id, b.building_type, b.position, b.size()))
         .collect();
     let habitat_capacity = 2 + state.technology.habitat_capacity_bonus();
+    let priority = state.priority.active;
 
     let mut pending_logs: Vec<PendingLog> = Vec::new();
 
@@ -76,7 +77,7 @@ pub fn update_colonists(state: &mut GameState, elapsed_ticks: u64) {
         );
 
         state.colonists[i].update_visual_position(VISUAL_MOVE_SPEED);
-        update_mood(&mut state.colonists[i], elapsed_ticks);
+        update_mood(&mut state.colonists[i], elapsed_ticks, priority);
     }
 
     for (category, title, detail) in pending_logs {

@@ -336,7 +336,13 @@ pub fn draw_side_panel(
     );
     draw_text("Controls", rect.x + 15.0, help_y + 20.0, 16.0, WHITE);
     draw_text("[Space] Pause", rect.x + 15.0, help_y + 40.0, 12.0, GRAY);
-    draw_text("[1/2/3] Speed", rect.x + 100.0, help_y + 40.0, 12.0, GRAY);
+    draw_text(
+        "[1/2/3] Priority",
+        rect.x + 100.0,
+        help_y + 40.0,
+        12.0,
+        GRAY,
+    );
     draw_text(
         "[Esc] Cancel  [F3] Debug",
         rect.x + 15.0,
