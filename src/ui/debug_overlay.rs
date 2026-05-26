@@ -66,10 +66,11 @@ pub fn draw_debug_overlay(
     );
     draw_text(
         &format!(
-            "Resources: supplies {}/{} salvage {} need/day {} status {}",
+            "Resources: supplies {}/{} salvage {} meals {} need/day {} status {}",
             resources.supplies,
             storage_capacity,
             resources.salvage,
+            resources.prepared_meals,
             daily_supply_need,
             resources.condition.label()
         ),
@@ -77,6 +78,19 @@ pub fn draw_debug_overlay(
         y + line_height * 4.0,
         13.0,
         LIGHTGRAY,
+    );
+    draw_text(
+        &format!(
+            "Progress: explore {}/8 workshop {}/6 kitchen {}/4 hauling {}/5",
+            resources.exploration_progress,
+            resources.workshop_progress,
+            resources.kitchen_progress,
+            resources.hauling_progress
+        ),
+        x,
+        y + line_height * 4.8,
+        12.0,
+        GRAY,
     );
 
     // Colonist states
@@ -96,26 +110,26 @@ pub fn draw_debug_overlay(
         }
     }
 
-    draw_text("Colonist States:", x, y + line_height * 5.5, 14.0, WHITE);
+    draw_text("Colonist States:", x, y + line_height * 6.2, 14.0, WHITE);
     draw_text(
         &format!("  Idle: {}  Moving: {}", idle, moving),
         x,
-        y + line_height * 6.5,
+        y + line_height * 7.2,
         14.0,
         LIGHTGRAY,
     );
     draw_text(
         &format!("  Work: {}  Eat: {}  Sleep: {}", working, eating, sleeping),
         x,
-        y + line_height * 7.5,
+        y + line_height * 8.2,
         14.0,
         LIGHTGRAY,
     );
 
-    draw_text("Colonists:", x, y + line_height * 9.0, 14.0, WHITE);
+    draw_text("Colonists:", x, y + line_height * 9.7, 14.0, WHITE);
 
     for (i, colonist) in colonists.iter().take(6).enumerate() {
-        let row_y = y + line_height * 10.0 + i as f32 * 30.0;
+        let row_y = y + line_height * 10.7 + i as f32 * 30.0;
         let location = activity_location_label(&colonist.activity_location);
         draw_text(
             &format!(

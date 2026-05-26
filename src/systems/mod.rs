@@ -6,3 +6,4 @@ pub mod social_system;
 pub mod summary_system;
 pub mod time_events;
 pub mod time_system;
+pub mod work_system;

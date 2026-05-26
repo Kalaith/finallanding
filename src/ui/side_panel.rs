@@ -197,14 +197,21 @@ pub fn draw_side_panel(
         LIGHTGRAY,
     );
     draw_text(
-        &format!("Status: {}", resources.condition.label()),
+        &format!("Meals ready: {}", resources.prepared_meals),
         rect.x + 15.0,
         stats_y + 135.0,
+        16.0,
+        LIGHTGRAY,
+    );
+    draw_text(
+        &format!("Status: {}", resources.condition.label()),
+        rect.x + 15.0,
+        stats_y + 155.0,
         16.0,
         condition_color(resources.condition.label()),
     );
 
-    let log_y = stats_y + 165.0;
+    let log_y = stats_y + 185.0;
     draw_text("Colony Log", rect.x + 15.0, log_y, 18.0, WHITE);
     draw_line(
         rect.x + 10.0,

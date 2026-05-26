@@ -7,6 +7,10 @@ pub struct ResourceSystem;
 
 impl ResourceSystem {
     pub fn daily_supply_need(state: &GameState) -> i32 {
+        (state.colonists.len() as i32 - state.resources.prepared_meals).max(0)
+    }
+
+    pub fn base_daily_supply_need(state: &GameState) -> i32 {
         state.colonists.len() as i32
     }
 
@@ -27,6 +31,9 @@ impl ResourceSystem {
 
     pub fn handle_new_day(state: &mut GameState) {
         let need = Self::daily_supply_need(state);
+        let prepared_meals = state.resources.prepared_meals;
+        state.resources.prepared_meals = 0;
+
         let shortage = state.resources.consume_supplies(need);
 
         if shortage == 0 {
@@ -34,8 +41,8 @@ impl ResourceSystem {
                 LogCategory::Resource,
                 "Daily supplies consumed",
                 format!(
-                    "{} supplies used. {} remain.",
-                    need, state.resources.supplies
+                    "{} supplies used after {} prepared meals. {} remain.",
+                    need, prepared_meals, state.resources.supplies
                 ),
             );
         } else {
@@ -104,6 +111,11 @@ impl ResourceSystem {
         }
     }
 
+    pub fn add_supplies_from_work(state: &mut GameState, amount: i32) -> i32 {
+        let capacity = Self::storage_capacity(state);
+        state.resources.add_supplies(amount, capacity)
+    }
+
     fn log_low_supplies(state: &mut GameState) {
         let daily_need = Self::daily_supply_need(state).max(1);
         if state.resources.supplies > daily_need * 2 {
@@ -139,6 +151,21 @@ mod tests {
         ));
 
         assert_eq!(ResourceSystem::daily_supply_need(&state), 1);
+    }
+
+    #[test]
+    fn test_prepared_meals_reduce_daily_need() {
+        let mut state = GameState::new();
+        state.resources.prepared_meals = 1;
+        state.colonists.push(Colonist::new(
+            1,
+            "Test".to_string(),
+            Position::new(0, 0),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        ));
+
+        assert_eq!(ResourceSystem::daily_supply_need(&state), 0);
     }
 
     #[test]

@@ -26,6 +26,11 @@ impl ColonyCondition {
 pub struct ResourceState {
     pub supplies: i32,
     pub salvage: i32,
+    pub prepared_meals: i32,
+    pub exploration_progress: u32,
+    pub workshop_progress: u32,
+    pub kitchen_progress: u32,
+    pub hauling_progress: u32,
     pub stable_days: u32,
     pub condition: ColonyCondition,
 }
@@ -35,6 +40,11 @@ impl Default for ResourceState {
         Self {
             supplies: 32,
             salvage: 54,
+            prepared_meals: 0,
+            exploration_progress: 0,
+            workshop_progress: 0,
+            kitchen_progress: 0,
+            hauling_progress: 0,
             stable_days: 0,
             condition: ColonyCondition::Strained,
         }
@@ -60,5 +70,17 @@ impl ResourceState {
         let consumed = self.supplies.min(amount);
         self.supplies -= consumed;
         amount - consumed
+    }
+
+    pub fn add_supplies(&mut self, amount: i32, capacity: i32) -> i32 {
+        let amount = amount.max(0);
+        let space = (capacity - self.supplies).max(0);
+        let stored = amount.min(space);
+        self.supplies += stored;
+        amount - stored
+    }
+
+    pub fn add_salvage(&mut self, amount: i32) {
+        self.salvage += amount.max(0);
     }
 }

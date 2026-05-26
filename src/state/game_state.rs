@@ -13,6 +13,7 @@ use crate::systems::social_system::SocialSystem;
 use crate::systems::summary_system::SummarySystem;
 use crate::systems::time_events::TimeEventCollector;
 use crate::systems::time_system::TimeSystem;
+use crate::systems::work_system::WorkSystem;
 use crate::ui::{draw_debug_overlay, draw_side_panel, draw_top_bar, Layout};
 use macroquad::prelude::*;
 
@@ -324,6 +325,7 @@ impl GameplayState {
                     );
                 }
                 crate::systems::time_events::TimeEvent::HourChanged { hour: _ } => {
+                    WorkSystem::process_hourly_work(&mut self.data);
                     SocialSystem::check_working_together(&mut self.data);
                     SocialSystem::check_eating_together(&mut self.data);
                 }
