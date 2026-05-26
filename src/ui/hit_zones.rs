@@ -1,0 +1,191 @@
+use crate::data::building::BuildingType;
+use crate::data::game_state::TimeSpeed;
+use crate::data::priority::ColonyPriority;
+use macroquad::prelude::Rect;
+
+pub const TOP_BAR_BUTTON_Y: f32 = 10.0;
+pub const TOP_BAR_BUTTON_H: f32 = 30.0;
+pub const SPEED_BUTTON_W: f32 = 50.0;
+pub const SPEED_BUTTON_START_X: f32 = 420.0;
+pub const PRIORITY_LABEL_X: f32 = 650.0;
+pub const PRIORITY_BUTTON_W: f32 = 68.0;
+pub const PRIORITY_BUTTON_START_X: f32 = 725.0;
+pub const BUTTON_GAP: f32 = 5.0;
+
+const PANEL_SECTION_OFFSET_Y: f32 = 10.0;
+const BUILD_BUTTON_START_OFFSET_Y: f32 = 55.0;
+const BUILD_BUTTON_H: f32 = 28.0;
+const BUILD_BUTTON_GAP: f32 = 3.0;
+const PANEL_BUTTON_X_PAD: f32 = 10.0;
+const UNDO_OFFSET_Y: f32 = 10.0;
+const UNDO_BUTTON_H: f32 = 28.0;
+const MISSION_BUTTON_OFFSET_Y: f32 = 52.0;
+const MISSION_BUTTON_H: f32 = 28.0;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SidePanelHit {
+    Building(BuildingType),
+    Undo,
+    Mission,
+}
+
+pub fn menu_start_rect(screen_width: f32, screen_height: f32) -> Rect {
+    Rect::new(screen_width * 0.5 - 100.0, screen_height * 0.5, 200.0, 50.0)
+}
+
+pub fn speed_button_rect(index: usize) -> Rect {
+    Rect::new(
+        SPEED_BUTTON_START_X + index as f32 * (SPEED_BUTTON_W + BUTTON_GAP),
+        TOP_BAR_BUTTON_Y,
+        SPEED_BUTTON_W,
+        TOP_BAR_BUTTON_H,
+    )
+}
+
+pub fn priority_button_rect(index: usize) -> Rect {
+    Rect::new(
+        PRIORITY_BUTTON_START_X + index as f32 * (PRIORITY_BUTTON_W + BUTTON_GAP),
+        TOP_BAR_BUTTON_Y,
+        PRIORITY_BUTTON_W,
+        TOP_BAR_BUTTON_H,
+    )
+}
+
+pub fn top_bar_speed_at(x: f32, y: f32) -> Option<TimeSpeed> {
+    [
+        TimeSpeed::Paused,
+        TimeSpeed::Normal,
+        TimeSpeed::Fast,
+        TimeSpeed::SuperFast,
+    ]
+    .iter()
+    .enumerate()
+    .find_map(|(index, speed)| contains(speed_button_rect(index), x, y).then_some(*speed))
+}
+
+pub fn top_bar_priority_at(x: f32, y: f32) -> Option<ColonyPriority> {
+    ColonyPriority::all()
+        .iter()
+        .enumerate()
+        .find_map(|(index, priority)| {
+            contains(priority_button_rect(index), x, y).then_some(*priority)
+        })
+}
+
+pub fn build_button_rect(panel: Rect, index: usize) -> Rect {
+    Rect::new(
+        panel.x + PANEL_BUTTON_X_PAD,
+        panel.y
+            + PANEL_SECTION_OFFSET_Y
+            + BUILD_BUTTON_START_OFFSET_Y
+            + index as f32 * (BUILD_BUTTON_H + BUILD_BUTTON_GAP),
+        panel.w - PANEL_BUTTON_X_PAD * 2.0,
+        BUILD_BUTTON_H,
+    )
+}
+
+pub fn undo_button_rect(panel: Rect) -> Rect {
+    Rect::new(
+        panel.x + PANEL_BUTTON_X_PAD,
+        panel.y
+            + PANEL_SECTION_OFFSET_Y
+            + BUILD_BUTTON_START_OFFSET_Y
+            + BuildingType::all().len() as f32 * (BUILD_BUTTON_H + BUILD_BUTTON_GAP)
+            + UNDO_OFFSET_Y,
+        panel.w - PANEL_BUTTON_X_PAD * 2.0,
+        UNDO_BUTTON_H,
+    )
+}
+
+pub fn mission_button_rect(panel: Rect) -> Rect {
+    let undo = undo_button_rect(panel);
+    Rect::new(
+        undo.x,
+        undo.y + MISSION_BUTTON_OFFSET_Y,
+        undo.w,
+        MISSION_BUTTON_H,
+    )
+}
+
+pub fn side_panel_hit_at(panel: Rect, x: f32, y: f32) -> Option<SidePanelHit> {
+    if !contains(panel, x, y) {
+        return None;
+    }
+
+    for (index, building_type) in BuildingType::all().iter().enumerate() {
+        if contains(build_button_rect(panel, index), x, y) {
+            return Some(SidePanelHit::Building(*building_type));
+        }
+    }
+
+    if contains(undo_button_rect(panel), x, y) {
+        return Some(SidePanelHit::Undo);
+    }
+
+    if contains(mission_button_rect(panel), x, y) {
+        return Some(SidePanelHit::Mission);
+    }
+
+    None
+}
+
+fn contains(rect: Rect, x: f32, y: f32) -> bool {
+    x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn center(rect: Rect) -> (f32, f32) {
+        (rect.x + rect.w * 0.5, rect.y + rect.h * 0.5)
+    }
+
+    #[test]
+    fn test_menu_start_rect_contains_button_center() {
+        let rect = menu_start_rect(1280.0, 720.0);
+
+        assert!(contains(rect, 640.0, 385.0));
+    }
+
+    #[test]
+    fn test_top_bar_speed_hit_zones_match_visible_buttons() {
+        let (x, y) = center(speed_button_rect(1));
+
+        assert_eq!(top_bar_speed_at(x, y), Some(TimeSpeed::Normal));
+        assert_eq!(top_bar_speed_at(10.0, y), None);
+    }
+
+    #[test]
+    fn test_top_bar_priority_hit_zones_match_visible_buttons() {
+        let (x, y) = center(priority_button_rect(2));
+
+        assert_eq!(top_bar_priority_at(x, y), Some(ColonyPriority::Survey));
+    }
+
+    #[test]
+    fn test_side_panel_building_undo_and_mission_hits() {
+        let panel = Rect::new(1060.0, 50.0, 220.0, 670.0);
+        let (habitat_x, habitat_y) = center(build_button_rect(panel, 0));
+        let (gate_x, gate_y) = center(build_button_rect(panel, 4));
+        let (undo_x, undo_y) = center(undo_button_rect(panel));
+        let (mission_x, mission_y) = center(mission_button_rect(panel));
+
+        assert_eq!(
+            side_panel_hit_at(panel, habitat_x, habitat_y),
+            Some(SidePanelHit::Building(BuildingType::Habitat))
+        );
+        assert_eq!(
+            side_panel_hit_at(panel, gate_x, gate_y),
+            Some(SidePanelHit::Building(BuildingType::ExplorationGate))
+        );
+        assert_eq!(
+            side_panel_hit_at(panel, undo_x, undo_y),
+            Some(SidePanelHit::Undo)
+        );
+        assert_eq!(
+            side_panel_hit_at(panel, mission_x, mission_y),
+            Some(SidePanelHit::Mission)
+        );
+    }
+}

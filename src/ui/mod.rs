@@ -4,12 +4,14 @@
 
 pub mod advisor_overlay;
 pub mod debug_overlay;
+pub mod hit_zones;
 pub mod layout;
 pub mod side_panel;
 pub mod top_bar;
 
 pub use advisor_overlay::*;
 pub use debug_overlay::*;
+pub use hit_zones::*;
 pub use layout::*;
 pub use side_panel::*;
 pub use top_bar::*;

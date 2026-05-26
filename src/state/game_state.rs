@@ -18,7 +18,10 @@ use crate::systems::summary_system::SummarySystem;
 use crate::systems::time_events::TimeEventCollector;
 use crate::systems::time_system::TimeSystem;
 use crate::systems::work_system::WorkSystem;
-use crate::ui::{draw_advisor_overlay, draw_debug_overlay, draw_side_panel, draw_top_bar, Layout};
+use crate::ui::{
+    draw_advisor_overlay, draw_debug_overlay, draw_side_panel, draw_top_bar, side_panel_hit_at,
+    top_bar_priority_at, top_bar_speed_at, Layout, SidePanelHit,
+};
 use macroquad::prelude::*;
 
 const SECONDS_PER_GAME_TICK: f32 = 0.25;
@@ -262,75 +265,26 @@ impl GameplayState {
     }
 
     fn update_top_bar_click(&mut self, mouse_x: f32, mouse_y: f32) {
-        let btn_y = 10.0;
-        let btn_h = 30.0;
-        let btn_w = 50.0;
-        let btn_start_x = 420.0;
-        let speeds = [
-            TimeSpeed::Paused,
-            TimeSpeed::Normal,
-            TimeSpeed::Fast,
-            TimeSpeed::SuperFast,
-        ];
-
-        if mouse_y < btn_y || mouse_y > btn_y + btn_h {
+        if let Some(speed) = top_bar_speed_at(mouse_x, mouse_y) {
+            self.data.time.speed = speed;
             return;
         }
 
-        for (i, speed) in speeds.iter().enumerate() {
-            let btn_x = btn_start_x + (i as f32 * (btn_w + 5.0));
-            if mouse_x >= btn_x && mouse_x <= btn_x + btn_w {
-                self.data.time.speed = *speed;
-                return;
-            }
-        }
-
-        let priority_btn_y = 10.0;
-        let priority_btn_h = 30.0;
-        let priority_btn_w = 68.0;
-        let priority_start_x = 725.0;
-
-        if mouse_y < priority_btn_y || mouse_y > priority_btn_y + priority_btn_h {
-            return;
-        }
-
-        for (i, priority) in ColonyPriority::all().iter().enumerate() {
-            let btn_x = priority_start_x + (i as f32 * (priority_btn_w + 5.0));
-            if mouse_x >= btn_x && mouse_x <= btn_x + priority_btn_w {
-                self.set_priority(*priority);
-                return;
-            }
+        if let Some(priority) = top_bar_priority_at(mouse_x, mouse_y) {
+            self.set_priority(priority);
         }
     }
 
     fn update_side_panel_click(&mut self, mouse_x: f32, mouse_y: f32, panel: Rect) {
-        let section_y = panel.y + 10.0;
-        let btn_start_y = section_y + 45.0;
-        let btn_height = 28.0;
-        let btn_padding = 3.0;
-        let btn_x = panel.x + 10.0;
-        let btn_w = panel.w - 20.0;
-
-        if mouse_x >= btn_x && mouse_x <= btn_x + btn_w {
-            for (i, building_type) in BuildingType::all().iter().enumerate() {
-                let btn_y = btn_start_y + i as f32 * (btn_height + btn_padding);
-                if mouse_y >= btn_y && mouse_y <= btn_y + btn_height {
-                    self.toggle_building(*building_type);
-                    return;
-                }
-            }
-
-            let undo_y =
-                btn_start_y + BuildingType::all().len() as f32 * (btn_height + btn_padding) + 10.0;
-            if mouse_y >= undo_y && mouse_y <= undo_y + 28.0 {
+        match side_panel_hit_at(panel, mouse_x, mouse_y) {
+            Some(SidePanelHit::Building(building_type)) => self.toggle_building(building_type),
+            Some(SidePanelHit::Undo) => {
                 self.undo_last_building();
-                return;
             }
-
-            let mission_y = undo_y + 52.0;
-            if mouse_y >= mission_y && mouse_y <= mission_y + 28.0 {
+            Some(SidePanelHit::Mission) => {
                 self.launch_perimeter_scan();
             }
+            None => {}
         }
     }
 

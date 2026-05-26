@@ -7,6 +7,7 @@ use crate::data::resources::ResourceState;
 use crate::data::scenario::ScenarioOutcome;
 use crate::data::technology::{TechId, TechnologyState};
 use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
+use crate::ui::hit_zones::{build_button_rect, mission_button_rect, undo_button_rect};
 use macroquad::prelude::*;
 use macroquad_toolkit::colors::dark;
 use macroquad_toolkit::ui::{draw_surface, SurfaceStyle};
@@ -65,14 +66,8 @@ pub fn draw_side_panel(
         undo_requested: false,
     };
 
-    let btn_start_y = section_y + 45.0;
-    let btn_height = 28.0;
-    let btn_padding = 3.0;
-
     for (i, (building_type, key, icon)) in buildings.iter().enumerate() {
-        let btn_y = btn_start_y + i as f32 * (btn_height + btn_padding);
-        let btn_x = rect.x + 10.0;
-        let btn_w = rect.w - 20.0;
+        let button_rect = build_button_rect(rect, i);
 
         let is_selected = current_selection == Some(*building_type);
         let (r, g, b) = building_type.color();
@@ -87,8 +82,7 @@ pub fn draw_side_panel(
 
         // Hover effect
         let (mx, my) = mouse_position();
-        let is_hovered =
-            mx >= btn_x && mx <= btn_x + btn_w && my >= btn_y && my <= btn_y + btn_height;
+        let is_hovered = button_rect.contains(Vec2::new(mx, my));
         let bg_color = if is_hovered && !is_selected {
             Color::new(bg_color.r + 0.1, bg_color.g + 0.1, bg_color.b + 0.1, 1.0)
         } else {
@@ -99,25 +93,44 @@ pub fn draw_side_panel(
         if is_selected {
             button_surface = button_surface.with_border(2.0, GREEN);
         }
-        draw_surface(Rect::new(btn_x, btn_y, btn_w, btn_height), &button_surface);
+        draw_surface(button_rect, &button_surface);
 
         // Color swatch
-        draw_rectangle(btn_x + 5.0, btn_y + 5.0, 18.0, 18.0, building_color);
-        draw_rectangle_lines(btn_x + 5.0, btn_y + 5.0, 18.0, 18.0, 1.0, WHITE);
+        draw_rectangle(
+            button_rect.x + 5.0,
+            button_rect.y + 5.0,
+            18.0,
+            18.0,
+            building_color,
+        );
+        draw_rectangle_lines(
+            button_rect.x + 5.0,
+            button_rect.y + 5.0,
+            18.0,
+            18.0,
+            1.0,
+            WHITE,
+        );
 
         // Label
         let label = format!("{} [{}] {}", icon, key, building_type.name());
         let can_afford = resources.salvage >= building_type.salvage_cost();
         let label_color = if can_afford { WHITE } else { GRAY };
-        draw_text(&label, btn_x + 30.0, btn_y + 19.0, 13.0, label_color);
+        draw_text(
+            &label,
+            button_rect.x + 30.0,
+            button_rect.y + 19.0,
+            13.0,
+            label_color,
+        );
 
         let cost_label = format!("{}", building_type.salvage_cost());
         let cost_width = measure_text(&cost_label, None, 13, 1.0).width;
         let cost_color = if can_afford { LIGHTGRAY } else { RED };
         draw_text(
             &cost_label,
-            btn_x + btn_w - cost_width - 8.0,
-            btn_y + 19.0,
+            button_rect.x + button_rect.w - cost_width - 8.0,
+            button_rect.y + 19.0,
             13.0,
             cost_color,
         );
@@ -133,12 +146,10 @@ pub fn draw_side_panel(
     }
 
     // Undo button
-    let undo_y = btn_start_y + buildings.len() as f32 * (btn_height + btn_padding) + 10.0;
-    let undo_x = rect.x + 10.0;
-    let undo_w = rect.w - 20.0;
+    let undo_rect = undo_button_rect(rect);
 
     let (mx, my) = mouse_position();
-    let undo_hovered = mx >= undo_x && mx <= undo_x + undo_w && my >= undo_y && my <= undo_y + 28.0;
+    let undo_hovered = undo_rect.contains(Vec2::new(mx, my));
     let undo_bg = if undo_hovered {
         Color::new(0.4, 0.3, 0.3, 1.0)
     } else {
@@ -146,11 +157,11 @@ pub fn draw_side_panel(
     };
 
     let undo_surface = SurfaceStyle::new(undo_bg);
-    draw_surface(Rect::new(undo_x, undo_y, undo_w, 28.0), &undo_surface);
+    draw_surface(undo_rect, &undo_surface);
     draw_text(
         "↩ [Z] Undo Last",
-        undo_x + 10.0,
-        undo_y + 19.0,
+        undo_rect.x + 10.0,
+        undo_rect.y + 19.0,
         14.0,
         LIGHTGRAY,
     );
@@ -159,40 +170,36 @@ pub fn draw_side_panel(
         result.undo_requested = true;
     }
 
-    let mission_y = undo_y + 40.0;
+    let mission_btn_rect = mission_button_rect(rect);
+    let mission_y = mission_btn_rect.y - 12.0;
     draw_text("Missions", rect.x + 15.0, mission_y, 18.0, WHITE);
-    let mission_btn_y = mission_y + 12.0;
-    let mission_hovered =
-        mx >= undo_x && mx <= undo_x + undo_w && my >= mission_btn_y && my <= mission_btn_y + 28.0;
+    let mission_hovered = mission_btn_rect.contains(Vec2::new(mx, my));
     let mission_bg = if mission_hovered {
         Color::new(0.25, 0.3, 0.4, 1.0)
     } else {
         dark::PANEL_HEADER
     };
-    draw_surface(
-        Rect::new(undo_x, mission_btn_y, undo_w, 28.0),
-        &SurfaceStyle::new(mission_bg),
-    );
+    draw_surface(mission_btn_rect, &SurfaceStyle::new(mission_bg));
     draw_text(
         &format!(
             "[M] 1m Scan  Risk {}%  Away {}",
             mission_danger_percent, active_mission_count
         ),
-        undo_x + 8.0,
-        mission_btn_y + 19.0,
+        mission_btn_rect.x + 8.0,
+        mission_btn_rect.y + 19.0,
         13.0,
         LIGHTGRAY,
     );
     draw_text(
         &format!("Duration: {} minute", mission_duration_minutes),
         rect.x + 15.0,
-        mission_btn_y + 44.0,
+        mission_btn_rect.y + 44.0,
         11.0,
         GRAY,
     );
 
     // Objective section
-    let objective_y = mission_btn_y + 62.0;
+    let objective_y = mission_btn_rect.y + 62.0;
     draw_text("Objective", rect.x + 15.0, objective_y, 18.0, WHITE);
     draw_text(
         &truncate_text(objective, 32),
