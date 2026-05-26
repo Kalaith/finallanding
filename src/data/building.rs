@@ -34,6 +34,16 @@ impl BuildingType {
         }
     }
 
+    pub fn salvage_cost(&self) -> i32 {
+        match self {
+            BuildingType::Habitat => 8,
+            BuildingType::MessHall => 12,
+            BuildingType::Workshop => 10,
+            BuildingType::Storage => 6,
+            BuildingType::ExplorationGate => 14,
+        }
+    }
+
     /// Returns the color for rendering (RGBA as u32)
     pub fn color(&self) -> (u8, u8, u8) {
         match self {
@@ -112,6 +122,15 @@ mod tests {
         assert_eq!(BuildingType::Workshop.size(), (2, 3));
         assert_eq!(BuildingType::Storage.size(), (2, 2));
         assert_eq!(BuildingType::ExplorationGate.size(), (2, 2));
+    }
+
+    #[test]
+    fn test_building_salvage_costs() {
+        assert_eq!(BuildingType::Habitat.salvage_cost(), 8);
+        assert_eq!(BuildingType::MessHall.salvage_cost(), 12);
+        assert_eq!(BuildingType::Workshop.salvage_cost(), 10);
+        assert_eq!(BuildingType::Storage.salvage_cost(), 6);
+        assert_eq!(BuildingType::ExplorationGate.salvage_cost(), 14);
     }
 
     #[test]

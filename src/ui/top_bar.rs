@@ -2,6 +2,7 @@
 
 use super::Layout;
 use crate::data::game_state::TimeSpeed;
+use crate::data::resources::ResourceState;
 use crate::systems::time_system::TimeSystem;
 use macroquad::prelude::*;
 use macroquad_toolkit::colors::dark;
@@ -15,6 +16,7 @@ pub fn draw_top_bar(
     current_speed: TimeSpeed,
     colonist_count: usize,
     average_mood: f32,
+    resources: &ResourceState,
 ) -> Option<TimeSpeed> {
     let rect = layout.top_bar();
 
@@ -91,10 +93,17 @@ pub fn draw_top_bar(
     }
 
     draw_text(
-        &format!("Colonists: {}  Mood: {:.0}", colonist_count, average_mood),
-        rect.w - 260.0,
+        &format!(
+            "C:{} Mood:{:.0} Supplies:{} Salvage:{} {}",
+            colonist_count,
+            average_mood,
+            resources.supplies,
+            resources.salvage,
+            resources.condition.label()
+        ),
+        rect.w - 430.0,
         32.0,
-        18.0,
+        16.0,
         LIGHTGRAY,
     );
 

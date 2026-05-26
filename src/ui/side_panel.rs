@@ -3,6 +3,7 @@
 use super::Layout;
 use crate::data::building::BuildingType;
 use crate::data::event_log::{ColonyLogEntry, LogCategory};
+use crate::data::resources::ResourceState;
 use macroquad::prelude::*;
 use macroquad_toolkit::colors::dark;
 use macroquad_toolkit::ui::{draw_surface, SurfaceStyle};
@@ -19,6 +20,9 @@ pub fn draw_side_panel(
     current_selection: Option<BuildingType>,
     building_count: usize,
     colonist_count: usize,
+    resources: &ResourceState,
+    storage_capacity: i32,
+    daily_supply_need: i32,
     logs: &[ColonyLogEntry],
 ) -> SidePanelResult {
     let rect = layout.side_panel();
@@ -93,7 +97,20 @@ pub fn draw_side_panel(
 
         // Label
         let label = format!("{} [{}] {}", icon, key, building_type.name());
-        draw_text(&label, btn_x + 32.0, btn_y + 22.0, 16.0, WHITE);
+        let can_afford = resources.salvage >= building_type.salvage_cost();
+        let label_color = if can_afford { WHITE } else { GRAY };
+        draw_text(&label, btn_x + 32.0, btn_y + 22.0, 14.0, label_color);
+
+        let cost_label = format!("{}", building_type.salvage_cost());
+        let cost_width = measure_text(&cost_label, None, 14, 1.0).width;
+        let cost_color = if can_afford { LIGHTGRAY } else { RED };
+        draw_text(
+            &cost_label,
+            btn_x + btn_w - cost_width - 8.0,
+            btn_y + 22.0,
+            14.0,
+            cost_color,
+        );
 
         // Click detection
         if is_hovered && is_mouse_button_pressed(MouseButton::Left) {
@@ -158,8 +175,36 @@ pub fn draw_side_panel(
         16.0,
         LIGHTGRAY,
     );
+    draw_text(
+        &format!("Supplies: {}/{}", resources.supplies, storage_capacity),
+        rect.x + 15.0,
+        stats_y + 75.0,
+        16.0,
+        LIGHTGRAY,
+    );
+    draw_text(
+        &format!("Salvage: {}", resources.salvage),
+        rect.x + 15.0,
+        stats_y + 95.0,
+        16.0,
+        LIGHTGRAY,
+    );
+    draw_text(
+        &format!("Daily need: {}", daily_supply_need),
+        rect.x + 15.0,
+        stats_y + 115.0,
+        16.0,
+        LIGHTGRAY,
+    );
+    draw_text(
+        &format!("Status: {}", resources.condition.label()),
+        rect.x + 15.0,
+        stats_y + 135.0,
+        16.0,
+        condition_color(resources.condition.label()),
+    );
 
-    let log_y = stats_y + 90.0;
+    let log_y = stats_y + 165.0;
     draw_text("Colony Log", rect.x + 15.0, log_y, 18.0, WHITE);
     draw_line(
         rect.x + 10.0,
@@ -170,7 +215,7 @@ pub fn draw_side_panel(
         GRAY,
     );
 
-    let visible_logs = logs.iter().rev().take(5).collect::<Vec<_>>();
+    let visible_logs = logs.iter().rev().take(3).collect::<Vec<_>>();
     if visible_logs.is_empty() {
         draw_text(
             "No notable events yet",
@@ -226,8 +271,19 @@ fn category_prefix(category: LogCategory) -> &'static str {
         LogCategory::Social => "S",
         LogCategory::Work => "W",
         LogCategory::Mood => "M",
+        LogCategory::Resource => "R",
         LogCategory::Colony => "C",
         LogCategory::System => "I",
+    }
+}
+
+fn condition_color(label: &str) -> Color {
+    match label {
+        "Stable" => GREEN,
+        "Strained" => YELLOW,
+        "Critical" => ORANGE,
+        "Collapsed" => RED,
+        _ => LIGHTGRAY,
     }
 }
 

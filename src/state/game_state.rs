@@ -8,6 +8,7 @@ use crate::data::types::Position;
 use crate::game::building_system::PlacementResult;
 use crate::state::{State, StateTransition};
 use crate::systems::proximity_system::ProximitySystem;
+use crate::systems::resource_system::ResourceSystem;
 use crate::systems::social_system::SocialSystem;
 use crate::systems::summary_system::SummarySystem;
 use crate::systems::time_events::TimeEventCollector;
@@ -42,7 +43,10 @@ impl GameplayState {
         data.push_log(
             LogCategory::System,
             "Crash survivors assembled",
-            "Place shelters, work spaces, and shared recovery areas before pressure builds.",
+            format!(
+                "Starting stockpile: {} supplies, {} salvage.",
+                data.resources.supplies, data.resources.salvage
+            ),
         );
 
         Self {
@@ -83,20 +87,7 @@ impl GameplayState {
 
         // Z for undo
         if is_key_pressed(KeyCode::Z) {
-            if let Some(building_id) = self
-                .data
-                .building_system
-                .undo_last_placement(&mut self.data.grid)
-            {
-                self.data.push_log(
-                    LogCategory::System,
-                    "Building plan undone",
-                    format!(
-                        "Removed building #{} from the settlement plan.",
-                        building_id
-                    ),
-                );
-            }
+            self.undo_last_building();
         }
     }
 
@@ -105,6 +96,52 @@ impl GameplayState {
             self.selected_building = None;
         } else {
             self.selected_building = Some(building_type);
+        }
+    }
+
+    fn undo_last_building(&mut self) {
+        let refund = self
+            .data
+            .building_system
+            .last_placed_building()
+            .map(|building| {
+                (
+                    building.id,
+                    building.building_type,
+                    building.building_type.salvage_cost(),
+                )
+            });
+
+        if let Some(building_id) = self
+            .data
+            .building_system
+            .undo_last_placement(&mut self.data.grid)
+        {
+            if let Some((refund_id, building_type, salvage_cost)) = refund {
+                if refund_id == building_id {
+                    self.data.resources.refund_salvage(salvage_cost);
+                    self.data.push_log(
+                        LogCategory::System,
+                        "Building plan undone",
+                        format!(
+                            "Removed {} #{} and refunded {} salvage.",
+                            building_type.name(),
+                            building_id,
+                            salvage_cost
+                        ),
+                    );
+                    return;
+                }
+            }
+
+            self.data.push_log(
+                LogCategory::System,
+                "Building plan undone",
+                format!(
+                    "Removed building #{} from the settlement plan.",
+                    building_id
+                ),
+            );
         }
     }
 
@@ -123,6 +160,19 @@ impl GameplayState {
 
         if let (Some(building_type), Some(pos)) = (self.selected_building, self.hovered_cell) {
             if is_mouse_button_pressed(MouseButton::Left) {
+                if !ResourceSystem::can_afford_building(&self.data, building_type) {
+                    self.data.push_log(
+                        LogCategory::Resource,
+                        format!("Not enough salvage for {}", building_type.name()),
+                        format!(
+                            "{} salvage needed, {} available.",
+                            building_type.salvage_cost(),
+                            self.data.resources.salvage
+                        ),
+                    );
+                    return;
+                }
+
                 let result = self.data.building_system.try_place_building(
                     &mut self.data.grid,
                     building_type,
@@ -130,12 +180,17 @@ impl GameplayState {
                 );
 
                 if let PlacementResult::Success(building_id) = result {
+                    self.data
+                        .resources
+                        .spend_salvage(building_type.salvage_cost());
                     self.data.push_log(
                         LogCategory::System,
                         format!("{} placed", building_type.name()),
                         format!(
-                            "Building #{} now shapes nearby work, rest, or social routines.",
-                            building_id
+                            "Building #{} cost {} salvage. {} salvage remain.",
+                            building_id,
+                            building_type.salvage_cost(),
+                            self.data.resources.salvage
                         ),
                     );
                 }
@@ -210,20 +265,7 @@ impl GameplayState {
             let undo_y =
                 btn_start_y + BuildingType::all().len() as f32 * (btn_height + btn_padding) + 10.0;
             if mouse_y >= undo_y && mouse_y <= undo_y + 28.0 {
-                if let Some(building_id) = self
-                    .data
-                    .building_system
-                    .undo_last_placement(&mut self.data.grid)
-                {
-                    self.data.push_log(
-                        LogCategory::System,
-                        "Building plan undone",
-                        format!(
-                            "Removed building #{} from the settlement plan.",
-                            building_id
-                        ),
-                    );
-                }
+                self.undo_last_building();
             }
         }
     }
@@ -265,6 +307,7 @@ impl GameplayState {
                 crate::systems::time_events::TimeEvent::NewDay { day } => {
                     ProximitySystem::check_sleeping_proximity(&mut self.data);
                     SummarySystem::summarize_previous_day(&mut self.data, day);
+                    ResourceSystem::handle_new_day(&mut self.data);
                 }
                 crate::systems::time_events::TimeEvent::DawnBreak => {
                     self.data.push_log(
@@ -340,7 +383,8 @@ impl GameplayState {
             let can_place =
                 self.data
                     .building_system
-                    .can_place_building(&self.data.grid, building_type, pos);
+                    .can_place_building(&self.data.grid, building_type, pos)
+                    && ResourceSystem::can_afford_building(&self.data, building_type);
 
             // Green if valid, red if invalid
             let color = if can_place {
@@ -365,6 +409,14 @@ impl GameplayState {
                 width as f32 * CELL_SIZE,
                 height as f32 * CELL_SIZE,
                 2.0,
+                outline_color,
+            );
+
+            draw_text(
+                &format!("{} salvage", building_type.salvage_cost()),
+                wx,
+                wy + wy_offset - 4.0,
+                14.0,
                 outline_color,
             );
         }
@@ -508,6 +560,7 @@ impl State for GameplayState {
             self.data.time.speed,
             self.data.colonists.len(),
             self.average_mood(),
+            &self.data.resources,
         );
 
         let _panel_result = draw_side_panel(
@@ -515,6 +568,9 @@ impl State for GameplayState {
             self.selected_building,
             self.data.building_system.building_count(),
             self.data.colonists.len(),
+            &self.data.resources,
+            ResourceSystem::storage_capacity(&self.data),
+            ResourceSystem::daily_supply_need(&self.data),
             &self.data.event_log,
         );
 
@@ -525,6 +581,9 @@ impl State for GameplayState {
                 &self.data.colonists,
                 self.hovered_cell,
                 self.data.building_system.building_count(),
+                &self.data.resources,
+                ResourceSystem::storage_capacity(&self.data),
+                ResourceSystem::daily_supply_need(&self.data),
             );
         }
     }

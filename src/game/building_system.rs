@@ -125,6 +125,12 @@ impl BuildingSystem {
         self.buildings.iter().find(|b| b.id == building_id)
     }
 
+    pub fn last_placed_building(&self) -> Option<&Building> {
+        self.undo_stack
+            .last()
+            .and_then(|building_id| self.get_building(*building_id))
+    }
+
     /// Get the building at a specific grid position
     pub fn get_building_at(&self, pos: Position) -> Option<&Building> {
         self.buildings.iter().find(|b| b.occupies(pos))
@@ -230,6 +236,10 @@ mod tests {
 
         system.try_place_building(&mut grid, BuildingType::Habitat, Position::new(5, 5));
         assert_eq!(system.building_count(), 1);
+        assert_eq!(
+            system.last_placed_building().map(|b| b.building_type),
+            Some(BuildingType::Habitat)
+        );
 
         let undone_id = system.undo_last_placement(&mut grid);
         assert_eq!(undone_id, Some(1));

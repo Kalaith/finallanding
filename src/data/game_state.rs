@@ -1,5 +1,6 @@
 use super::grid::Grid;
 use crate::data::event_log::{ColonyLogEntry, LogCategory};
+use crate::data::resources::ResourceState;
 use crate::game::building_system::BuildingSystem;
 use crate::systems::time_system::TimeSystem;
 use serde::{Deserialize, Serialize};
@@ -38,6 +39,7 @@ pub struct GameState {
 
     pub colonists: Vec<crate::data::colonist::Colonist>,
     pub event_log: Vec<ColonyLogEntry>,
+    pub resources: ResourceState,
 
     /// Building placement system
     #[serde(skip)]
@@ -53,6 +55,7 @@ impl GameState {
 
             colonists: Vec::new(),
             event_log: Vec::new(),
+            resources: ResourceState::default(),
             building_system: BuildingSystem::new(),
         }
     }
