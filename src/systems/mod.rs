@@ -1,3 +1,4 @@
+pub mod advisor_system;
 pub mod job_decision_system;
 pub mod mission_system;
 pub mod mood_system;

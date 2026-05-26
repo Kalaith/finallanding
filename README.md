@@ -29,6 +29,7 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 ## Current Scope
 
 Playable colony-planning loop with building placement, priorities, time control, and settlement management.
+The in-game advisor surfaces the next survival, tech, resource, or relationship pressure to keep the 30-40 minute run readable without debug mode.
 
 ## Verification
 

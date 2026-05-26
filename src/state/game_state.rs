@@ -8,6 +8,7 @@ use crate::data::priority::ColonyPriority;
 use crate::data::types::Position;
 use crate::game::building_system::PlacementResult;
 use crate::state::{State, StateTransition};
+use crate::systems::advisor_system::AdvisorSystem;
 use crate::systems::mission_system::MissionSystem;
 use crate::systems::proximity_system::ProximitySystem;
 use crate::systems::resource_system::ResourceSystem;
@@ -17,7 +18,7 @@ use crate::systems::summary_system::SummarySystem;
 use crate::systems::time_events::TimeEventCollector;
 use crate::systems::time_system::TimeSystem;
 use crate::systems::work_system::WorkSystem;
-use crate::ui::{draw_debug_overlay, draw_side_panel, draw_top_bar, Layout};
+use crate::ui::{draw_advisor_overlay, draw_debug_overlay, draw_side_panel, draw_top_bar, Layout};
 use macroquad::prelude::*;
 
 const SECONDS_PER_GAME_TICK: f32 = 0.25;
@@ -657,6 +658,8 @@ impl State for GameplayState {
         self.draw_buildings();
         self.draw_ghost_preview();
         self.draw_colonists_with_offset();
+        let advisor_plan = AdvisorSystem::plan(&self.data);
+        draw_advisor_overlay(&self.layout, &advisor_plan);
 
         // Draw UI components (on top)
         let _ = draw_top_bar(
