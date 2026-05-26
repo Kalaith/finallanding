@@ -2,6 +2,7 @@ use super::grid::Grid;
 use crate::data::event_log::{ColonyLogEntry, LogCategory};
 use crate::data::mission::MissionState;
 use crate::data::resources::ResourceState;
+use crate::data::scenario::ScenarioState;
 use crate::data::technology::TechnologyState;
 use crate::game::building_system::BuildingSystem;
 use crate::systems::time_system::TimeSystem;
@@ -44,6 +45,7 @@ pub struct GameState {
     pub resources: ResourceState,
     pub missions: MissionState,
     pub technology: TechnologyState,
+    pub scenario: ScenarioState,
 
     /// Building placement system
     #[serde(skip)]
@@ -62,6 +64,7 @@ impl GameState {
             resources: ResourceState::default(),
             missions: MissionState::default(),
             technology: TechnologyState::default(),
+            scenario: ScenarioState::default(),
             building_system: BuildingSystem::new(),
         }
     }

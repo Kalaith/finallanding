@@ -4,6 +4,7 @@ use super::Layout;
 use crate::data::building::BuildingType;
 use crate::data::event_log::{ColonyLogEntry, LogCategory};
 use crate::data::resources::ResourceState;
+use crate::data::scenario::ScenarioOutcome;
 use crate::data::technology::{TechId, TechnologyState};
 use macroquad::prelude::*;
 use macroquad_toolkit::colors::dark;
@@ -24,6 +25,8 @@ pub fn draw_side_panel(
     resources: &ResourceState,
     storage_capacity: i32,
     daily_supply_need: i32,
+    objective: &str,
+    outcome: ScenarioOutcome,
     active_mission_count: usize,
     mission_duration_minutes: u64,
     mission_danger_percent: u32,
@@ -186,8 +189,26 @@ pub fn draw_side_panel(
         GRAY,
     );
 
+    // Objective section
+    let objective_y = mission_btn_y + 68.0;
+    draw_text("Objective", rect.x + 15.0, objective_y, 18.0, WHITE);
+    draw_text(
+        &truncate_text(objective, 32),
+        rect.x + 15.0,
+        objective_y + 22.0,
+        12.0,
+        LIGHTGRAY,
+    );
+    draw_text(
+        &format!("Run: {}", outcome.label()),
+        rect.x + 15.0,
+        objective_y + 40.0,
+        12.0,
+        scenario_color(outcome),
+    );
+
     // Stats section
-    let stats_y = mission_btn_y + 68.0;
+    let stats_y = objective_y + 60.0;
     draw_text("📊 Stats", rect.x + 15.0, stats_y, 18.0, WHITE);
     draw_line(
         rect.x + 10.0,
@@ -352,6 +373,14 @@ fn condition_color(label: &str) -> Color {
         "Critical" => ORANGE,
         "Collapsed" => RED,
         _ => LIGHTGRAY,
+    }
+}
+
+fn scenario_color(outcome: ScenarioOutcome) -> Color {
+    match outcome {
+        ScenarioOutcome::InProgress => LIGHTGRAY,
+        ScenarioOutcome::Victory => GREEN,
+        ScenarioOutcome::Failure => RED,
     }
 }
 

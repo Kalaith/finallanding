@@ -10,6 +10,7 @@ use crate::state::{State, StateTransition};
 use crate::systems::mission_system::MissionSystem;
 use crate::systems::proximity_system::ProximitySystem;
 use crate::systems::resource_system::ResourceSystem;
+use crate::systems::scenario_system::ScenarioSystem;
 use crate::systems::social_system::SocialSystem;
 use crate::systems::summary_system::SummarySystem;
 use crate::systems::time_events::TimeEventCollector;
@@ -46,8 +47,11 @@ impl GameplayState {
             LogCategory::System,
             "Crash survivors assembled",
             format!(
-                "Starting stockpile: {} supplies, {} salvage.",
-                data.resources.supplies, data.resources.salvage
+                "Starting stockpile: {} supplies, {} salvage. Objective: survive to Day {} and unlock {} technologies.",
+                data.resources.supplies,
+                data.resources.salvage,
+                data.scenario.target_day,
+                data.scenario.required_tech_unlocks
             ),
         );
 
@@ -368,6 +372,39 @@ impl GameplayState {
         self.data.colonists.iter().map(|c| c.mood).sum::<f32>() / self.data.colonists.len() as f32
     }
 
+    fn draw_scenario_overlay(&self) {
+        if !self.data.scenario.is_finished() {
+            return;
+        }
+
+        let w = 520.0;
+        let h = 150.0;
+        let x = (screen_width() - w) * 0.5;
+        let y = (screen_height() - h) * 0.5;
+
+        draw_rectangle(
+            0.0,
+            0.0,
+            screen_width(),
+            screen_height(),
+            Color::new(0.0, 0.0, 0.0, 0.55),
+        );
+        draw_rectangle(x, y, w, h, Color::new(0.08, 0.08, 0.1, 0.95));
+        draw_rectangle_lines(x, y, w, h, 2.0, WHITE);
+
+        let title = self.data.scenario.outcome.label();
+        let title_width = measure_text(title, None, 28, 1.0).width;
+        draw_text(title, x + (w - title_width) * 0.5, y + 42.0, 28.0, WHITE);
+
+        let line = ScenarioSystem::objective_line(&self.data);
+        let line_width = measure_text(&line, None, 16, 1.0).width;
+        draw_text(&line, x + (w - line_width) * 0.5, y + 82.0, 16.0, LIGHTGRAY);
+
+        let prompt = "Scenario complete. Review the log or restart from the main menu.";
+        let prompt_width = measure_text(prompt, None, 14, 1.0).width;
+        draw_text(prompt, x + (w - prompt_width) * 0.5, y + 118.0, 14.0, GRAY);
+    }
+
     /// Draw buildings on the grid
     fn draw_buildings(&self) {
         for building in self.data.building_system.buildings() {
@@ -561,6 +598,7 @@ impl State for GameplayState {
             MissionSystem::recover_injured_colonists(&mut self.data);
             self.process_time_events();
             crate::game::colonist_ai::update_colonists(&mut self.data, elapsed_ticks);
+            ScenarioSystem::evaluate(&mut self.data);
         } else {
             crate::game::colonist_ai::update_colonists(&mut self.data, 0);
         }
@@ -607,6 +645,8 @@ impl State for GameplayState {
             &self.data.resources,
             ResourceSystem::storage_capacity(&self.data),
             ResourceSystem::daily_supply_need(&self.data),
+            &ScenarioSystem::objective_line(&self.data),
+            self.data.scenario.outcome,
             self.data.missions.active_count(),
             crate::data::mission::MissionType::PerimeterScan
                 .definition()
@@ -629,9 +669,13 @@ impl State for GameplayState {
                 &self.data.resources,
                 ResourceSystem::storage_capacity(&self.data),
                 ResourceSystem::daily_supply_need(&self.data),
+                &ScenarioSystem::objective_line(&self.data),
+                self.data.scenario.outcome,
                 self.data.missions.active_count(),
                 &self.data.technology,
             );
         }
+
+        self.draw_scenario_overlay();
     }
 }

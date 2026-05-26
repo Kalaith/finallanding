@@ -2,6 +2,7 @@
 
 use crate::data::colonist::{relationship_label, ActivityLocation, Colonist, ColonistState};
 use crate::data::resources::ResourceState;
+use crate::data::scenario::ScenarioOutcome;
 use crate::data::technology::{TechId, TechnologyState};
 use crate::data::types::Position;
 use macroquad::prelude::*;
@@ -15,6 +16,8 @@ pub fn draw_debug_overlay(
     resources: &ResourceState,
     storage_capacity: i32,
     daily_supply_need: i32,
+    objective: &str,
+    outcome: ScenarioOutcome,
     active_mission_count: usize,
     technology: &TechnologyState,
 ) {
@@ -27,10 +30,10 @@ pub fn draw_debug_overlay(
         x - 5.0,
         y - 15.0,
         430.0,
-        410.0,
+        430.0,
         Color::new(0.0, 0.0, 0.0, 0.7),
     );
-    draw_rectangle_lines(x - 5.0, y - 15.0, 430.0, 410.0, 1.0, YELLOW);
+    draw_rectangle_lines(x - 5.0, y - 15.0, 430.0, 430.0, 1.0, YELLOW);
 
     // FPS
     let fps = get_fps();
@@ -69,19 +72,21 @@ pub fn draw_debug_overlay(
     );
     draw_text(
         &format!(
-            "Resources: supplies {}/{} salvage {} meals {} need/day {} status {}",
+            "Resources: supplies {}/{} salvage {} meals {} need/day {} status {} | {}",
             resources.supplies,
             storage_capacity,
             resources.salvage,
             resources.prepared_meals,
             daily_supply_need,
-            resources.condition.label()
+            resources.condition.label(),
+            outcome.label()
         ),
         x,
         y + line_height * 4.0,
         13.0,
         LIGHTGRAY,
     );
+    draw_text(objective, x, y + line_height * 6.4, 12.0, LIGHTGRAY);
     draw_text(
         &format!(
             "Missions away {} | Tech {}/{} | Next {}",
@@ -131,11 +136,11 @@ pub fn draw_debug_overlay(
         }
     }
 
-    draw_text("Colonist States:", x, y + line_height * 7.0, 14.0, WHITE);
+    draw_text("Colonist States:", x, y + line_height * 7.8, 14.0, WHITE);
     draw_text(
         &format!("  Idle: {}  Moving: {}", idle, moving),
         x,
-        y + line_height * 8.0,
+        y + line_height * 8.8,
         14.0,
         LIGHTGRAY,
     );
@@ -145,15 +150,15 @@ pub fn draw_debug_overlay(
             working, eating, sleeping, on_mission
         ),
         x,
-        y + line_height * 9.0,
+        y + line_height * 9.8,
         14.0,
         LIGHTGRAY,
     );
 
-    draw_text("Colonists:", x, y + line_height * 10.5, 14.0, WHITE);
+    draw_text("Colonists:", x, y + line_height * 11.3, 14.0, WHITE);
 
     for (i, colonist) in colonists.iter().take(6).enumerate() {
-        let row_y = y + line_height * 11.5 + i as f32 * 30.0;
+        let row_y = y + line_height * 12.3 + i as f32 * 30.0;
         let location = activity_location_label(&colonist.activity_location);
         let health = colonist
             .recovery_minutes_remaining(tick)
@@ -186,7 +191,7 @@ pub fn draw_debug_overlay(
         }
     }
 
-    draw_text("[F3] to hide debug", x, y + 385.0, 12.0, GRAY);
+    draw_text("[F3] to hide debug", x, y + 405.0, 12.0, GRAY);
 }
 
 fn activity_location_label(location: &ActivityLocation) -> String {
