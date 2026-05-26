@@ -7,6 +7,8 @@ pub enum LogCategory {
     Work,
     Mood,
     Resource,
+    Mission,
+    Technology,
     Colony,
     System,
 }

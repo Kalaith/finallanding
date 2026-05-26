@@ -21,6 +21,9 @@ pub fn update_mood(colonist: &mut Colonist, elapsed_ticks: u64) {
         ColonistState::Sleeping => {
             colonist.mood += 0.1 * minutes; // Recovery
         }
+        ColonistState::OnMission { .. } => {
+            colonist.mood -= 0.03 * minutes;
+        }
         _ => {}
     }
 

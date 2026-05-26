@@ -33,11 +33,19 @@ pub fn update_colonists(state: &mut GameState, elapsed_ticks: u64) {
 
     let (_, hour, _) = TimeSystem::get_time_of_day(state.tick);
 
-    let occupied: HashMap<Position, u32> =
-        state.colonists.iter().map(|c| (c.position, c.id)).collect();
+    let occupied: HashMap<Position, u32> = state
+        .colonists
+        .iter()
+        .filter(|c| !c.is_on_mission())
+        .map(|c| (c.position, c.id))
+        .collect();
 
     let mut building_occupancy: HashMap<u32, u32> = HashMap::new();
     for c in &state.colonists {
+        if c.is_on_mission() {
+            continue;
+        }
+
         if let Some(bid) = c.assigned_habitat {
             *building_occupancy.entry(bid).or_default() += 1;
         }
@@ -49,6 +57,7 @@ pub fn update_colonists(state: &mut GameState, elapsed_ticks: u64) {
         .iter()
         .map(|b| (b.id, b.building_type, b.position, b.size()))
         .collect();
+    let habitat_capacity = 2 + state.technology.habitat_capacity_bonus();
 
     let mut pending_logs: Vec<PendingLog> = Vec::new();
 
@@ -61,6 +70,7 @@ pub fn update_colonists(state: &mut GameState, elapsed_ticks: u64) {
             &occupied,
             &buildings,
             &mut building_occupancy,
+            habitat_capacity,
             state.tick,
             &mut pending_logs,
         );
@@ -80,10 +90,15 @@ fn update_colonist_ai(
     occupied: &HashMap<Position, u32>,
     buildings: &[(u32, BuildingType, Position, (u32, u32))],
     building_occupancy: &mut HashMap<u32, u32>,
+    habitat_capacity: u32,
     current_tick: u64,
     pending_logs: &mut Vec<PendingLog>,
 ) {
     match colonist.state {
+        ColonistState::OnMission { .. } => {
+            colonist.activity_location = ActivityLocation::None;
+            colonist.current_activity = ActivityType::Work;
+        }
         ColonistState::Idle => {
             colonist.current_activity = scheduled_activity.clone();
 
@@ -92,6 +107,7 @@ fn update_colonist_ai(
                     colonist,
                     buildings,
                     building_occupancy,
+                    habitat_capacity,
                     pending_logs,
                     current_tick,
                 ),
@@ -201,6 +217,7 @@ fn find_or_assign_habitat(
     colonist: &mut Colonist,
     buildings: &[(u32, BuildingType, Position, (u32, u32))],
     building_occupancy: &mut HashMap<u32, u32>,
+    habitat_capacity: u32,
     pending_logs: &mut Vec<PendingLog>,
     current_tick: u64,
 ) -> Option<BuildingType> {
@@ -215,7 +232,7 @@ fn find_or_assign_habitat(
     for (id, b_type, _, _) in buildings {
         if *b_type == BuildingType::Habitat {
             let count = building_occupancy.get(id).unwrap_or(&0);
-            if *count < 2 {
+            if *count < habitat_capacity {
                 colonist.assigned_habitat = Some(*id);
                 *building_occupancy.entry(*id).or_default() += 1;
                 return Some(BuildingType::Habitat);

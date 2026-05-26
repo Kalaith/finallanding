@@ -4,6 +4,7 @@ use super::Layout;
 use crate::data::building::BuildingType;
 use crate::data::event_log::{ColonyLogEntry, LogCategory};
 use crate::data::resources::ResourceState;
+use crate::data::technology::{TechId, TechnologyState};
 use macroquad::prelude::*;
 use macroquad_toolkit::colors::dark;
 use macroquad_toolkit::ui::{draw_surface, SurfaceStyle};
@@ -23,6 +24,10 @@ pub fn draw_side_panel(
     resources: &ResourceState,
     storage_capacity: i32,
     daily_supply_need: i32,
+    active_mission_count: usize,
+    mission_duration_minutes: u64,
+    mission_danger_percent: u32,
+    technology: &TechnologyState,
     logs: &[ColonyLogEntry],
 ) -> SidePanelResult {
     let rect = layout.side_panel();
@@ -149,8 +154,40 @@ pub fn draw_side_panel(
         result.undo_requested = true;
     }
 
+    let mission_y = undo_y + 42.0;
+    draw_text("Missions", rect.x + 15.0, mission_y, 18.0, WHITE);
+    let mission_btn_y = mission_y + 12.0;
+    let mission_hovered =
+        mx >= undo_x && mx <= undo_x + undo_w && my >= mission_btn_y && my <= mission_btn_y + 28.0;
+    let mission_bg = if mission_hovered {
+        Color::new(0.25, 0.3, 0.4, 1.0)
+    } else {
+        dark::PANEL_HEADER
+    };
+    draw_surface(
+        Rect::new(undo_x, mission_btn_y, undo_w, 28.0),
+        &SurfaceStyle::new(mission_bg),
+    );
+    draw_text(
+        &format!(
+            "[M] 1m Scan  Risk {}%  Away {}",
+            mission_danger_percent, active_mission_count
+        ),
+        undo_x + 8.0,
+        mission_btn_y + 19.0,
+        13.0,
+        LIGHTGRAY,
+    );
+    draw_text(
+        &format!("Duration: {} minute", mission_duration_minutes),
+        rect.x + 15.0,
+        mission_btn_y + 44.0,
+        11.0,
+        GRAY,
+    );
+
     // Stats section
-    let stats_y = undo_y + 50.0;
+    let stats_y = mission_btn_y + 68.0;
     draw_text("📊 Stats", rect.x + 15.0, stats_y, 18.0, WHITE);
     draw_line(
         rect.x + 10.0,
@@ -210,8 +247,26 @@ pub fn draw_side_panel(
         16.0,
         condition_color(resources.condition.label()),
     );
+    draw_text(
+        &format!(
+            "Tech: {}/{}",
+            technology.unlocked_count(),
+            TechId::all().len()
+        ),
+        rect.x + 15.0,
+        stats_y + 175.0,
+        16.0,
+        LIGHTGRAY,
+    );
+    draw_text(
+        &format!("Next: {}", next_tech_label(technology.next_locked_tech())),
+        rect.x + 15.0,
+        stats_y + 195.0,
+        13.0,
+        GRAY,
+    );
 
-    let log_y = stats_y + 185.0;
+    let log_y = stats_y + 220.0;
     draw_text("Colony Log", rect.x + 15.0, log_y, 18.0, WHITE);
     draw_line(
         rect.x + 10.0,
@@ -222,7 +277,7 @@ pub fn draw_side_panel(
         GRAY,
     );
 
-    let visible_logs = logs.iter().rev().take(3).collect::<Vec<_>>();
+    let visible_logs = logs.iter().rev().take(2).collect::<Vec<_>>();
     if visible_logs.is_empty() {
         draw_text(
             "No notable events yet",
@@ -279,9 +334,15 @@ fn category_prefix(category: LogCategory) -> &'static str {
         LogCategory::Work => "W",
         LogCategory::Mood => "M",
         LogCategory::Resource => "R",
+        LogCategory::Mission => "E",
+        LogCategory::Technology => "K",
         LogCategory::Colony => "C",
         LogCategory::System => "I",
     }
+}
+
+fn next_tech_label(tech_id: Option<TechId>) -> &'static str {
+    tech_id.map(|tech| tech.name()).unwrap_or("Complete")
 }
 
 fn condition_color(label: &str) -> Color {

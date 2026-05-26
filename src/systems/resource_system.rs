@@ -7,7 +7,10 @@ pub struct ResourceSystem;
 
 impl ResourceSystem {
     pub fn daily_supply_need(state: &GameState) -> i32 {
-        (state.colonists.len() as i32 - state.resources.prepared_meals).max(0)
+        (state.colonists.len() as i32
+            - state.resources.prepared_meals
+            - state.technology.daily_supply_reduction())
+        .max(0)
     }
 
     pub fn base_daily_supply_need(state: &GameState) -> i32 {
@@ -22,7 +25,9 @@ impl ResourceSystem {
             .filter(|building| building.building_type == BuildingType::Storage)
             .count() as i32;
 
-        BASE_STORAGE_CAPACITY + storage_count * STORAGE_CAPACITY_BONUS
+        BASE_STORAGE_CAPACITY
+            + storage_count * STORAGE_CAPACITY_BONUS
+            + state.technology.storage_capacity_bonus()
     }
 
     pub fn can_afford_building(state: &GameState, building_type: BuildingType) -> bool {
@@ -157,6 +162,23 @@ mod tests {
     fn test_prepared_meals_reduce_daily_need() {
         let mut state = GameState::new();
         state.resources.prepared_meals = 1;
+        state.colonists.push(Colonist::new(
+            1,
+            "Test".to_string(),
+            Position::new(0, 0),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        ));
+
+        assert_eq!(ResourceSystem::daily_supply_need(&state), 0);
+    }
+
+    #[test]
+    fn test_hydroponic_technology_reduces_daily_need() {
+        let mut state = GameState::new();
+        state
+            .technology
+            .add_item(crate::data::mission::MissionItem::NutrientPods);
         state.colonists.push(Colonist::new(
             1,
             "Test".to_string(),

@@ -2,6 +2,7 @@
 
 use crate::data::colonist::{relationship_label, ActivityLocation, Colonist, ColonistState};
 use crate::data::resources::ResourceState;
+use crate::data::technology::{TechId, TechnologyState};
 use crate::data::types::Position;
 use macroquad::prelude::*;
 
@@ -14,6 +15,8 @@ pub fn draw_debug_overlay(
     resources: &ResourceState,
     storage_capacity: i32,
     daily_supply_need: i32,
+    active_mission_count: usize,
+    technology: &TechnologyState,
 ) {
     let x = 10.0;
     let y = 60.0; // Below top bar
@@ -24,10 +27,10 @@ pub fn draw_debug_overlay(
         x - 5.0,
         y - 15.0,
         430.0,
-        380.0,
+        410.0,
         Color::new(0.0, 0.0, 0.0, 0.7),
     );
-    draw_rectangle_lines(x - 5.0, y - 15.0, 430.0, 380.0, 1.0, YELLOW);
+    draw_rectangle_lines(x - 5.0, y - 15.0, 430.0, 410.0, 1.0, YELLOW);
 
     // FPS
     let fps = get_fps();
@@ -81,6 +84,22 @@ pub fn draw_debug_overlay(
     );
     draw_text(
         &format!(
+            "Missions away {} | Tech {}/{} | Next {}",
+            active_mission_count,
+            technology.unlocked_count(),
+            TechId::all().len(),
+            technology
+                .next_locked_tech()
+                .map(|tech| tech.name())
+                .unwrap_or("Complete")
+        ),
+        x,
+        y + line_height * 5.6,
+        12.0,
+        GRAY,
+    );
+    draw_text(
+        &format!(
             "Progress: explore {}/8 workshop {}/6 kitchen {}/4 hauling {}/5",
             resources.exploration_progress,
             resources.workshop_progress,
@@ -99,6 +118,7 @@ pub fn draw_debug_overlay(
     let mut working = 0;
     let mut eating = 0;
     let mut sleeping = 0;
+    let mut on_mission = 0;
 
     for colonist in colonists {
         match colonist.state {
@@ -107,34 +127,42 @@ pub fn draw_debug_overlay(
             ColonistState::Working => working += 1,
             ColonistState::Eating => eating += 1,
             ColonistState::Sleeping => sleeping += 1,
+            ColonistState::OnMission { .. } => on_mission += 1,
         }
     }
 
-    draw_text("Colonist States:", x, y + line_height * 6.2, 14.0, WHITE);
+    draw_text("Colonist States:", x, y + line_height * 7.0, 14.0, WHITE);
     draw_text(
         &format!("  Idle: {}  Moving: {}", idle, moving),
         x,
-        y + line_height * 7.2,
+        y + line_height * 8.0,
         14.0,
         LIGHTGRAY,
     );
     draw_text(
-        &format!("  Work: {}  Eat: {}  Sleep: {}", working, eating, sleeping),
+        &format!(
+            "  Work: {}  Eat: {}  Sleep: {}  Mission: {}",
+            working, eating, sleeping, on_mission
+        ),
         x,
-        y + line_height * 8.2,
+        y + line_height * 9.0,
         14.0,
         LIGHTGRAY,
     );
 
-    draw_text("Colonists:", x, y + line_height * 9.7, 14.0, WHITE);
+    draw_text("Colonists:", x, y + line_height * 10.5, 14.0, WHITE);
 
     for (i, colonist) in colonists.iter().take(6).enumerate() {
-        let row_y = y + line_height * 10.7 + i as f32 * 30.0;
+        let row_y = y + line_height * 11.5 + i as f32 * 30.0;
         let location = activity_location_label(&colonist.activity_location);
+        let health = colonist
+            .recovery_minutes_remaining(tick)
+            .map(|remaining| format!(" hurt {}m", remaining))
+            .unwrap_or_default();
         draw_text(
             &format!(
-                "{} {:?} mood {:.0} @ {}",
-                colonist.name, colonist.current_activity, colonist.mood, location
+                "{} {:?} mood {:.0} @ {}{}",
+                colonist.name, colonist.current_activity, colonist.mood, location, health
             ),
             x,
             row_y,
@@ -158,7 +186,7 @@ pub fn draw_debug_overlay(
         }
     }
 
-    draw_text("[F3] to hide debug", x, y + 355.0, 12.0, GRAY);
+    draw_text("[F3] to hide debug", x, y + 385.0, 12.0, GRAY);
 }
 
 fn activity_location_label(location: &ActivityLocation) -> String {

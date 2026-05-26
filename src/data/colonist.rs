@@ -30,6 +30,10 @@ pub struct Colonist {
     pub mood_modifiers: Vec<MoodModifier>,
     #[serde(default)]
     pub last_refusal_tick: u64,
+    #[serde(default)]
+    pub injured_until_tick: Option<u64>,
+    #[serde(default)]
+    pub active_mission_id: Option<u32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -46,6 +50,7 @@ pub enum ColonistState {
     Working,
     Eating,
     Sleeping,
+    OnMission { mission_id: u32 },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -123,7 +128,28 @@ impl Colonist {
             mood: 50.0,
             mood_modifiers: Vec::new(),
             last_refusal_tick: 0,
+            injured_until_tick: None,
+            active_mission_id: None,
         }
+    }
+
+    pub fn is_hurt(&self, current_tick: u64) -> bool {
+        self.injured_until_tick
+            .is_some_and(|recovery_tick| recovery_tick > current_tick)
+    }
+
+    pub fn is_on_mission(&self) -> bool {
+        self.active_mission_id.is_some() || matches!(self.state, ColonistState::OnMission { .. })
+    }
+
+    pub fn can_start_mission(&self, current_tick: u64) -> bool {
+        !self.is_hurt(current_tick) && !self.is_on_mission()
+    }
+
+    pub fn recovery_minutes_remaining(&self, current_tick: u64) -> Option<u64> {
+        self.injured_until_tick
+            .map(|recovery_tick| recovery_tick.saturating_sub(current_tick))
+            .filter(|remaining| *remaining > 0)
     }
 
     /// Interpolate visual position towards grid position

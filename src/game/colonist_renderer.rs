@@ -6,6 +6,10 @@ const TILE_SIZE: f32 = 32.0;
 
 pub fn render_colonists(state: &GameState) {
     for colonist in &state.colonists {
+        if colonist.is_on_mission() {
+            continue;
+        }
+
         draw_colonist(colonist);
     }
 }
@@ -22,6 +26,7 @@ fn draw_colonist(colonist: &Colonist) {
         ColonistState::Working => ORANGE,
         ColonistState::Eating => GREEN,
         ColonistState::Sleeping => DARKBLUE,
+        ColonistState::OnMission { .. } => PURPLE,
     };
 
     // Draw body (simple circle)
@@ -42,6 +47,7 @@ fn draw_colonist(colonist: &Colonist) {
         ColonistState::Working => "Working",
         ColonistState::Eating => "Eating",
         ColonistState::Sleeping => "Zzz",
+        ColonistState::OnMission { .. } => "Mission",
     };
     draw_text(
         state_str,

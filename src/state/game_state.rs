@@ -7,6 +7,7 @@ use crate::data::grid::{Grid, CELL_SIZE};
 use crate::data::types::Position;
 use crate::game::building_system::PlacementResult;
 use crate::state::{State, StateTransition};
+use crate::systems::mission_system::MissionSystem;
 use crate::systems::proximity_system::ProximitySystem;
 use crate::systems::resource_system::ResourceSystem;
 use crate::systems::social_system::SocialSystem;
@@ -80,6 +81,9 @@ impl GameplayState {
         if is_key_pressed(KeyCode::T) {
             self.toggle_building(BuildingType::ExplorationGate);
         }
+        if is_key_pressed(KeyCode::M) {
+            self.launch_perimeter_scan();
+        }
 
         // Escape to cancel building mode
         if is_key_pressed(KeyCode::Escape) {
@@ -143,6 +147,23 @@ impl GameplayState {
                     building_id
                 ),
             );
+        }
+    }
+
+    fn launch_perimeter_scan(&mut self) {
+        if let Err(error) = MissionSystem::launch_perimeter_scan(&mut self.data) {
+            let (title, detail) = match error {
+                crate::systems::mission_system::LaunchMissionError::NoExplorationGate => (
+                    "No Exploration Gate",
+                    "Build an Exploration Gate before sending missions.",
+                ),
+                crate::systems::mission_system::LaunchMissionError::NoAvailableColonist => (
+                    "No available mission crew",
+                    "Colonists who are already away or hurt cannot be sent.",
+                ),
+            };
+
+            self.data.push_log(LogCategory::Mission, title, detail);
         }
     }
 
@@ -267,6 +288,12 @@ impl GameplayState {
                 btn_start_y + BuildingType::all().len() as f32 * (btn_height + btn_padding) + 10.0;
             if mouse_y >= undo_y && mouse_y <= undo_y + 28.0 {
                 self.undo_last_building();
+                return;
+            }
+
+            let mission_y = undo_y + 54.0;
+            if mouse_y >= mission_y && mouse_y <= mission_y + 28.0 {
+                self.launch_perimeter_scan();
             }
         }
     }
@@ -466,6 +493,10 @@ impl GameplayState {
         let offset_y = self.layout.top_bar_height;
 
         for colonist in &self.data.colonists {
+            if colonist.is_on_mission() {
+                continue;
+            }
+
             let x = colonist.visual_x;
             let y = colonist.visual_y + offset_y;
             let size = 24.0;
@@ -477,6 +508,7 @@ impl GameplayState {
                 ColonistState::Working => ORANGE,
                 ColonistState::Eating => YELLOW,
                 ColonistState::Sleeping => Color::new(0.5, 0.5, 0.8, 1.0),
+                ColonistState::OnMission { .. } => PURPLE,
             };
 
             // Draw colonist as circle with state indicator
@@ -525,6 +557,8 @@ impl State for GameplayState {
 
         let elapsed_ticks = self.advance_time();
         if elapsed_ticks > 0 {
+            MissionSystem::process_completed_missions(&mut self.data);
+            MissionSystem::recover_injured_colonists(&mut self.data);
             self.process_time_events();
             crate::game::colonist_ai::update_colonists(&mut self.data, elapsed_ticks);
         } else {
@@ -573,6 +607,15 @@ impl State for GameplayState {
             &self.data.resources,
             ResourceSystem::storage_capacity(&self.data),
             ResourceSystem::daily_supply_need(&self.data),
+            self.data.missions.active_count(),
+            crate::data::mission::MissionType::PerimeterScan
+                .definition()
+                .duration_minutes,
+            crate::data::mission::MissionType::PerimeterScan
+                .definition()
+                .danger_percent
+                .saturating_sub(self.data.technology.mission_danger_reduction()),
+            &self.data.technology,
             &self.data.event_log,
         );
 
@@ -586,6 +629,8 @@ impl State for GameplayState {
                 &self.data.resources,
                 ResourceSystem::storage_capacity(&self.data),
                 ResourceSystem::daily_supply_need(&self.data),
+                self.data.missions.active_count(),
+                &self.data.technology,
             );
         }
     }
