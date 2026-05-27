@@ -1,6 +1,7 @@
 use macroquad::prelude::*;
 
-const PORTRAIT_SIZE: u16 = 64;
+const PORTRAIT_SIZE: u16 = 128;
+const PORTRAIT_SCALE: i32 = PORTRAIT_SIZE as i32 / 64;
 const SPRITE_WIDTH: u16 = 32;
 const SPRITE_HEIGHT: u16 = 64;
 
@@ -99,16 +100,18 @@ impl PlaceholderArt {
             .iter()
             .enumerate()
             .flat_map(|(index, profile)| {
-                SpritePose::all()
-                    .iter()
-                    .map(move |pose| texture_from_image(generate_sprite(*profile, index, *pose)))
+                SpritePose::all().iter().map(move |pose| {
+                    texture_from_image(generate_sprite(*profile, index, *pose), FilterMode::Nearest)
+                })
             })
             .collect();
 
         let colonist_portraits = SURVIVOR_ART_PROFILES
             .iter()
             .enumerate()
-            .map(|(index, profile)| texture_from_image(generate_portrait(*profile, index)))
+            .map(|(index, profile)| {
+                texture_from_image(generate_portrait(*profile, index), FilterMode::Linear)
+            })
             .collect();
 
         Self {
@@ -146,9 +149,9 @@ impl PlaceholderArt {
     }
 }
 
-fn texture_from_image(image: Image) -> Texture2D {
+fn texture_from_image(image: Image, filter: FilterMode) -> Texture2D {
     let texture = Texture2D::from_image(&image);
-    texture.set_filter(FilterMode::Nearest);
+    texture.set_filter(filter);
     texture
 }
 
@@ -163,28 +166,31 @@ fn generate_portrait(profile: SurvivorArtProfile, index: usize) -> Image {
         PORTRAIT_SIZE as i32,
         bg,
     );
-    fill_rect(
-        &mut image,
-        0,
-        0,
-        PORTRAIT_SIZE as i32,
-        16,
-        Color::new(0.08, 0.11, 0.12, 1.0),
-    );
-    fill_circle(
-        &mut image,
-        32,
-        34,
-        28,
-        Color::new(profile.accent.r, profile.accent.g, profile.accent.b, 0.16),
-    );
-    fill_rect(&mut image, 18, 46, 28, 12, profile.suit);
-    fill_rect(&mut image, 24, 41, 16, 8, profile.skin);
-    fill_circle(&mut image, 32, 28, 15, profile.skin);
-    fill_ellipse(&mut image, 32, 20, 17, 10, profile.hair);
-    fill_rect(&mut image, 19, 23, 6, 10, profile.hair);
-    fill_rect(&mut image, 39, 23, 6, 10, profile.hair);
-    fill_rect(
+    fill_rect_scaled(&mut image, 0, 0, 64, 16, Color::new(0.08, 0.11, 0.12, 1.0));
+    for offset in [-28, 2, 32] {
+        draw_line_pixels(
+            &mut image,
+            offset * PORTRAIT_SCALE,
+            63 * PORTRAIT_SCALE,
+            (offset + 36) * PORTRAIT_SCALE,
+            0,
+            Color::new(0.12, 0.16, 0.17, 1.0),
+        );
+    }
+    fill_circle_scaled(&mut image, 32, 34, 28, mix_color(bg, profile.accent, 0.18));
+    fill_rect_scaled(&mut image, 14, 48, 36, 12, darken_color(profile.suit, 0.24));
+    fill_rect_scaled(&mut image, 18, 44, 28, 14, profile.suit);
+    fill_rect_scaled(&mut image, 22, 44, 6, 15, darken_color(profile.suit, 0.16));
+    fill_rect_scaled(&mut image, 37, 44, 6, 15, darken_color(profile.suit, 0.16));
+    fill_rect_scaled(&mut image, 25, 40, 14, 9, profile.skin);
+    fill_circle_scaled(&mut image, 22, 30, 4, darken_color(profile.skin, 0.12));
+    fill_circle_scaled(&mut image, 42, 30, 4, darken_color(profile.skin, 0.12));
+    fill_circle_scaled(&mut image, 32, 28, 15, profile.skin);
+    fill_rect_scaled(&mut image, 22, 33, 20, 7, darken_color(profile.skin, 0.08));
+    fill_ellipse_scaled(&mut image, 32, 20, 17, 10, profile.hair);
+    fill_rect_scaled(&mut image, 19, 23, 6, 10, profile.hair);
+    fill_rect_scaled(&mut image, 39, 23, 6, 10, profile.hair);
+    fill_rect_scaled(
         &mut image,
         22,
         47,
@@ -192,18 +198,33 @@ fn generate_portrait(profile: SurvivorArtProfile, index: usize) -> Image {
         3,
         Color::new(profile.accent.r, profile.accent.g, profile.accent.b, 0.95),
     );
+    fill_rect_scaled(&mut image, 20, 52, 5, 2, profile.accent);
+    fill_rect_scaled(&mut image, 39, 52, 5, 2, profile.accent);
 
     let eye_color = Color::new(0.04, 0.05, 0.05, 1.0);
-    fill_rect(&mut image, 26, 28, 3, 2, eye_color);
-    fill_rect(&mut image, 36, 28, 3, 2, eye_color);
-    fill_rect(&mut image, 30, 36, 7, 1, Color::new(0.22, 0.12, 0.10, 0.85));
+    fill_rect_scaled(&mut image, 26, 28, 3, 2, eye_color);
+    fill_rect_scaled(&mut image, 36, 28, 3, 2, eye_color);
+    fill_rect_scaled(&mut image, 29, 31, 2, 4, darken_color(profile.skin, 0.18));
+    fill_rect_scaled(&mut image, 30, 36, 7, 1, Color::new(0.22, 0.12, 0.10, 0.85));
+    fill_rect_scaled(&mut image, 23, 26, 7, 1, darken_color(profile.hair, 0.1));
+    fill_rect_scaled(&mut image, 35, 26, 7, 1, darken_color(profile.hair, 0.1));
 
     if index % 2 == 0 {
-        fill_rect(&mut image, 22, 17, 20, 3, profile.hair);
+        fill_rect_scaled(&mut image, 22, 17, 20, 3, profile.hair);
+        fill_rect_scaled(&mut image, 25, 14, 14, 2, lighten_color(profile.hair, 0.12));
     } else {
-        fill_rect(&mut image, 21, 15, 23, 4, profile.hair);
-        fill_rect(&mut image, 39, 18, 5, 10, profile.hair);
+        fill_rect_scaled(&mut image, 21, 15, 23, 4, profile.hair);
+        fill_rect_scaled(&mut image, 39, 18, 5, 10, profile.hair);
+        fill_rect_scaled(&mut image, 24, 13, 13, 2, lighten_color(profile.hair, 0.12));
     }
+    fill_rect_scaled(
+        &mut image,
+        14,
+        60,
+        36,
+        1,
+        mix_color(bg, profile.accent, 0.44),
+    );
 
     add_noise(&mut image, index as u32, 0.035);
     image
@@ -355,6 +376,17 @@ fn fill_rect(image: &mut Image, x: i32, y: i32, width: i32, height: i32, color: 
     }
 }
 
+fn fill_rect_scaled(image: &mut Image, x: i32, y: i32, width: i32, height: i32, color: Color) {
+    fill_rect(
+        image,
+        x * PORTRAIT_SCALE,
+        y * PORTRAIT_SCALE,
+        width * PORTRAIT_SCALE,
+        height * PORTRAIT_SCALE,
+        color,
+    );
+}
+
 fn fill_circle(image: &mut Image, cx: i32, cy: i32, radius: i32, color: Color) {
     let radius_sq = radius * radius;
     for yy in (cy - radius)..=(cy + radius) {
@@ -366,6 +398,16 @@ fn fill_circle(image: &mut Image, cx: i32, cy: i32, radius: i32, color: Color) {
             }
         }
     }
+}
+
+fn fill_circle_scaled(image: &mut Image, cx: i32, cy: i32, radius: i32, color: Color) {
+    fill_circle(
+        image,
+        cx * PORTRAIT_SCALE,
+        cy * PORTRAIT_SCALE,
+        radius * PORTRAIT_SCALE,
+        color,
+    );
 }
 
 fn fill_ellipse(image: &mut Image, cx: i32, cy: i32, rx: i32, ry: i32, color: Color) {
@@ -380,6 +422,17 @@ fn fill_ellipse(image: &mut Image, cx: i32, cy: i32, rx: i32, ry: i32, color: Co
             }
         }
     }
+}
+
+fn fill_ellipse_scaled(image: &mut Image, cx: i32, cy: i32, rx: i32, ry: i32, color: Color) {
+    fill_ellipse(
+        image,
+        cx * PORTRAIT_SCALE,
+        cy * PORTRAIT_SCALE,
+        rx * PORTRAIT_SCALE,
+        ry * PORTRAIT_SCALE,
+        color,
+    );
 }
 
 fn draw_line_pixels(image: &mut Image, x0: i32, y0: i32, x1: i32, y1: i32, color: Color) {
@@ -444,6 +497,34 @@ fn transparent() -> Color {
     Color::new(0.0, 0.0, 0.0, 0.0)
 }
 
+fn mix_color(base: Color, top: Color, amount: f32) -> Color {
+    let amount = amount.clamp(0.0, 1.0);
+    Color::new(
+        base.r + (top.r - base.r) * amount,
+        base.g + (top.g - base.g) * amount,
+        base.b + (top.b - base.b) * amount,
+        base.a + (top.a - base.a) * amount,
+    )
+}
+
+fn darken_color(color: Color, amount: f32) -> Color {
+    Color::new(
+        (color.r * (1.0 - amount)).clamp(0.0, 1.0),
+        (color.g * (1.0 - amount)).clamp(0.0, 1.0),
+        (color.b * (1.0 - amount)).clamp(0.0, 1.0),
+        color.a,
+    )
+}
+
+fn lighten_color(color: Color, amount: f32) -> Color {
+    Color::new(
+        (color.r + (1.0 - color.r) * amount).clamp(0.0, 1.0),
+        (color.g + (1.0 - color.g) * amount).clamp(0.0, 1.0),
+        (color.b + (1.0 - color.b) * amount).clamp(0.0, 1.0),
+        color.a,
+    )
+}
+
 fn noise_value(x: u32, y: u32, seed: u32) -> u8 {
     let mixed =
         x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663) ^ seed.wrapping_mul(83_492_791);
@@ -463,9 +544,11 @@ mod tests {
     fn test_portrait_generation_uses_opaque_pixels() {
         let image = generate_portrait(SURVIVOR_ART_PROFILES[0], 0);
 
+        assert!(PORTRAIT_SIZE >= 128);
         assert_eq!(image.width, PORTRAIT_SIZE);
         assert_eq!(image.height, PORTRAIT_SIZE);
-        assert!(image.get_pixel(32, 28).a > 0.9);
+        assert!(image.get_pixel(64, 56).a > 0.9);
+        assert_ne!(image.get_pixel(44, 94), image.get_pixel(80, 94));
     }
 
     #[test]

@@ -296,6 +296,7 @@ Completed in the active rebuild:
 - Screenshot-style color tokens, panel treatment, left rail, right rail, top bar, and bottom toolbar are implemented.
 - The central playfield now uses isometric projection for terrain, placement previews, buildings, and colonist positions.
 - Production-safe generated portraits and world sprites are wired into the inspector, relationship row, right rail colonist list, and colony view.
+- Generated survivor portraits now render from 128px originals with face, suit, accent, and background detail before scaling into UI cards.
 - Generated survivor sprites now include idle, moving, working, eating, and sleeping body-language variants, and the colony renderer selects poses from each colonist's current state.
 - Objective cards are generated from current game state: survival day, shelter capacity, food buffer, core rooms, and field technology.
 - The right rail now reports real gameplay tracks: food days, salvage, prepared meals, survey, repair, and hauling progress.
@@ -347,7 +348,7 @@ Validation currently passing:
 Highest-value remaining items:
 
 1. Upgrade generated survivor art to higher-fidelity production assets.
-   - Commission or generate larger portrait masters if the current procedural 64px set is not expressive enough.
+   - Replace the current procedural 128px portrait masters with commissioned, generated, or otherwise licensed production art if the current set is not expressive enough.
    - Improve the current idle/work/eat/sleep pose set with higher-resolution originals or animation frames when production art becomes available.
    - Keep screenshot crops as visual reference only.
 
