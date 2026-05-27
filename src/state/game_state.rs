@@ -47,6 +47,8 @@ pub struct GameplayState {
     hovered_cell: Option<Position>,
     /// Currently selected building type for placement (None = not in build mode)
     selected_building: Option<BuildingType>,
+    /// Fixed preview grid position used only by screenshot verification captures.
+    capture_preview_position: Option<Position>,
     /// Selected colonist for relationship inspection.
     selected_colonist_id: Option<u32>,
     /// Time event collector for processing time-based events
@@ -90,13 +92,16 @@ impl GameplayState {
         seed_social_history_for_capture(&mut data);
 
         let toolbar_mode = initial_toolbar_mode();
+        let selected_building = initial_selected_building(toolbar_mode);
         let selected_colonist_id = initial_selected_colonist_id(&data, toolbar_mode);
+        let capture_preview_position = initial_capture_preview_position();
 
         Self {
             prev_tick: data.tick,
             data,
             hovered_cell: None,
-            selected_building: None,
+            selected_building,
+            capture_preview_position,
             selected_colonist_id,
             time_events: TimeEventCollector::new(),
             time_accumulator: 0.0,
@@ -1090,16 +1095,20 @@ impl GameplayState {
         if let Some(building_type) = self.selected_building {
             let (mouse_x, mouse_y) = mouse_position();
             let game_area = self.layout.game_area();
-            if mouse_x < game_area.x
-                || mouse_x > game_area.x + game_area.w
-                || mouse_y < game_area.y
-                || mouse_y > game_area.y + game_area.h
-            {
-                return;
-            }
-
             let iso = self.iso_view();
-            let pos = iso.screen_to_grid(vec2(mouse_x, mouse_y));
+            let pos = if let Some(position) = self.capture_preview_position {
+                position
+            } else {
+                if mouse_x < game_area.x
+                    || mouse_x > game_area.x + game_area.w
+                    || mouse_y < game_area.y
+                    || mouse_y > game_area.y + game_area.h
+                {
+                    return;
+                }
+
+                iso.screen_to_grid(vec2(mouse_x, mouse_y))
+            };
             let (width, height) = building_type.size();
             let feedback = PlanningSystem::building_feedback(&self.data, building_type, pos);
             let can_place = feedback.can_place();
@@ -1135,19 +1144,22 @@ impl GameplayState {
                 outline_color,
             );
 
-            self.draw_placement_feedback_panel(&feedback);
+            let panel_anchor = self
+                .capture_preview_position
+                .map(|_| label_pos)
+                .unwrap_or_else(|| vec2(mouse_x, mouse_y));
+            self.draw_placement_feedback_panel(&feedback, panel_anchor);
         }
     }
 
-    fn draw_placement_feedback_panel(&self, feedback: &BuildingPlacementFeedback) {
+    fn draw_placement_feedback_panel(&self, feedback: &BuildingPlacementFeedback, anchor: Vec2) {
         let game_area = self.layout.game_area();
         let width = (game_area.w - 24.0).clamp(260.0, 340.0);
         let height = 124.0;
-        let (mouse_x, mouse_y) = mouse_position();
-        let x = (mouse_x + 18.0)
+        let x = (anchor.x + 18.0)
             .min(game_area.x + game_area.w - width - 8.0)
             .max(game_area.x + 8.0);
-        let y = (mouse_y + 18.0)
+        let y = (anchor.y + 18.0)
             .min(game_area.y + game_area.h - height - 8.0)
             .max(game_area.y + 8.0);
         let status_color = if feedback.can_place() { GREEN } else { ORANGE };
@@ -2136,6 +2148,26 @@ fn initial_toolbar_mode() -> ToolbarMode {
         .unwrap_or(ToolbarMode::Build)
 }
 
+fn initial_selected_building(toolbar_mode: ToolbarMode) -> Option<BuildingType> {
+    std::env::var("TFL_START_SELECTED_BUILDING")
+        .ok()
+        .and_then(|value| building_type_from_name(&value))
+        .filter(|building_type| {
+            toolbar_mode.uses_building_choices()
+                && toolbar_buildings_for_mode(toolbar_mode).contains(building_type)
+        })
+}
+
+fn initial_capture_preview_position() -> Option<Position> {
+    let x = std::env::var("TFL_PREVIEW_GRID_X")
+        .ok()
+        .and_then(|value| value.parse::<i32>().ok())?;
+    let y = std::env::var("TFL_PREVIEW_GRID_Y")
+        .ok()
+        .and_then(|value| value.parse::<i32>().ok())?;
+    Some(Position::new(x, y))
+}
+
 fn seed_assign_spaces_for_capture(data: &mut GameState) {
     if !std::env::var("TFL_SEED_ASSIGN_SPACES").is_ok_and(|value| value != "0") {
         return;
@@ -2284,6 +2316,22 @@ fn toolbar_mode_from_name(value: &str) -> Option<ToolbarMode> {
         "research" => Some(ToolbarMode::Research),
         "assign" => Some(ToolbarMode::Assign),
         "log" => Some(ToolbarMode::Log),
+        _ => None,
+    }
+}
+
+fn building_type_from_name(value: &str) -> Option<BuildingType> {
+    match value
+        .trim()
+        .to_ascii_lowercase()
+        .replace([' ', '-'], "_")
+        .as_str()
+    {
+        "habitat" => Some(BuildingType::Habitat),
+        "mess_hall" | "messhall" => Some(BuildingType::MessHall),
+        "workshop" => Some(BuildingType::Workshop),
+        "storage" => Some(BuildingType::Storage),
+        "exploration_gate" | "explorationgate" | "gate" => Some(BuildingType::ExplorationGate),
         _ => None,
     }
 }
@@ -2508,6 +2556,19 @@ mod tests {
             Some(ToolbarMode::Research)
         );
         assert_eq!(toolbar_mode_from_name("missing"), None);
+    }
+
+    #[test]
+    fn test_building_type_from_name_accepts_capture_names() {
+        assert_eq!(
+            building_type_from_name("mess hall"),
+            Some(BuildingType::MessHall)
+        );
+        assert_eq!(
+            building_type_from_name("exploration-gate"),
+            Some(BuildingType::ExplorationGate)
+        );
+        assert_eq!(building_type_from_name("missing"), None);
     }
 
     #[test]

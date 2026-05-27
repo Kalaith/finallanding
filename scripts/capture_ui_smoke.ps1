@@ -117,12 +117,33 @@ function Assert-ActiveToolbarVisible {
     }
 }
 
+function Assert-PlacementPreviewVisible {
+    param(
+        [System.Drawing.Bitmap]$Bitmap,
+        [int]$Width,
+        [int]$Height
+    )
+
+    $stats = Get-RegionStats `
+        -Bitmap $Bitmap `
+        -X ([int]($Width * 0.35)) `
+        -Y ([int]($Height * 0.30)) `
+        -Width ([int]($Width * 0.28)) `
+        -Height ([int]($Height * 0.28)) `
+        -Step 3
+
+    if ($stats.ColorfulRatio -lt 0.06 -or $stats.MaxGreen -lt 140) {
+        throw "Capture failed: placement preview is not visible enough (colorful=$([Math]::Round($stats.ColorfulRatio, 3)), maxGreen=$($stats.MaxGreen))."
+    }
+}
+
 $sizes = @(
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "0"; Spaces = "0" },
-    @{ Width = 1920; Height = 1080; Name = "ui_smoke_1920x1080.png"; Fullscreen = "1"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "0"; Spaces = "0" },
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_assign_1280x720.png"; Fullscreen = "0"; Mode = "assign"; Selected = "5"; ActiveIndex = 5; History = "0"; Poses = "0"; Spaces = "1" },
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_log_1280x720.png"; Fullscreen = "0"; Mode = "log"; Selected = ""; ActiveIndex = 6; History = "1"; Poses = "0"; Spaces = "0" },
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_poses_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "1"; Spaces = "0" }
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "0"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
+    @{ Width = 1920; Height = 1080; Name = "ui_smoke_1920x1080.png"; Fullscreen = "1"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "0"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_assign_1280x720.png"; Fullscreen = "0"; Mode = "assign"; Selected = "5"; ActiveIndex = 5; History = "0"; Poses = "0"; Spaces = "1"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_log_1280x720.png"; Fullscreen = "0"; Mode = "log"; Selected = ""; ActiveIndex = 6; History = "1"; Poses = "0"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_placement_1280x720.png"; Fullscreen = "0"; Mode = "rooms"; Selected = ""; ActiveIndex = 1; History = "0"; Poses = "0"; Spaces = "0"; SelectedBuilding = "habitat"; PreviewX = "5"; PreviewY = "9" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_poses_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "1"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" }
 )
 
 foreach ($size in $sizes) {
@@ -141,6 +162,15 @@ foreach ($size in $sizes) {
     $env:TFL_SEED_SOCIAL_HISTORY = "$($size.History)"
     $env:TFL_SEED_ACTIVITY_POSES = "$($size.Poses)"
     $env:TFL_SEED_ASSIGN_SPACES = "$($size.Spaces)"
+    if ($size.SelectedBuilding -ne "") {
+        $env:TFL_START_SELECTED_BUILDING = "$($size.SelectedBuilding)"
+        $env:TFL_PREVIEW_GRID_X = "$($size.PreviewX)"
+        $env:TFL_PREVIEW_GRID_Y = "$($size.PreviewY)"
+    } else {
+        Remove-Item Env:\TFL_START_SELECTED_BUILDING -ErrorAction SilentlyContinue
+        Remove-Item Env:\TFL_PREVIEW_GRID_X -ErrorAction SilentlyContinue
+        Remove-Item Env:\TFL_PREVIEW_GRID_Y -ErrorAction SilentlyContinue
+    }
     if ($size.Selected -ne "") {
         $env:TFL_START_SELECTED_COLONIST = "$($size.Selected)"
     } else {
@@ -168,6 +198,9 @@ foreach ($size in $sizes) {
         Assert-RegionVisible -Bitmap $image -Name "right rail" -X ([int]($size.Width - 292)) -Y 78 -Width 278 -Height 545 -MinNonBlackRatio 0.18 -MinBrightnessRange 45
         Assert-RegionVisible -Bitmap $image -Name "central map" -X ([int]($size.Width * 0.26)) -Y ([int]($size.Height * 0.18)) -Width ([int]($size.Width * 0.48)) -Height ([int]($size.Height * 0.48)) -MinNonBlackRatio 0.12 -MinBrightnessRange 30
         Assert-ActiveToolbarVisible -Bitmap $image -Width $size.Width -Height $size.Height -ActiveIndex $size.ActiveIndex
+        if ($size.SelectedBuilding -ne "") {
+            Assert-PlacementPreviewVisible -Bitmap $image -Width $size.Width -Height $size.Height
+        }
     }
     finally {
         $image.Dispose()
@@ -184,6 +217,9 @@ Remove-Item Env:\TFL_WINDOW_HEIGHT -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_FULLSCREEN -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_START_TOOLBAR_MODE -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_START_SELECTED_COLONIST -ErrorAction SilentlyContinue
+Remove-Item Env:\TFL_START_SELECTED_BUILDING -ErrorAction SilentlyContinue
+Remove-Item Env:\TFL_PREVIEW_GRID_X -ErrorAction SilentlyContinue
+Remove-Item Env:\TFL_PREVIEW_GRID_Y -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_SEED_SOCIAL_HISTORY -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_SEED_ACTIVITY_POSES -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_SEED_ASSIGN_SPACES -ErrorAction SilentlyContinue

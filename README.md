@@ -41,7 +41,7 @@ Strong social ties can now surface directly on the colony map through survivor p
 - `cargo test`: runs unit coverage plus a headless reference playthrough.
 - The reference playthrough starts at Day 1 07:00, advances through the live mission, work, resource, relationship, technology, and scenario systems, and asserts a Day 7 victory inside the 30-40 minute normal-speed window.
 - UI hit-zone tests verify the visible menu, speed, priority, building, undo, and mission controls resolve to the intended gameplay actions.
-- `.\scripts\capture_ui_smoke.ps1`: builds the native game, captures gameplay screenshots at 1280x720, 1920x1080, Assign mode, Log mode, and pose setup, then verifies important visible regions.
+- `.\scripts\capture_ui_smoke.ps1`: builds the native game, captures gameplay screenshots at 1280x720, 1920x1080, Assign mode, Log mode, placement preview, and pose setup, then verifies important visible regions.
 
 ## Playtest Checklist
 

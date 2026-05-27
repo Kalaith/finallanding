@@ -324,7 +324,7 @@ Completed in the active rebuild:
 - Log mode now pages the social archive so older daily relationship reports remain reviewable after more than three summaries.
 - The colony surface now has deterministic crash-site dressing with wreckage, cables, tracks, and richer room-specific cutaway details on placed buildings.
 - Colony-map hover/selection states now use stronger survivor rings plus building footprint and roof outlines for hovered or selected room-assignment spaces.
-- `scripts/capture_ui_smoke.ps1` captures 1280x720, 1920x1080, Assign-mode, Log-mode, and pose-variant gameplay screenshots under `docs/verification/` and checks important map, rail, and active-toolbar regions for visible pixels.
+- `scripts/capture_ui_smoke.ps1` captures 1280x720, 1920x1080, Assign-mode, Log-mode, placement-preview, and pose-variant gameplay screenshots under `docs/verification/` and checks important map, rail, active-toolbar, and placement-preview regions for visible pixels.
 
 Validation currently passing:
 
@@ -333,7 +333,7 @@ Validation currently passing:
 - `cargo build`
 - `git diff --check`
 - Native launch smoke test
-- Screenshot smoke capture at 1280x720, 1920x1080, Assign mode, Log mode, and pose-variant setup
+- Screenshot smoke capture at 1280x720, 1920x1080, Assign mode, Log mode, placement-preview, and pose-variant setup
 
 ## Remaining Rebuild Backlog
 
@@ -356,4 +356,4 @@ Highest-value remaining items:
 4. Improve screenshot verification depth.
    - Keep captured PNGs updated when major UI layout changes land.
    - Extend the manual playtest checklist when new relationship decisions are added.
-   - Add placement/playthrough captures once scripted world setup exists.
+   - Add playthrough captures once scripted world setup exists.
