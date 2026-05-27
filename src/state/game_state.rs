@@ -1025,6 +1025,7 @@ impl State for GameplayState {
             self.inspected_colonist(hovered_colonist_id),
             &self.data.colonists,
             self.data.tick,
+            &self.art,
         );
 
         // Draw UI components (on top)
@@ -1046,6 +1047,7 @@ impl State for GameplayState {
             ResourceSystem::storage_capacity(&self.data),
             ResourceSystem::daily_supply_need(&self.data),
             &colony_summary,
+            &self.art,
         );
         draw_toolbar_context_panel(
             &self.layout,

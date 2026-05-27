@@ -4,6 +4,7 @@ use crate::data::colonist::Colonist;
 use crate::data::game_state::GameState;
 use crate::data::resources::ResourceState;
 use crate::systems::summary_system::ColonyPressureSummary;
+use crate::ui::art::PlaceholderArt;
 use crate::ui::style;
 use macroquad::prelude::*;
 
@@ -13,6 +14,7 @@ pub fn draw_right_rail(
     storage_capacity: i32,
     daily_supply_need: i32,
     colony_summary: &ColonyPressureSummary,
+    art: &PlaceholderArt,
 ) {
     let rail = layout.right_panel();
     let minimap = Rect::new(rail.x, rail.y, rail.w, 156.0);
@@ -32,7 +34,7 @@ pub fn draw_right_rail(
         rail.w,
         rail.y + rail.h - resources.y - resources.h - 12.0,
     );
-    draw_colonist_list(colonists, &state.colonists, colony_summary);
+    draw_colonist_list(colonists, &state.colonists, colony_summary, art);
 }
 
 fn draw_minimap(rect: Rect, state: &GameState) {
@@ -134,7 +136,12 @@ fn draw_resources(rect: Rect, resources: &ResourceState, storage_capacity: i32, 
     }
 }
 
-fn draw_colonist_list(rect: Rect, colonists: &[Colonist], summary: &ColonyPressureSummary) {
+fn draw_colonist_list(
+    rect: Rect,
+    colonists: &[Colonist],
+    summary: &ColonyPressureSummary,
+    art: &PlaceholderArt,
+) {
     style::draw_panel(rect);
     let capacity = 10;
     style::draw_section_title("COLONISTS", rect.x + 16.0, rect.y + 29.0);
@@ -150,15 +157,37 @@ fn draw_colonist_list(rect: Rect, colonists: &[Colonist], summary: &ColonyPressu
 
     for (index, colonist) in colonists.iter().take(7).enumerate() {
         let y = rect.y + 59.0 + index as f32 * 33.0;
-        draw_circle(
-            rect.x + 24.0,
-            y - 7.0,
-            9.0,
-            Color::new(0.45, 0.34, 0.25, 1.0),
+        let portrait = Rect::new(rect.x + 16.0, y - 22.0, 25.0, 25.0);
+        if let Some(texture) = art.colonist_portrait(colonist.id) {
+            draw_texture_ex(
+                texture,
+                portrait.x,
+                portrait.y,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(vec2(portrait.w, portrait.h)),
+                    ..Default::default()
+                },
+            );
+        } else {
+            draw_circle(
+                portrait.x + portrait.w * 0.5,
+                portrait.y + portrait.h * 0.5,
+                9.0,
+                Color::new(0.45, 0.34, 0.25, 1.0),
+            );
+        }
+        draw_rectangle_lines(
+            portrait.x,
+            portrait.y,
+            portrait.w,
+            portrait.h,
+            1.0,
+            style::PANEL_BORDER,
         );
         draw_text(
             &style::truncate_text(&colonist.name, 18),
-            rect.x + 44.0,
+            rect.x + 48.0,
             y,
             style::SMALL_SIZE,
             style::TEXT_PRIMARY,

@@ -3,6 +3,7 @@ use crate::data::colonist::{
     relationship_label, ActivityLocation, Colonist, ColonistState, JobPreference,
 };
 use crate::data::schedule::ActivityType;
+use crate::ui::art::PlaceholderArt;
 use crate::ui::style;
 use macroquad::prelude::*;
 
@@ -11,6 +12,7 @@ pub fn draw_colonist_inspector(
     colonist: Option<&Colonist>,
     colonists: &[Colonist],
     current_tick: u64,
+    art: &PlaceholderArt,
 ) {
     let Some(colonist) = colonist else {
         return;
@@ -18,7 +20,7 @@ pub fn draw_colonist_inspector(
 
     let rail = layout.left_panel();
     let width = rail.w;
-    let height = 246.0_f32.min(rail.h * 0.45);
+    let height = 286.0_f32.min(rail.h * 0.52);
     let x = rail.x;
     let y = rail.y + rail.h - height;
     let accent = mood_color(colonist.mood);
@@ -42,19 +44,32 @@ pub fn draw_colonist_inspector(
         portrait_rect.h,
         Color::new(0.09, 0.1, 0.095, 1.0),
     );
-    draw_circle(
-        portrait_rect.x + portrait_rect.w * 0.5,
-        portrait_rect.y + 30.0,
-        22.0,
-        Color::new(0.74, 0.62, 0.49, 1.0),
-    );
-    draw_rectangle(
-        portrait_rect.x + 21.0,
-        portrait_rect.y + 50.0,
-        34.0,
-        20.0,
-        job_color(colonist.job_preference),
-    );
+    if let Some(texture) = art.colonist_portrait(colonist.id) {
+        draw_texture_ex(
+            texture,
+            portrait_rect.x,
+            portrait_rect.y,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(portrait_rect.w, portrait_rect.h)),
+                ..Default::default()
+            },
+        );
+    } else {
+        draw_circle(
+            portrait_rect.x + portrait_rect.w * 0.5,
+            portrait_rect.y + 30.0,
+            22.0,
+            Color::new(0.74, 0.62, 0.49, 1.0),
+        );
+        draw_rectangle(
+            portrait_rect.x + 21.0,
+            portrait_rect.y + 50.0,
+            34.0,
+            20.0,
+            job_color(colonist.job_preference),
+        );
+    }
     draw_rectangle_lines(
         portrait_rect.x,
         portrait_rect.y,
@@ -136,6 +151,67 @@ pub fn draw_colonist_inspector(
         style::TINY_SIZE,
         style::TEXT_BODY,
     );
+
+    draw_relationship_portraits(x + 18.0, y + height - 58.0, colonist, art);
+}
+
+fn draw_relationship_portraits(x: f32, y: f32, colonist: &Colonist, art: &PlaceholderArt) {
+    let mut relationships = colonist.relationships.iter().collect::<Vec<_>>();
+    relationships.sort_by(|left, right| right.1.abs().cmp(&left.1.abs()));
+
+    for (index, (other_id, value)) in relationships.into_iter().take(5).enumerate() {
+        let px = x + index as f32 * 43.0;
+        let rect = Rect::new(px, y, 34.0, 34.0);
+        if let Some(texture) = art.colonist_portrait(*other_id) {
+            draw_texture_ex(
+                texture,
+                rect.x,
+                rect.y,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(vec2(rect.w, rect.h)),
+                    ..Default::default()
+                },
+            );
+        } else {
+            draw_circle(rect.x + 17.0, rect.y + 17.0, 15.0, style::PANEL_BG_DEEP);
+        }
+        draw_rectangle_lines(
+            rect.x,
+            rect.y,
+            rect.w,
+            rect.h,
+            1.0,
+            if *value >= 0 {
+                style::BAR_GREEN
+            } else {
+                style::ALERT_RED
+            },
+        );
+        let value_text = format!("{:+}", value);
+        let width = measure_text(&value_text, None, 9, 1.0).width;
+        draw_text(
+            &value_text,
+            rect.x + (rect.w - width) * 0.5,
+            rect.y + 44.0,
+            9.0,
+            if *value >= 0 {
+                style::BAR_GREEN
+            } else {
+                style::ALERT_RED
+            },
+        );
+    }
+
+    if colonist.relationships.is_empty() {
+        draw_text(
+            "No ties yet",
+            x,
+            y + 22.0,
+            style::TINY_SIZE,
+            style::TEXT_MUTED,
+        );
+    }
 }
 
 fn draw_labeled_bar(x: f32, y: f32, label: &str, value: f32, color: Color) {

@@ -2,6 +2,7 @@ use macroquad::prelude::*;
 
 pub struct PlaceholderArt {
     colonist_sprites: Vec<Texture2D>,
+    colonist_portraits: Vec<Texture2D>,
 }
 
 impl PlaceholderArt {
@@ -28,7 +29,28 @@ impl PlaceholderArt {
         })
         .collect();
 
-        Self { colonist_sprites }
+        let colonist_portraits = [
+            include_bytes!("../../docs/reference/tfl_guide_mvp/portrait_mara_kovac.png").as_slice(),
+            include_bytes!("../../docs/reference/tfl_guide_mvp/rel_portrait_male_beard.png")
+                .as_slice(),
+            include_bytes!("../../docs/reference/tfl_guide_mvp/rel_portrait_dark_hair.png")
+                .as_slice(),
+            include_bytes!("../../docs/reference/tfl_guide_mvp/rel_portrait_blond.png").as_slice(),
+            include_bytes!("../../docs/reference/tfl_guide_mvp/rel_portrait_mara.png").as_slice(),
+            include_bytes!("../../docs/reference/tfl_guide_mvp/rel_portrait_pale.png").as_slice(),
+        ]
+        .iter()
+        .map(|bytes| {
+            let texture = Texture2D::from_file_with_format(bytes, None);
+            texture.set_filter(FilterMode::Nearest);
+            texture
+        })
+        .collect();
+
+        Self {
+            colonist_sprites,
+            colonist_portraits,
+        }
     }
 
     pub fn colonist_sprite(&self, colonist_id: u32) -> Option<&Texture2D> {
@@ -38,5 +60,14 @@ impl PlaceholderArt {
 
         self.colonist_sprites
             .get(colonist_id as usize % self.colonist_sprites.len())
+    }
+
+    pub fn colonist_portrait(&self, colonist_id: u32) -> Option<&Texture2D> {
+        if self.colonist_portraits.is_empty() {
+            return None;
+        }
+
+        self.colonist_portraits
+            .get(colonist_id as usize % self.colonist_portraits.len())
     }
 }

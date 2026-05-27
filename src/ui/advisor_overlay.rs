@@ -39,7 +39,7 @@ pub fn draw_advisor_overlay(layout: &Layout, objective: &str, plan: &AdvisorPlan
     );
 
     let alert_y = objective_rect.y + objective_rect.h + 16.0;
-    for (index, line) in plan.lines.iter().take(3).enumerate() {
+    for (index, line) in plan.lines.iter().take(2).enumerate() {
         let row = Rect::new(rail.x, alert_y + index as f32 * 48.0, rail.w, 40.0);
         draw_rectangle(row.x, row.y, row.w, row.h, alert_bg_color(line.severity));
         draw_rectangle_lines(row.x, row.y, row.w, row.h, 1.0, style::PANEL_BORDER);
