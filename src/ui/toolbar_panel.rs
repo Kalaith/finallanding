@@ -11,12 +11,14 @@ use crate::systems::relationship_directive_system::{PairDirective, RelationshipD
 use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
 use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
-    toolbar_buildings_for_mode, toolbar_context_item_rect, toolbar_context_rect,
-    toolbar_list_item_rect, ToolbarMode,
+    log_page_next_rect, log_page_previous_rect, toolbar_buildings_for_mode,
+    toolbar_context_item_rect, toolbar_context_rect, toolbar_list_item_rect, ToolbarMode,
 };
 use crate::ui::style;
 use crate::ui::tooltip::draw_tooltip_near_mouse;
 use macroquad::prelude::*;
+
+pub const SOCIAL_TIMELINE_PAGE_SIZE: usize = 3;
 
 pub fn draw_toolbar_context_panel(
     layout: &Layout,
@@ -28,6 +30,7 @@ pub fn draw_toolbar_context_panel(
     active_mission_count: usize,
     logs: &[ColonyLogEntry],
     social_history: &[SocialHistoryEntry],
+    social_history_page: usize,
     active_priority: ColonyPriority,
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
@@ -52,7 +55,13 @@ pub fn draw_toolbar_context_panel(
         ToolbarMode::Assign => {
             draw_assign_context(context, colonists, selected_colonist_id, technology)
         }
-        ToolbarMode::Log => draw_log_context(context, logs, social_history, colony_summary),
+        ToolbarMode::Log => draw_log_context(
+            context,
+            logs,
+            social_history,
+            social_history_page,
+            colony_summary,
+        ),
     }
 }
 
@@ -553,6 +562,7 @@ fn draw_log_context(
     context: Rect,
     logs: &[ColonyLogEntry],
     social_history: &[SocialHistoryEntry],
+    social_history_page: usize,
     summary: &ColonyPressureSummary,
 ) {
     let mut hovered_history = None;
@@ -572,7 +582,9 @@ fn draw_log_context(
         style::TEXT_BODY,
     );
 
-    let timeline = social_timeline_rows(social_history);
+    let page_count = social_history_page_count(social_history);
+    let current_page = social_history_page.min(page_count.saturating_sub(1));
+    let timeline = social_timeline_rows(social_history, current_page);
     if !timeline.is_empty() {
         draw_text(
             "SOCIAL TIMELINE",
@@ -581,6 +593,9 @@ fn draw_log_context(
             style::TINY_SIZE,
             style::HEADING_BLUE,
         );
+        if page_count > 1 {
+            draw_log_page_controls(context, current_page, page_count);
+        }
 
         for (index, row) in timeline.iter().enumerate() {
             let y = context.y + 94.0 + index as f32 * 13.0;
@@ -663,6 +678,46 @@ fn draw_log_context(
     }
 }
 
+fn draw_log_page_controls(context: Rect, current_page: usize, page_count: usize) {
+    let previous = log_page_previous_rect(context);
+    let next = log_page_next_rect(context);
+    let mouse = mouse_position().into();
+    let can_go_previous = current_page > 0;
+    let can_go_next = current_page + 1 < page_count;
+
+    style::draw_button(previous, false, can_go_previous && previous.contains(mouse));
+    style::draw_button(next, false, can_go_next && next.contains(mouse));
+    draw_text(
+        "<",
+        previous.x + 10.0,
+        previous.y + 12.0,
+        style::TINY_SIZE,
+        if can_go_previous {
+            style::TEXT_PRIMARY
+        } else {
+            style::TEXT_MUTED
+        },
+    );
+    draw_text(
+        ">",
+        next.x + 10.0,
+        next.y + 12.0,
+        style::TINY_SIZE,
+        if can_go_next {
+            style::TEXT_PRIMARY
+        } else {
+            style::TEXT_MUTED
+        },
+    );
+    draw_text(
+        &format!("{}/{}", current_page + 1, page_count),
+        context.x + context.w - 63.0,
+        context.y + 84.0,
+        style::TINY_SIZE,
+        style::TEXT_MUTED,
+    );
+}
+
 struct SocialTimelineRow {
     day: u32,
     title: String,
@@ -671,11 +726,17 @@ struct SocialTimelineRow {
     color: Color,
 }
 
-fn social_timeline_rows(history: &[SocialHistoryEntry]) -> Vec<SocialTimelineRow> {
+pub fn social_history_page_count(history: &[SocialHistoryEntry]) -> usize {
+    ((history.len() + SOCIAL_TIMELINE_PAGE_SIZE - 1) / SOCIAL_TIMELINE_PAGE_SIZE).max(1)
+}
+
+fn social_timeline_rows(history: &[SocialHistoryEntry], page: usize) -> Vec<SocialTimelineRow> {
+    let page = page.min(social_history_page_count(history).saturating_sub(1));
     history
         .iter()
         .rev()
-        .take(3)
+        .skip(page * SOCIAL_TIMELINE_PAGE_SIZE)
+        .take(SOCIAL_TIMELINE_PAGE_SIZE)
         .map(|entry| SocialTimelineRow {
             day: entry.day,
             title: entry.title.clone(),
@@ -957,13 +1018,40 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let rows = social_timeline_rows(&history);
+        let rows = social_timeline_rows(&history, 0);
 
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].day, 4);
         assert_eq!(rows[1].day, 3);
         assert_eq!(rows[2].day, 2);
         assert_eq!(rows[0].metrics, "M54 R+4 T0");
+    }
+
+    #[test]
+    fn test_social_timeline_rows_page_through_archive() {
+        let history = (0..7)
+            .map(|day| SocialHistoryEntry::new(day, "", "", "", 50.0, day as f32, 0, 0))
+            .collect::<Vec<_>>();
+
+        let first_page = social_timeline_rows(&history, 0);
+        let second_page = social_timeline_rows(&history, 1);
+        let last_page = social_timeline_rows(&history, 2);
+        let clamped_page = social_timeline_rows(&history, 99);
+
+        assert_eq!(social_history_page_count(&history), 3);
+        assert_eq!(
+            first_page.iter().map(|row| row.day).collect::<Vec<_>>(),
+            vec![6, 5, 4]
+        );
+        assert_eq!(
+            second_page.iter().map(|row| row.day).collect::<Vec<_>>(),
+            vec![3, 2, 1]
+        );
+        assert_eq!(
+            last_page.iter().map(|row| row.day).collect::<Vec<_>>(),
+            vec![0]
+        );
+        assert_eq!(clamped_page[0].day, 0);
     }
 
     #[test]

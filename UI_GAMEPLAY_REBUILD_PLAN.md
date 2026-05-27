@@ -320,6 +320,7 @@ Completed in the active rebuild:
 - Assign mode now warns when pinned rooms are over capacity or place tense survivors in the same Habitat/work space.
 - Log mode now includes a compact social brief that highlights mood, close/tense pair counts, and the strongest relationship signal before recent events.
 - End-of-day social reports are now preserved as social history entries, and Log mode shows a compact latest-three-day social timeline with mood, relationship, and strain metrics.
+- Log mode now pages the social archive so older daily relationship reports remain reviewable after more than three summaries.
 - The colony surface now has deterministic crash-site dressing with wreckage, cables, tracks, and richer room-specific cutaway details on placed buildings.
 - `scripts/capture_ui_smoke.ps1` captures 1280x720, 1920x1080, Assign-mode, Log-mode, and pose-variant gameplay screenshots under `docs/verification/` and checks important map, rail, and active-toolbar regions for visible pixels.
 
@@ -348,7 +349,7 @@ Highest-value remaining items:
 
 3. Expand relationship-manager gameplay.
    - Expand room pins into a fuller team roster view with batch reassignment controls when the colony has many duplicate spaces.
-   - Add a scrollable or paged social archive once more than three daily reports need to be reviewed in-session.
+   - Add richer archive filters or event drilldowns once the daily report history becomes dense enough to need search.
    - Upgrade relationship-reactive body language from procedural pose swaps to richer animation frames when production art is available.
 
 4. Improve screenshot verification depth.

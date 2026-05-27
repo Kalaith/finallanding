@@ -31,10 +31,11 @@ use crate::ui::style;
 use crate::ui::{
     draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
     draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
-    draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar, restart_button_rect,
-    side_panel_hit_at, toolbar_building_at_for_mode, toolbar_buildings_for_mode,
-    toolbar_colonist_index_at, toolbar_context_rect, toolbar_mission_at, toolbar_mode_at,
-    toolbar_priority_at, top_bar_priority_at, top_bar_speed_at, IsoView, Layout, PlaceholderArt,
+    draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar, log_page_action_at,
+    restart_button_rect, side_panel_hit_at, social_history_page_count,
+    toolbar_building_at_for_mode, toolbar_buildings_for_mode, toolbar_colonist_index_at,
+    toolbar_context_rect, toolbar_mission_at, toolbar_mode_at, toolbar_priority_at,
+    top_bar_priority_at, top_bar_speed_at, IsoView, Layout, LogPageAction, PlaceholderArt,
     SidePanelHit, SpritePose, ToolbarMode,
 };
 use macroquad::prelude::*;
@@ -60,6 +61,8 @@ pub struct GameplayState {
     debug_mode: bool,
     /// Active bottom-toolbar mode.
     toolbar_mode: ToolbarMode,
+    /// Current page in the Log mode social archive.
+    social_history_page: usize,
     /// Placeholder visual assets extracted from the rebuild reference.
     art: PlaceholderArt,
 }
@@ -98,6 +101,7 @@ impl GameplayState {
             layout: Layout::default(),
             debug_mode: false,
             toolbar_mode,
+            social_history_page: 0,
             art: PlaceholderArt::new(),
         }
     }
@@ -411,10 +415,30 @@ impl GameplayState {
                     }
                 }
             }
-            ToolbarMode::Log => {}
+            ToolbarMode::Log => {
+                if let Some(action) = log_page_action_at(context, mouse_x, mouse_y) {
+                    self.update_log_page(action);
+                }
+            }
         }
 
         true
+    }
+
+    fn update_log_page(&mut self, action: LogPageAction) {
+        let page_count = social_history_page_count(&self.data.social_history);
+        match action {
+            LogPageAction::Previous => {
+                self.social_history_page = self.social_history_page.saturating_sub(1);
+            }
+            LogPageAction::Next => {
+                if self.social_history_page + 1 < page_count {
+                    self.social_history_page += 1;
+                }
+            }
+        }
+
+        self.social_history_page = self.social_history_page.min(page_count.saturating_sub(1));
     }
 
     fn assign_colonist_index_for_slot(&self, slot: usize) -> Option<usize> {
@@ -2102,6 +2126,26 @@ fn seed_social_history_for_capture(data: &mut GameState) {
             1,
             1,
         ),
+        SocialHistoryEntry::new(
+            3,
+            "Habitat pairs adjusted",
+            "Room pins gave Charlie and Evan a reliable recovery loop while Alice took quieter repair shifts.",
+            "Protect the supportive pair and avoid crowding the west habitat.",
+            61.0,
+            8.0,
+            2,
+            0,
+        ),
+        SocialHistoryEntry::new(
+            4,
+            "Late repair friction",
+            "The workshop recovered output, but Diana and Fiona clashed during the evening tool handoff.",
+            "Move one of them to field prep before the next high-pressure day.",
+            53.0,
+            -7.0,
+            1,
+            1,
+        ),
     ] {
         data.push_social_history(entry);
     }
@@ -2580,6 +2624,7 @@ impl State for GameplayState {
             self.data.missions.active_count(),
             &self.data.event_log,
             &self.data.social_history,
+            self.social_history_page,
             self.data.priority.active,
             &self.data.colonists,
             self.selected_colonist_id,

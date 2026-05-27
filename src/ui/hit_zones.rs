@@ -42,6 +42,12 @@ pub enum ToolbarMode {
     Log,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LogPageAction {
+    Previous,
+    Next,
+}
+
 impl ToolbarMode {
     pub fn all() -> &'static [ToolbarMode] {
         &[
@@ -214,6 +220,25 @@ pub fn toolbar_mode_at(toolbar: Rect, x: f32, y: f32) -> Option<ToolbarMode> {
 
 pub fn toolbar_context_rect(toolbar: Rect) -> Rect {
     Rect::new(toolbar.x, toolbar.y - 138.0, toolbar.w, 126.0)
+}
+
+pub fn log_page_previous_rect(context: Rect) -> Rect {
+    Rect::new(context.x + context.w - 96.0, context.y + 72.0, 28.0, 17.0)
+}
+
+pub fn log_page_next_rect(context: Rect) -> Rect {
+    Rect::new(context.x + context.w - 34.0, context.y + 72.0, 28.0, 17.0)
+}
+
+pub fn log_page_action_at(context: Rect, x: f32, y: f32) -> Option<LogPageAction> {
+    if contains(log_page_previous_rect(context), x, y) {
+        return Some(LogPageAction::Previous);
+    }
+    if contains(log_page_next_rect(context), x, y) {
+        return Some(LogPageAction::Next);
+    }
+
+    None
 }
 
 pub fn toolbar_context_item_rect(context: Rect, index: usize) -> Rect {
@@ -458,6 +483,26 @@ mod tests {
         );
         assert_eq!(
             toolbar_colonist_index_at(context, 4, colonist_x, colonist_y),
+            None
+        );
+    }
+
+    #[test]
+    fn test_log_page_hit_zones_match_archive_controls() {
+        let context = Rect::new(380.0, 500.0, 520.0, 126.0);
+        let (prev_x, prev_y) = center(log_page_previous_rect(context));
+        let (next_x, next_y) = center(log_page_next_rect(context));
+
+        assert_eq!(
+            log_page_action_at(context, prev_x, prev_y),
+            Some(LogPageAction::Previous)
+        );
+        assert_eq!(
+            log_page_action_at(context, next_x, next_y),
+            Some(LogPageAction::Next)
+        );
+        assert_eq!(
+            log_page_action_at(context, context.x + 18.0, context.y + 82.0),
             None
         );
     }
