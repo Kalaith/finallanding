@@ -314,7 +314,7 @@ Completed in the active rebuild:
 - Colonists prefer available workplaces and habitat assignments with supportive partners over hostile pairings when the colony has a choice.
 - The map and right rail now expose relationship pressure/support through compact social badges and Friendly/Tense value chips.
 - The colony surface now has deterministic crash-site dressing with wreckage, cables, tracks, and richer room-specific cutaway details on placed buildings.
-- `scripts/capture_ui_smoke.ps1` captures and verifies 1280x720 and 1920x1080 gameplay screenshots under `docs/verification/`.
+- `scripts/capture_ui_smoke.ps1` captures 1280x720 and 1920x1080 gameplay screenshots under `docs/verification/` and checks important map, rail, and active-toolbar regions for visible pixels.
 
 Validation currently passing:
 
@@ -345,6 +345,6 @@ Highest-value remaining items:
    - Add clearer on-map body-language variants when idle/work/eat/sleep sprite variants exist.
 
 4. Improve screenshot verification depth.
-   - Add pixel checks for nonblank map, visible panels, and active toolbar.
    - Keep captured PNGs updated when major UI layout changes land.
    - Extend the manual playtest checklist when new relationship decisions are added.
+   - Add scenario-specific captures once scripted placement/playthrough UI setup exists.

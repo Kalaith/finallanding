@@ -20,6 +20,97 @@ if (!(Test-Path -LiteralPath $exe)) {
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 Add-Type -AssemblyName System.Drawing
 
+function Get-RegionStats {
+    param(
+        [System.Drawing.Bitmap]$Bitmap,
+        [int]$X,
+        [int]$Y,
+        [int]$Width,
+        [int]$Height,
+        [int]$Step = 6
+    )
+
+    $xEnd = [Math]::Min($Bitmap.Width - 1, $X + $Width)
+    $yEnd = [Math]::Min($Bitmap.Height - 1, $Y + $Height)
+    $nonBlack = 0
+    $colorful = 0
+    $count = 0
+    $minBrightness = 765
+    $maxBrightness = 0
+    $maxGreen = 0
+
+    for ($py = [Math]::Max(0, $Y); $py -lt $yEnd; $py += $Step) {
+        for ($px = [Math]::Max(0, $X); $px -lt $xEnd; $px += $Step) {
+            $pixel = $Bitmap.GetPixel($px, $py)
+            $brightness = [int]$pixel.R + [int]$pixel.G + [int]$pixel.B
+            $spread = [Math]::Max([Math]::Max($pixel.R, $pixel.G), $pixel.B) - [Math]::Min([Math]::Min($pixel.R, $pixel.G), $pixel.B)
+
+            if ($brightness -gt 45) {
+                $nonBlack++
+            }
+            if ($spread -gt 18) {
+                $colorful++
+            }
+            if ($brightness -lt $minBrightness) {
+                $minBrightness = $brightness
+            }
+            if ($brightness -gt $maxBrightness) {
+                $maxBrightness = $brightness
+            }
+            if ($pixel.G -gt $maxGreen) {
+                $maxGreen = $pixel.G
+            }
+            $count++
+        }
+    }
+
+    return @{
+        Count = $count
+        NonBlackRatio = if ($count -gt 0) { $nonBlack / $count } else { 0 }
+        ColorfulRatio = if ($count -gt 0) { $colorful / $count } else { 0 }
+        BrightnessRange = $maxBrightness - $minBrightness
+        MaxGreen = $maxGreen
+    }
+}
+
+function Assert-RegionVisible {
+    param(
+        [System.Drawing.Bitmap]$Bitmap,
+        [string]$Name,
+        [int]$X,
+        [int]$Y,
+        [int]$Width,
+        [int]$Height,
+        [double]$MinNonBlackRatio,
+        [int]$MinBrightnessRange
+    )
+
+    $stats = Get-RegionStats -Bitmap $Bitmap -X $X -Y $Y -Width $Width -Height $Height
+    if ($stats.NonBlackRatio -lt $MinNonBlackRatio -or $stats.BrightnessRange -lt $MinBrightnessRange) {
+        throw "Capture failed: $Name region looks blank or flat (nonblack=$([Math]::Round($stats.NonBlackRatio, 3)), range=$($stats.BrightnessRange))."
+    }
+}
+
+function Assert-ActiveToolbarVisible {
+    param(
+        [System.Drawing.Bitmap]$Bitmap,
+        [int]$Width,
+        [int]$Height
+    )
+
+    $stats = Get-RegionStats `
+        -Bitmap $Bitmap `
+        -X ([int]($Width * 0.27)) `
+        -Y ([int]($Height * 0.90)) `
+        -Width ([int]($Width * 0.08)) `
+        -Height ([int]($Height * 0.08)) `
+        -Step 3
+
+    if ($stats.NonBlackRatio -lt 0.18 -or $stats.ColorfulRatio -lt 0.03 -or $stats.MaxGreen -lt 65) {
+        throw "Capture failed: active toolbar region is not visibly highlighted (nonblack=$([Math]::Round($stats.NonBlackRatio, 3)), colorful=$([Math]::Round($stats.ColorfulRatio, 3)), maxGreen=$($stats.MaxGreen))."
+    }
+}
+
 $sizes = @(
     @{ Width = 1280; Height = 720; Name = "ui_smoke_1280x720.png"; Fullscreen = "0" },
     @{ Width = 1920; Height = 1080; Name = "ui_smoke_1920x1080.png"; Fullscreen = "1" }
@@ -49,11 +140,16 @@ foreach ($size in $sizes) {
         throw "Capture failed: $path is unexpectedly small ($($file.Length) bytes)."
     }
 
-    $image = [System.Drawing.Image]::FromFile($path)
+    $image = [System.Drawing.Bitmap]::FromFile($path)
     try {
         if ($image.Width -ne $size.Width -or $image.Height -ne $size.Height) {
             throw "Capture failed: $path is $($image.Width)x$($image.Height), expected $($size.Width)x$($size.Height)."
         }
+
+        Assert-RegionVisible -Bitmap $image -Name "left rail" -X 10 -Y 78 -Width 278 -Height 170 -MinNonBlackRatio 0.35 -MinBrightnessRange 45
+        Assert-RegionVisible -Bitmap $image -Name "right rail" -X ([int]($size.Width - 292)) -Y 78 -Width 278 -Height 545 -MinNonBlackRatio 0.18 -MinBrightnessRange 45
+        Assert-RegionVisible -Bitmap $image -Name "central map" -X ([int]($size.Width * 0.26)) -Y ([int]($size.Height * 0.18)) -Width ([int]($size.Width * 0.48)) -Height ([int]($size.Height * 0.48)) -MinNonBlackRatio 0.12 -MinBrightnessRange 30
+        Assert-ActiveToolbarVisible -Bitmap $image -Width $size.Width -Height $size.Height
     }
     finally {
         $image.Dispose()
