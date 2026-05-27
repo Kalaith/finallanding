@@ -11,4 +11,5 @@ pub mod mission;
 pub mod priority;
 pub mod resources;
 pub mod scenario;
+pub mod simulation_rng;
 pub mod technology;

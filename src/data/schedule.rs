@@ -1,3 +1,4 @@
+use crate::data::simulation_rng::SimulationRng;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,12 +56,10 @@ impl Default for Schedule {
 }
 
 impl Schedule {
-    pub fn new_randomized() -> Self {
-        use macroquad::rand::gen_range;
-
+    pub fn new_randomized(rng: &mut SimulationRng) -> Self {
         // Base times with variance (+/- 1-2 hours)
-        let wake_variance = gen_range(-1, 2); // -1, 0, or 1
-        let sleep_variance = gen_range(-1, 2);
+        let wake_variance = rng.range_i32(-1, 2); // -1, 0, or 1
+        let sleep_variance = rng.range_i32(-1, 2);
 
         let wake_time = (6i32 + wake_variance).clamp(4, 9) as u32;
         let sleep_time = (22i32 + sleep_variance).clamp(20, 24) as u32;
@@ -69,8 +68,8 @@ impl Schedule {
         let work_end = 18;
 
         // Lunch/Dinner shifts
-        let _lunch_start = 12 + gen_range(0, 2); // 12 or 13
-        let dinner_start = 19 + gen_range(0, 2); // 19 or 20
+        let _lunch_start = (12 + rng.range_i32(0, 2)) as u32; // 12 or 13
+        let dinner_start = (19 + rng.range_i32(0, 2)) as u32; // 19 or 20
 
         // Construct entries (simplified for now, overwrites overlap logic)
         Self {

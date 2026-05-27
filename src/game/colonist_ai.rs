@@ -2,12 +2,13 @@ use crate::data::building::BuildingType;
 use crate::data::colonist::{ActivityLocation, Colonist, ColonistState, JobPreference};
 use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
+use crate::data::grid::Grid;
 use crate::data::schedule::ActivityType;
+use crate::data::simulation_rng::SimulationRng;
 use crate::data::types::Position;
 use crate::systems::job_decision_system::calculate_refusal_chance;
 use crate::systems::mood_system::update_mood;
 use crate::systems::time_system::TimeSystem;
-use macroquad::rand::gen_range;
 use std::collections::HashMap;
 
 /// Movement speed for visual interpolation (pixels per frame)
@@ -83,6 +84,8 @@ pub fn update_colonists(state: &mut GameState, elapsed_ticks: u64) {
             &occupied,
             &colonist_names,
             &social_locations,
+            &state.grid,
+            &mut state.rng,
             &buildings,
             &mut building_occupancy,
             habitat_capacity,
@@ -105,6 +108,8 @@ fn update_colonist_ai(
     occupied: &HashMap<Position, u32>,
     colonist_names: &HashMap<u32, String>,
     social_locations: &[SocialLocation],
+    grid: &Grid,
+    rng: &mut SimulationRng,
     buildings: &[(u32, BuildingType, Position, (u32, u32))],
     building_occupancy: &mut HashMap<u32, u32>,
     habitat_capacity: u32,
@@ -132,7 +137,7 @@ fn update_colonist_ai(
                 ActivityType::Work => {
                     let refusal_chance =
                         calculate_refusal_chance(colonist, colonist.job_preference);
-                    if gen_range(0.0, 100.0) < refusal_chance {
+                    if rng.range_f32(0.0, 100.0) < refusal_chance {
                         log_work_refusal(colonist, refusal_chance, current_tick, pending_logs);
                         None
                     } else {
@@ -158,6 +163,7 @@ fn update_colonist_ai(
                     specific_target,
                     colonist,
                     social_locations,
+                    grid,
                 ) {
                     if is_adjacent_to_building(
                         colonist.position,
@@ -174,12 +180,13 @@ fn update_colonist_ai(
                     } else {
                         set_moving_to_activity(colonist, scheduled_activity, target.entrance);
                     }
-                } else if gen_range(0, 100) < 5 {
-                    let target = find_wander_target(colonist.position, occupied);
+                } else if rng.range_i32(0, 100) < 5 {
+                    let target = find_wander_target(colonist.position, occupied, grid, rng);
                     set_moving_to_activity(colonist, &ActivityType::Relax, target);
                 }
-            } else if matches!(scheduled_activity, ActivityType::Relax) && gen_range(0, 100) < 5 {
-                let target = find_wander_target(colonist.position, occupied);
+            } else if matches!(scheduled_activity, ActivityType::Relax) && rng.range_i32(0, 100) < 5
+            {
+                let target = find_wander_target(colonist.position, occupied, grid, rng);
                 set_moving_to_activity(colonist, scheduled_activity, target);
             }
         }
@@ -188,6 +195,7 @@ fn update_colonist_ai(
                 colonist,
                 target,
                 occupied,
+                grid,
                 colonist_names,
                 current_tick,
                 pending_logs,
@@ -408,6 +416,7 @@ fn find_building_entrance(
     specific_target: Option<u32>,
     colonist: &Colonist,
     social_locations: &[SocialLocation],
+    grid: &Grid,
 ) -> Option<BuildingTarget> {
     let mut best_target: Option<(BuildingTarget, i32, i32)> = None;
 
@@ -422,7 +431,8 @@ fn find_building_entrance(
             }
         }
 
-        let Some((entrance, distance)) = best_building_entrance(from, *pos, *width, *height) else {
+        let Some((entrance, distance)) = best_building_entrance(from, *pos, *width, *height, grid)
+        else {
             continue;
         };
 
@@ -451,6 +461,7 @@ fn best_building_entrance(
     pos: Position,
     width: u32,
     height: u32,
+    grid: &Grid,
 ) -> Option<(Position, i32)> {
     let mut best_target: Option<Position> = None;
     let mut best_distance = i32::MAX;
@@ -464,7 +475,10 @@ fn best_building_entrance(
                 continue;
             }
 
-            if check_x < 0 || check_y < 0 || check_x >= 20 || check_y >= 20 {
+            if !grid
+                .get_cell(check_x, check_y)
+                .is_some_and(|cell| cell.is_walkable())
+            {
                 continue;
             }
 
@@ -587,12 +601,17 @@ fn is_position_adjacent_to_building(
 }
 
 /// Find a random wander target that isn't occupied
-fn find_wander_target(current: Position, occupied: &HashMap<Position, u32>) -> Position {
+fn find_wander_target(
+    current: Position,
+    occupied: &HashMap<Position, u32>,
+    grid: &Grid,
+    rng: &mut SimulationRng,
+) -> Position {
     for _ in 0..10 {
-        let target_x = gen_range(0, 20);
-        let target_y = gen_range(0, 20);
+        let target_x = rng.range_i32(0, grid.width as i32);
+        let target_y = rng.range_i32(0, grid.height as i32);
         let target = Position::new(target_x, target_y);
-        if !occupied.contains_key(&target) {
+        if is_step_open(target, occupied, grid) {
             return target;
         }
     }
@@ -604,24 +623,18 @@ fn get_next_move_position(
     colonist: &mut Colonist,
     target: Position,
     occupied: &HashMap<Position, u32>,
+    grid: &Grid,
     colonist_names: &HashMap<u32, String>,
     current_tick: u64,
     pending_logs: &mut Vec<PendingLog>,
 ) -> Position {
-    let mut next = colonist.position;
     let current = colonist.position;
-
-    if current.x < target.x {
-        next.x += 1;
-    } else if current.x > target.x {
-        next.x -= 1;
-    }
-
-    if current.y < target.y {
-        next.y += 1;
-    } else if current.y > target.y {
-        next.y -= 1;
-    }
+    let Some(next) = grid
+        .find_path(current, target)
+        .and_then(|path| path.into_iter().find(|step| *step != current))
+    else {
+        return current;
+    };
 
     if next != current {
         if let Some(other_id) = occupied.get(&next) {
@@ -647,7 +660,7 @@ fn get_next_move_position(
                 },
                 current.y,
             );
-            if horiz != current && !occupied.contains_key(&horiz) {
+            if horiz != current && is_step_open(horiz, occupied, grid) {
                 return horiz;
             }
 
@@ -661,7 +674,7 @@ fn get_next_move_position(
                     current.y
                 },
             );
-            if vert != current && !occupied.contains_key(&vert) {
+            if vert != current && is_step_open(vert, occupied, grid) {
                 return vert;
             }
 
@@ -670,6 +683,13 @@ fn get_next_move_position(
     }
 
     next
+}
+
+fn is_step_open(position: Position, occupied: &HashMap<Position, u32>, grid: &Grid) -> bool {
+    !occupied.contains_key(&position)
+        && grid
+            .get_cell(position.x, position.y)
+            .is_some_and(|cell| cell.is_walkable())
 }
 
 fn log_social_strain(
@@ -702,6 +722,7 @@ fn log_social_strain(
 mod tests {
     use super::*;
     use crate::data::colonist::{ColonistState, JobPreference, Trait};
+    use crate::data::grid::CellType;
 
     #[test]
     fn test_strained_proximity_logs_visible_mood_drop() {
@@ -781,6 +802,7 @@ mod tests {
                 },
             ),
         ];
+        let grid = Grid::default();
 
         let target = find_building_entrance(
             colonist.position,
@@ -789,10 +811,42 @@ mod tests {
             None,
             &colonist,
             &social_locations,
+            &grid,
         )
         .expect("workshop target should be found");
 
         assert_eq!(target.building_id, 20);
+    }
+
+    #[test]
+    fn test_movement_uses_grid_pathfinding_around_blocked_cells() {
+        let mut grid = Grid::new(4, 3);
+        grid.set_cell_type(1, 0, CellType::Wall);
+
+        let mut colonist = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::FastWalker,
+            JobPreference::Builder,
+        );
+        let occupied = HashMap::new();
+        let colonist_names = HashMap::new();
+        let mut pending_logs = Vec::new();
+
+        let next = get_next_move_position(
+            &mut colonist,
+            Position::new(2, 0),
+            &occupied,
+            &grid,
+            &colonist_names,
+            0,
+            &mut pending_logs,
+        );
+
+        assert_ne!(next, Position::new(1, 0));
+        assert_ne!(next, colonist.position);
+        assert!(is_step_open(next, &occupied, &grid));
     }
 
     #[test]
@@ -818,6 +872,7 @@ mod tests {
                 building_type: BuildingType::Workshop,
             },
         )];
+        let grid = Grid::default();
 
         let target = find_building_entrance(
             colonist.position,
@@ -826,6 +881,7 @@ mod tests {
             None,
             &colonist,
             &social_locations,
+            &grid,
         )
         .expect("workshop target should be found");
 
@@ -847,6 +903,7 @@ mod tests {
             (10, BuildingType::Workshop, Position::new(1, 1), (2, 2)),
             (20, BuildingType::Workshop, Position::new(12, 12), (2, 2)),
         ];
+        let grid = Grid::default();
         let target = find_building_entrance(
             colonist.position,
             BuildingType::Workshop,
@@ -859,6 +916,7 @@ mod tests {
             ),
             &colonist,
             &[],
+            &grid,
         )
         .expect("assigned workshop target should be found");
 

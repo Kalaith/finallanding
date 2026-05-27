@@ -5,6 +5,7 @@ use crate::data::mission::MissionState;
 use crate::data::priority::PriorityState;
 use crate::data::resources::ResourceState;
 use crate::data::scenario::ScenarioState;
+use crate::data::simulation_rng::SimulationRng;
 use crate::data::technology::TechnologyState;
 use crate::game::building_system::BuildingSystem;
 use crate::systems::time_system::TimeSystem;
@@ -56,6 +57,9 @@ pub struct GameState {
     /// Building placement system
     #[serde(skip)]
     pub building_system: BuildingSystem,
+    /// Deterministic simulation randomness, kept out of macroquad rendering globals.
+    #[serde(skip)]
+    pub rng: SimulationRng,
 }
 
 impl GameState {
@@ -75,6 +79,7 @@ impl GameState {
             technology: TechnologyState::default(),
             scenario: ScenarioState::default(),
             building_system: BuildingSystem::new(),
+            rng: SimulationRng::default(),
         }
     }
 

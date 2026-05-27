@@ -18,7 +18,7 @@ pub fn spawn_initial_colonists(state: &mut GameState) {
         let position = Position::new(5 + i as i32, 5);
 
         let mut colonist = Colonist::new(id, name.to_string(), position, *trait_data, *job_pref);
-        colonist.schedule = crate::data::schedule::Schedule::new_randomized();
+        colonist.schedule = crate::data::schedule::Schedule::new_randomized(&mut state.rng);
 
         state.colonists.push(colonist);
     }
