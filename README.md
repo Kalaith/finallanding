@@ -36,3 +36,12 @@ The in-game advisor surfaces the next survival, tech, resource, or relationship 
 - `cargo test`: runs unit coverage plus a headless reference playthrough.
 - The reference playthrough starts at Day 1 07:00, advances through the live mission, work, resource, relationship, technology, and scenario systems, and asserts a Day 7 victory inside the 30-40 minute normal-speed window.
 - UI hit-zone tests verify the visible menu, speed, priority, building, undo, and mission controls resolve to the intended gameplay actions.
+
+## Playtest Checklist
+
+- Start from the main menu without developer guidance.
+- Place at least one Habitat, Mess Hall, Workshop, Storage, and Exploration Gate.
+- Change priorities after an incident and confirm the advisor responds.
+- Launch at least two different mission types and compare risk/reward.
+- Inspect one colonist and identify their strongest or weakest relationship.
+- Reach victory or failure, then use the restart button to begin another run.

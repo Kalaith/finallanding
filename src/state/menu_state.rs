@@ -66,10 +66,26 @@ impl MenuState {
         draw_text(
             title,
             screen_center_x - title_dim.width / 2.0,
-            screen_center_y - 100.0,
+            screen_center_y - 170.0,
             50.0,
             WHITE,
         );
+
+        let premise = [
+            "Guide six crash survivors through the first week.",
+            "Build shelter, food, storage, repairs, and scouting routes.",
+            "Priorities shape work pressure, recovery, missions, and relationships.",
+        ];
+        for (index, line) in premise.iter().enumerate() {
+            let dim = measure_text(line, None, 20, 1.0);
+            draw_text(
+                line,
+                screen_center_x - dim.width / 2.0,
+                screen_center_y - 112.0 + index as f32 * 28.0,
+                20.0,
+                LIGHTGRAY,
+            );
+        }
 
         // Start Button Visuals
         let btn_rect = menu_start_rect(screen_width(), screen_height());
@@ -95,14 +111,20 @@ impl MenuState {
         );
 
         // Instructions
-        let instr = "Press SPACE or CLICK to Start";
-        let instr_dim = measure_text(instr, None, 20, 1.0);
-        draw_text(
-            instr,
-            screen_center_x - instr_dim.width / 2.0,
-            screen_center_y + 100.0,
-            20.0,
-            GRAY,
-        );
+        let controls = [
+            "Mouse places buildings and uses panels",
+            "Q W E R T choose building tools | Z undo | Esc cancel",
+            "1 2 3 set priority | Space pause | M launch recommended mission",
+        ];
+        for (index, line) in controls.iter().enumerate() {
+            let dim = measure_text(line, None, 16, 1.0);
+            draw_text(
+                line,
+                screen_center_x - dim.width / 2.0,
+                screen_center_y + 104.0 + index as f32 * 22.0,
+                16.0,
+                GRAY,
+            );
+        }
     }
 }

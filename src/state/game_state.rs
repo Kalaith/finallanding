@@ -23,7 +23,8 @@ use crate::systems::time_system::TimeSystem;
 use crate::systems::work_system::WorkSystem;
 use crate::ui::{
     draw_advisor_overlay, draw_colonist_inspector, draw_debug_overlay, draw_side_panel,
-    draw_top_bar, side_panel_hit_at, top_bar_priority_at, top_bar_speed_at, Layout, SidePanelHit,
+    draw_top_bar, restart_button_rect, side_panel_hit_at, top_bar_priority_at, top_bar_speed_at,
+    Layout, SidePanelHit,
 };
 use macroquad::prelude::*;
 
@@ -350,6 +351,23 @@ impl GameplayState {
         }
     }
 
+    fn scenario_restart_transition(&self) -> Option<StateTransition> {
+        if !self.data.scenario.is_finished() {
+            return None;
+        }
+
+        let restart_rect = restart_button_rect(screen_width(), screen_height());
+        let mouse_pos: Vec2 = mouse_position().into();
+        let clicked_restart =
+            is_mouse_button_pressed(MouseButton::Left) && restart_rect.contains(mouse_pos);
+
+        if clicked_restart || is_key_pressed(KeyCode::R) || is_key_pressed(KeyCode::Enter) {
+            Some(StateTransition::ToGameplay(GameplayState::new()))
+        } else {
+            None
+        }
+    }
+
     fn advance_time(&mut self) -> u64 {
         let speed_multiplier = match self.data.time.speed {
             TimeSpeed::Paused => 0.0,
@@ -427,7 +445,7 @@ impl GameplayState {
         }
 
         let w = 520.0;
-        let h = 150.0;
+        let h = 190.0;
         let x = (screen_width() - w) * 0.5;
         let y = (screen_height() - h) * 0.5;
 
@@ -449,9 +467,37 @@ impl GameplayState {
         let line_width = measure_text(&line, None, 16, 1.0).width;
         draw_text(&line, x + (w - line_width) * 0.5, y + 82.0, 16.0, LIGHTGRAY);
 
-        let prompt = "Scenario complete. Review the log or restart from the main menu.";
+        let prompt = "Scenario complete. Review the log, then restart for another plan.";
         let prompt_width = measure_text(prompt, None, 14, 1.0).width;
-        draw_text(prompt, x + (w - prompt_width) * 0.5, y + 118.0, 14.0, GRAY);
+        draw_text(prompt, x + (w - prompt_width) * 0.5, y + 116.0, 14.0, GRAY);
+
+        let button = restart_button_rect(screen_width(), screen_height());
+        let mouse_pos: Vec2 = mouse_position().into();
+        let button_color = if button.contains(mouse_pos) {
+            Color::new(0.25, 0.38, 0.48, 1.0)
+        } else {
+            Color::new(0.16, 0.22, 0.28, 1.0)
+        };
+        draw_rectangle(button.x, button.y, button.w, button.h, button_color);
+        draw_rectangle_lines(button.x, button.y, button.w, button.h, 1.0, WHITE);
+        let button_text = "Restart Run";
+        let button_width = measure_text(button_text, None, 18, 1.0).width;
+        draw_text(
+            button_text,
+            button.x + (button.w - button_width) * 0.5,
+            button.y + 25.0,
+            18.0,
+            WHITE,
+        );
+        let restart_hint = "R or Enter";
+        let hint_width = measure_text(restart_hint, None, 12, 1.0).width;
+        draw_text(
+            restart_hint,
+            x + (w - hint_width) * 0.5,
+            y + 170.0,
+            12.0,
+            LIGHTGRAY,
+        );
     }
 
     /// Draw buildings on the grid
@@ -685,26 +731,65 @@ impl GameplayState {
                 ColonistState::OnMission { .. } => PURPLE,
             };
 
-            // Draw colonist as circle with state indicator
-            draw_circle(x + 16.0, y + 16.0, size / 2.0, color);
+            let center_x = x + 16.0;
+            let center_y = y + 16.0;
+            draw_ellipse(
+                center_x,
+                center_y + 12.0,
+                12.0,
+                4.0,
+                0.0,
+                Color::new(0.0, 0.0, 0.0, 0.25),
+            );
+            draw_rectangle(center_x - 8.0, center_y + 2.0, 16.0, 15.0, color);
+            draw_rectangle_lines(center_x - 8.0, center_y + 2.0, 16.0, 15.0, 1.0, WHITE);
+            draw_circle(
+                center_x,
+                center_y - 5.0,
+                8.0,
+                Color::new(0.78, 0.68, 0.56, 1.0),
+            );
+            draw_circle_lines(center_x, center_y - 5.0, 8.0, 1.0, WHITE);
+            draw_rectangle(center_x - 5.0, center_y - 10.0, 10.0, 3.0, color);
+            draw_line(
+                center_x - 5.0,
+                center_y + 17.0,
+                center_x - 9.0,
+                center_y + 24.0,
+                2.0,
+                LIGHTGRAY,
+            );
+            draw_line(
+                center_x + 5.0,
+                center_y + 17.0,
+                center_x + 9.0,
+                center_y + 24.0,
+                2.0,
+                LIGHTGRAY,
+            );
+            draw_circle(
+                center_x + 8.0,
+                center_y + 5.0,
+                3.0,
+                job_color(colonist.job_preference),
+            );
             if Some(colonist.id) == hovered_colonist_id
                 || Some(colonist.id) == self.selected_colonist_id
             {
                 draw_circle_lines(
-                    x + 16.0,
-                    y + 16.0,
+                    center_x,
+                    center_y,
                     size / 2.0 + 4.0,
                     2.0,
                     Color::new(1.0, 1.0, 1.0, 0.8),
                 );
             }
-            draw_circle_lines(x + 16.0, y + 16.0, size / 2.0, 2.0, WHITE);
 
             // Name label
             let name_width = measure_text(&colonist.name, None, 12, 1.0).width;
             draw_text(
                 &colonist.name,
-                x + 16.0 - name_width / 2.0,
+                center_x - name_width / 2.0,
                 y + 40.0,
                 12.0,
                 WHITE,
@@ -783,11 +868,25 @@ fn truncate_text(text: &str, max_chars: usize) -> String {
     truncated
 }
 
+fn job_color(job_preference: crate::data::colonist::JobPreference) -> Color {
+    match job_preference {
+        crate::data::colonist::JobPreference::Explorer => PURPLE,
+        crate::data::colonist::JobPreference::Builder => YELLOW,
+        crate::data::colonist::JobPreference::Cook => GREEN,
+        crate::data::colonist::JobPreference::Hauler => GRAY,
+        crate::data::colonist::JobPreference::None => WHITE,
+    }
+}
+
 impl State for GameplayState {
     fn update(&mut self) -> StateTransition {
         // Debug toggle
         if is_key_pressed(KeyCode::F3) {
             self.debug_mode = !self.debug_mode;
+        }
+
+        if let Some(transition) = self.scenario_restart_transition() {
+            return transition;
         }
 
         // Time speed and priority controls (keyboard)

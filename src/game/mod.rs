@@ -29,6 +29,9 @@ impl Game {
             GameStateEnum::Gameplay(state) => {
                 let transition = state.update();
                 match transition {
+                    StateTransition::ToGameplay(new_state) => {
+                        self.state = GameStateEnum::Gameplay(new_state);
+                    }
                     StateTransition::Quit => std::process::exit(0),
                     _ => {}
                 }
