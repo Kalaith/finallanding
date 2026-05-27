@@ -2,7 +2,8 @@ use crate::data::building::BuildingType;
 use crate::data::colonist::{ActivityLocation, ColonistState, JobPreference};
 use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
-use crate::data::mission::{ActiveMission, MissionItem, MissionType};
+use crate::data::mission::{ActiveMission, MissionDefinition, MissionItem, MissionType};
+use crate::data::priority::ColonyPriority;
 use crate::systems::resource_system::ResourceSystem;
 
 pub struct MissionSystem;
@@ -11,11 +12,82 @@ pub struct MissionSystem;
 pub enum LaunchMissionError {
     NoExplorationGate,
     NoAvailableColonist,
+    MissionCooldown { remaining_ticks: u64 },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MissionPlan {
+    pub mission_type: MissionType,
+    pub definition: MissionDefinition,
+    pub danger_percent: u32,
+    pub recommended: bool,
+    pub recommendation_reason: String,
+    pub cooldown_remaining: u64,
 }
 
 impl MissionSystem {
-    pub fn perimeter_scan_danger_percent(state: &GameState) -> u32 {
-        let definition = MissionType::PerimeterScan.definition();
+    pub fn mission_plans(state: &GameState) -> Vec<MissionPlan> {
+        let recommended_type = Self::recommended_mission_type(state);
+        let recommendation_reason = Self::recommendation_reason(state, recommended_type);
+        let cooldown_remaining = state.missions.cooldown_remaining(state.tick);
+
+        MissionType::all()
+            .iter()
+            .map(|mission_type| MissionPlan {
+                mission_type: *mission_type,
+                definition: mission_type.definition(),
+                danger_percent: Self::mission_danger_percent(state, *mission_type),
+                recommended: *mission_type == recommended_type,
+                recommendation_reason: recommendation_reason.clone(),
+                cooldown_remaining,
+            })
+            .collect()
+    }
+
+    pub fn recommended_mission_type(state: &GameState) -> MissionType {
+        let daily_need = ResourceSystem::daily_supply_need(state).max(1);
+        if state.resources.supplies < daily_need * 2 {
+            return MissionType::SupplyRun;
+        }
+
+        if state.priority.active == ColonyPriority::Recovery {
+            return MissionType::PerimeterScan;
+        }
+
+        if state.priority.active == ColonyPriority::Survey
+            || state.technology.unlocked_count() < state.scenario.required_tech_unlocks
+        {
+            return MissionType::DeepSurvey;
+        }
+
+        MissionType::PerimeterScan
+    }
+
+    pub fn recommendation_reason(state: &GameState, mission_type: MissionType) -> String {
+        match mission_type {
+            MissionType::SupplyRun => {
+                let daily_need = ResourceSystem::daily_supply_need(state).max(1);
+                format!(
+                    "Supplies {} are under a {}-supply safety buffer.",
+                    state.resources.supplies,
+                    daily_need * 2
+                )
+            }
+            MissionType::PerimeterScan => format!(
+                "{} priority favors a safer balanced scout.",
+                state.priority.active.label()
+            ),
+            MissionType::DeepSurvey => format!(
+                "{} priority pushes tech progress {}/{}.",
+                state.priority.active.label(),
+                state.technology.unlocked_count(),
+                state.scenario.required_tech_unlocks
+            ),
+        }
+    }
+
+    pub fn mission_danger_percent(state: &GameState, mission_type: MissionType) -> u32 {
+        let definition = mission_type.definition();
         let technology_adjusted = definition
             .danger_percent
             .saturating_sub(state.technology.mission_danger_reduction());
@@ -25,7 +97,18 @@ impl MissionSystem {
             .adjust_mission_danger(technology_adjusted)
     }
 
+    pub fn perimeter_scan_danger_percent(state: &GameState) -> u32 {
+        Self::mission_danger_percent(state, MissionType::PerimeterScan)
+    }
+
     pub fn launch_perimeter_scan(state: &mut GameState) -> Result<u32, LaunchMissionError> {
+        Self::launch_mission(state, MissionType::PerimeterScan)
+    }
+
+    pub fn launch_mission(
+        state: &mut GameState,
+        mission_type: MissionType,
+    ) -> Result<u32, LaunchMissionError> {
         if !state
             .building_system
             .buildings()
@@ -35,14 +118,21 @@ impl MissionSystem {
             return Err(LaunchMissionError::NoExplorationGate);
         }
 
+        let cooldown_remaining = state.missions.cooldown_remaining(state.tick);
+        if cooldown_remaining > 0 {
+            return Err(LaunchMissionError::MissionCooldown {
+                remaining_ticks: cooldown_remaining,
+            });
+        }
+
         let Some(colonist_index) = Self::find_available_mission_colonist(state) else {
             return Err(LaunchMissionError::NoAvailableColonist);
         };
 
-        let definition = MissionType::PerimeterScan.definition();
+        let definition = mission_type.definition();
         let mission_id = state.missions.next_id;
         state.missions.next_id += 1;
-        let danger_percent = Self::perimeter_scan_danger_percent(state);
+        let danger_percent = Self::mission_danger_percent(state, mission_type);
         let completes_at_tick = state.tick + definition.duration_minutes;
         let priority = state.priority.active;
 
@@ -56,21 +146,24 @@ impl MissionSystem {
         state.missions.active_missions.push(ActiveMission {
             id: mission_id,
             colonist_id: state.colonists[colonist_index].id,
-            mission_type: MissionType::PerimeterScan,
+            mission_type,
             started_tick: state.tick,
             completes_at_tick,
             danger_percent,
             priority,
         });
+        state.missions.next_launch_tick = state.tick + definition.cooldown_minutes;
 
         state.push_log(
             LogCategory::Mission,
             format!("{} started {}", colonist_name, definition.name),
             format!(
-                "Mission duration {} minute, danger {}%. Priority: {}.",
+                "{} Duration {}m, danger {}% after {} priority. Crew regroups for {}m.",
+                definition.reward_profile,
                 definition.duration_minutes,
                 danger_percent,
-                priority.label()
+                priority.label(),
+                definition.cooldown_minutes
             ),
         );
 
@@ -143,6 +236,7 @@ impl MissionSystem {
         let item = Self::item_for_mission(&mission);
         let injured = Self::mission_caused_injury(&mission);
         let injury_duration = state.technology.injury_duration_ticks();
+        let definition = mission.mission_type.definition();
 
         let colonist_name = if let Some(colonist) = state
             .colonists
@@ -163,7 +257,10 @@ impl MissionSystem {
             format!("Colonist {}", mission.colonist_id)
         };
 
-        let (supplies, salvage) = Self::resources_for_item(item);
+        let (base_supplies, base_salvage) = Self::base_resources_for_mission(&mission);
+        let (item_supplies, item_salvage) = Self::resources_for_item(item);
+        let supplies = base_supplies + item_supplies;
+        let salvage = base_salvage + item_salvage;
         let wasted_supplies = if supplies > 0 {
             ResourceSystem::add_supplies_from_work(state, supplies)
         } else {
@@ -177,8 +274,8 @@ impl MissionSystem {
 
         state.push_log(
             LogCategory::Mission,
-            format!("{} returned from mission", colonist_name),
-            Self::mission_detail(item, supplies, salvage, wasted_supplies),
+            format!("{} returned from {}", colonist_name, definition.name),
+            Self::mission_detail(&mission, item, supplies, salvage, wasted_supplies),
         );
 
         if injured {
@@ -186,8 +283,8 @@ impl MissionSystem {
                 LogCategory::Mission,
                 format!("{} was hurt", colonist_name),
                 format!(
-                    "Mission danger caused an injury. Recovery takes {} minutes.",
-                    injury_duration
+                    "{} risk caught up with the crew at {}% danger. Recovery takes {} minutes.",
+                    definition.name, mission.danger_percent, injury_duration
                 ),
             );
         }
@@ -196,7 +293,12 @@ impl MissionSystem {
             state.push_log(
                 LogCategory::Technology,
                 format!("Technology unlocked: {}", tech_id.name()),
-                tech_id.effect_text().to_string(),
+                format!(
+                    "{} from {} completed research. {}",
+                    item.name(),
+                    definition.name,
+                    tech_id.effect_text()
+                ),
             );
         }
 
@@ -204,25 +306,66 @@ impl MissionSystem {
     }
 
     fn item_for_mission(mission: &ActiveMission) -> MissionItem {
-        let roll = (mission.id + mission.colonist_id + mission.started_tick as u32) % 5;
-        match mission.priority {
-            crate::data::priority::ColonyPriority::Recovery => match roll {
-                0 | 1 => MissionItem::MedicinalGel,
-                2 => MissionItem::NutrientPods,
-                3 => MissionItem::StructuralAlloy,
-                _ => MissionItem::SalvageCache,
+        let roll = (mission.id + mission.colonist_id + mission.started_tick as u32) % 6;
+        match mission.mission_type {
+            MissionType::SupplyRun => match mission.priority {
+                ColonyPriority::Recovery => match roll {
+                    0 | 1 => MissionItem::MedicinalGel,
+                    2 | 3 => MissionItem::NutrientPods,
+                    _ => MissionItem::SalvageCache,
+                },
+                ColonyPriority::Stockpile => match roll {
+                    0 | 1 | 2 => MissionItem::SalvageCache,
+                    3 | 4 => MissionItem::NutrientPods,
+                    _ => MissionItem::StructuralAlloy,
+                },
+                ColonyPriority::Survey => match roll {
+                    0 => MissionItem::AlienCircuit,
+                    1 | 2 => MissionItem::NutrientPods,
+                    3 => MissionItem::StructuralAlloy,
+                    _ => MissionItem::SalvageCache,
+                },
             },
-            crate::data::priority::ColonyPriority::Stockpile => match roll {
-                0 => MissionItem::StructuralAlloy,
-                1 | 4 => MissionItem::SalvageCache,
-                2 | 3 => MissionItem::NutrientPods,
-                _ => MissionItem::SalvageCache,
+            MissionType::PerimeterScan => match mission.priority {
+                ColonyPriority::Recovery => match roll {
+                    0 | 1 => MissionItem::MedicinalGel,
+                    2 => MissionItem::NutrientPods,
+                    3 => MissionItem::StructuralAlloy,
+                    _ => MissionItem::SalvageCache,
+                },
+                ColonyPriority::Stockpile => match roll {
+                    0 => MissionItem::StructuralAlloy,
+                    1 | 4 | 5 => MissionItem::SalvageCache,
+                    2 | 3 => MissionItem::NutrientPods,
+                    _ => MissionItem::SalvageCache,
+                },
+                ColonyPriority::Survey => match roll {
+                    0 => MissionItem::StructuralAlloy,
+                    1 => MissionItem::AlienCircuit,
+                    2 | 5 => MissionItem::MedicinalGel,
+                    _ => MissionItem::NutrientPods,
+                },
             },
-            crate::data::priority::ColonyPriority::Survey => match roll % 4 {
-                0 => MissionItem::StructuralAlloy,
-                1 => MissionItem::AlienCircuit,
-                2 => MissionItem::MedicinalGel,
-                _ => MissionItem::NutrientPods,
+            MissionType::DeepSurvey => match mission.priority {
+                ColonyPriority::Recovery => match roll {
+                    0 | 1 => MissionItem::MedicinalGel,
+                    2 => MissionItem::AlienCircuit,
+                    3 => MissionItem::StructuralAlloy,
+                    _ => MissionItem::NutrientPods,
+                },
+                ColonyPriority::Stockpile => match roll {
+                    0 | 1 => MissionItem::StructuralAlloy,
+                    2 => MissionItem::AlienCircuit,
+                    3 => MissionItem::MedicinalGel,
+                    4 => MissionItem::NutrientPods,
+                    _ => MissionItem::SalvageCache,
+                },
+                ColonyPriority::Survey => match roll {
+                    0 | 1 => MissionItem::AlienCircuit,
+                    2 => MissionItem::StructuralAlloy,
+                    3 => MissionItem::MedicinalGel,
+                    _ => MissionItem::NutrientPods,
+                },
             },
         }
     }
@@ -242,13 +385,28 @@ impl MissionSystem {
         }
     }
 
+    fn base_resources_for_mission(mission: &ActiveMission) -> (i32, i32) {
+        match mission.mission_type {
+            MissionType::SupplyRun => (5, 1),
+            MissionType::PerimeterScan => (2, 2),
+            MissionType::DeepSurvey => (0, 1),
+        }
+    }
+
     fn mission_detail(
+        mission: &ActiveMission,
         item: MissionItem,
         supplies: i32,
         salvage: i32,
         wasted_supplies: i32,
     ) -> String {
-        let mut detail = format!("Recovered {}.", item.name());
+        let definition = mission.mission_type.definition();
+        let mut detail = format!(
+            "{} completed under {} priority. Found {}.",
+            definition.name,
+            mission.priority.label(),
+            item.name()
+        );
 
         if supplies > 0 {
             detail.push_str(&format!(" Stored {} supplies.", supplies - wasted_supplies));
@@ -262,7 +420,9 @@ impl MissionSystem {
         }
 
         if item.contributes_to_technology() {
-            detail.push_str(" The item was added to technology research.");
+            detail.push_str(" Added to technology research.");
+        } else {
+            detail.push_str(" This was a resource-focused return.");
         }
 
         detail
@@ -297,7 +457,7 @@ mod tests {
     }
 
     #[test]
-    fn test_launch_creates_one_minute_mission() {
+    fn test_launch_creates_typed_mission_and_starts_cooldown() {
         let mut state = GameState::new();
         add_gate(&mut state);
         state.colonists.push(Colonist::new(
@@ -308,12 +468,21 @@ mod tests {
             JobPreference::Explorer,
         ));
 
-        let mission_id = MissionSystem::launch_perimeter_scan(&mut state).unwrap();
+        let mission_id =
+            MissionSystem::launch_mission(&mut state, MissionType::DeepSurvey).unwrap();
 
         assert_eq!(mission_id, 1);
         assert_eq!(
+            state.missions.active_missions[0].mission_type,
+            MissionType::DeepSurvey
+        );
+        assert_eq!(
             state.missions.active_missions[0].remaining_ticks(state.tick),
-            1
+            MissionType::DeepSurvey.definition().duration_minutes
+        );
+        assert_eq!(
+            state.missions.cooldown_remaining(state.tick),
+            MissionType::DeepSurvey.definition().cooldown_minutes
         );
         assert!(state.colonists[0].is_on_mission());
     }
@@ -335,6 +504,35 @@ mod tests {
         assert_eq!(
             MissionSystem::launch_perimeter_scan(&mut state),
             Err(LaunchMissionError::NoAvailableColonist)
+        );
+    }
+
+    #[test]
+    fn test_mission_cooldown_blocks_rapid_relaunch() {
+        let mut state = GameState::new();
+        add_gate(&mut state);
+        state.colonists.push(Colonist::new(
+            1,
+            "Scout".to_string(),
+            Position::new(3, 3),
+            Trait::FastWalker,
+            JobPreference::Explorer,
+        ));
+        state.colonists.push(Colonist::new(
+            2,
+            "Backup".to_string(),
+            Position::new(4, 3),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        ));
+
+        MissionSystem::launch_mission(&mut state, MissionType::SupplyRun).unwrap();
+
+        assert_eq!(
+            MissionSystem::launch_mission(&mut state, MissionType::PerimeterScan),
+            Err(LaunchMissionError::MissionCooldown {
+                remaining_ticks: MissionType::SupplyRun.definition().cooldown_minutes
+            })
         );
     }
 
@@ -363,6 +561,42 @@ mod tests {
         MissionSystem::process_completed_missions(&mut state);
 
         assert!(state.technology.has(TechId::FieldMedicine));
+    }
+
+    #[test]
+    fn test_mission_completion_log_names_mission_rewards_and_priority() {
+        let mut state = GameState::new();
+        let mission = ActiveMission {
+            id: 1,
+            colonist_id: 1,
+            mission_type: MissionType::SupplyRun,
+            started_tick: 0,
+            completes_at_tick: 1,
+            danger_percent: 0,
+            priority: ColonyPriority::Stockpile,
+        };
+        state.colonists.push(Colonist::new(
+            1,
+            "Scout".to_string(),
+            Position::new(3, 3),
+            Trait::FastWalker,
+            JobPreference::Explorer,
+        ));
+        state.missions.active_missions.push(mission);
+        state.tick = 1;
+
+        MissionSystem::process_completed_missions(&mut state);
+
+        let log = state
+            .event_log
+            .iter()
+            .find(|entry| entry.title == "Scout returned from Supply Run")
+            .expect("mission completion should log the mission name");
+        assert!(log.detail.contains("Stockpile priority"));
+        assert!(log.detail.contains("Found Salvage Cache"));
+        assert!(log.detail.contains("Stored"));
+        assert!(log.detail.contains("Added"));
+        assert!(log.detail.contains("resource-focused return"));
     }
 
     #[test]
@@ -397,10 +631,39 @@ mod tests {
     fn test_priority_adjusts_mission_danger() {
         let mut state = GameState::new();
         state.priority.active = ColonyPriority::Recovery;
-        assert_eq!(MissionSystem::perimeter_scan_danger_percent(&state), 15);
+        assert_eq!(MissionSystem::perimeter_scan_danger_percent(&state), 12);
 
         state.priority.active = ColonyPriority::Survey;
-        assert_eq!(MissionSystem::perimeter_scan_danger_percent(&state), 30);
+        assert_eq!(MissionSystem::perimeter_scan_danger_percent(&state), 27);
+        assert!(MissionSystem::mission_danger_percent(&state, MissionType::DeepSurvey) > 27);
+    }
+
+    #[test]
+    fn test_priority_changes_visible_mission_recommendation() {
+        let mut state = GameState::new();
+        state.resources.supplies = 1;
+        assert_eq!(
+            MissionSystem::recommended_mission_type(&state),
+            MissionType::SupplyRun
+        );
+
+        state.resources.supplies = 30;
+        state.priority.active = ColonyPriority::Recovery;
+        assert_eq!(
+            MissionSystem::recommended_mission_type(&state),
+            MissionType::PerimeterScan
+        );
+
+        state.priority.active = ColonyPriority::Survey;
+        assert_eq!(
+            MissionSystem::recommended_mission_type(&state),
+            MissionType::DeepSurvey
+        );
+
+        let plans = MissionSystem::mission_plans(&state);
+        assert!(plans
+            .iter()
+            .any(|plan| plan.mission_type == MissionType::DeepSurvey && plan.recommended));
     }
 
     #[test]

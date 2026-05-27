@@ -6,6 +6,7 @@ use crate::data::event_log::{ColonyLogEntry, LogCategory};
 use crate::data::resources::ResourceState;
 use crate::data::scenario::ScenarioOutcome;
 use crate::data::technology::{TechId, TechnologyState};
+use crate::systems::mission_system::MissionPlan;
 use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
 use crate::ui::hit_zones::{build_button_rect, mission_button_rect, undo_button_rect};
 use macroquad::prelude::*;
@@ -30,8 +31,7 @@ pub fn draw_side_panel(
     objective: &str,
     outcome: ScenarioOutcome,
     active_mission_count: usize,
-    mission_duration_minutes: u64,
-    mission_danger_percent: u32,
+    mission_plans: &[MissionPlan],
     technology: &TechnologyState,
     colony_summary: &ColonyPressureSummary,
     logs: &[ColonyLogEntry],
@@ -170,36 +170,86 @@ pub fn draw_side_panel(
         result.undo_requested = true;
     }
 
-    let mission_btn_rect = mission_button_rect(rect);
-    let mission_y = mission_btn_rect.y - 12.0;
+    let first_mission_rect = mission_button_rect(rect, 0);
+    let mission_y = first_mission_rect.y - 12.0;
     draw_text("Missions", rect.x + 15.0, mission_y, 18.0, WHITE);
-    let mission_hovered = mission_btn_rect.contains(Vec2::new(mx, my));
-    let mission_bg = if mission_hovered {
-        Color::new(0.25, 0.3, 0.4, 1.0)
-    } else {
-        dark::PANEL_HEADER
-    };
-    draw_surface(mission_btn_rect, &SurfaceStyle::new(mission_bg));
+    let cooldown_remaining = mission_plans
+        .first()
+        .map(|plan| plan.cooldown_remaining)
+        .unwrap_or(0);
+    let ready_color = if cooldown_remaining > 0 { ORANGE } else { GRAY };
+
+    for (index, plan) in mission_plans.iter().enumerate() {
+        let mission_rect = mission_button_rect(rect, index);
+        let mission_hovered = mission_rect.contains(Vec2::new(mx, my));
+        let mission_bg = if plan.recommended {
+            Color::new(0.18, 0.34, 0.28, 1.0)
+        } else if mission_hovered {
+            Color::new(0.25, 0.3, 0.4, 1.0)
+        } else {
+            dark::PANEL_HEADER
+        };
+        let mut surface = SurfaceStyle::new(mission_bg);
+        if plan.recommended {
+            surface = surface.with_border(1.0, GREEN);
+        }
+        draw_surface(mission_rect, &surface);
+
+        let marker = if plan.recommended { "REC" } else { "   " };
+        draw_text(
+            &format!(
+                "{} {} {}m R{}%",
+                marker,
+                plan.definition.short_name,
+                plan.definition.duration_minutes,
+                plan.danger_percent
+            ),
+            mission_rect.x + 7.0,
+            mission_rect.y + 17.0,
+            12.0,
+            LIGHTGRAY,
+        );
+        draw_text(
+            &truncate_text(plan.definition.reward_profile, 18),
+            mission_rect.x + 117.0,
+            mission_rect.y + 17.0,
+            10.0,
+            GRAY,
+        );
+    }
+
+    let mission_tail_y = mission_plans
+        .len()
+        .checked_sub(1)
+        .map(|index| mission_button_rect(rect, index).y + mission_button_rect(rect, index).h)
+        .unwrap_or(first_mission_rect.y);
     draw_text(
         &format!(
-            "[M] 1m Scan  Risk {}%  Away {}",
-            mission_danger_percent, active_mission_count
+            "Away {} | {}",
+            active_mission_count,
+            if cooldown_remaining > 0 {
+                format!("Regroup {}m", cooldown_remaining)
+            } else {
+                "M launches rec".to_string()
+            }
         ),
-        mission_btn_rect.x + 8.0,
-        mission_btn_rect.y + 19.0,
-        13.0,
-        LIGHTGRAY,
-    );
-    draw_text(
-        &format!("Duration: {} minute", mission_duration_minutes),
         rect.x + 15.0,
-        mission_btn_rect.y + 44.0,
+        mission_tail_y + 15.0,
         11.0,
-        GRAY,
+        ready_color,
     );
+    if let Some(recommended) = mission_plans.iter().find(|plan| plan.recommended) {
+        draw_text(
+            &truncate_text(&recommended.recommendation_reason, 34),
+            rect.x + 15.0,
+            mission_tail_y + 29.0,
+            10.0,
+            GRAY,
+        );
+    }
 
     // Objective section
-    let objective_y = mission_btn_rect.y + 62.0;
+    let objective_y = mission_tail_y + 43.0;
     draw_text("Objective", rect.x + 15.0, objective_y, 18.0, WHITE);
     draw_text(
         &truncate_text(objective, 32),
@@ -229,11 +279,16 @@ pub fn draw_side_panel(
     );
 
     draw_text(
-        &format!("Buildings {}  Colonists {}", building_count, colonist_count),
+        &format!(
+            "Buildings {}  Colonists {}  {}",
+            building_count,
+            colonist_count,
+            resources.condition.label()
+        ),
         rect.x + 15.0,
         stats_y + 29.0,
         13.0,
-        LIGHTGRAY,
+        condition_color(resources.condition.label()),
     );
     draw_text(
         &format!(
@@ -259,31 +314,17 @@ pub fn draw_side_panel(
         LIGHTGRAY,
     );
     draw_text(
-        &format!("Status {}", resources.condition.label()),
-        rect.x + 15.0,
-        stats_y + 77.0,
-        13.0,
-        condition_color(resources.condition.label()),
-    );
-    draw_text(
         &format!(
-            "Mood {:.0}  Relations {:+.0}",
-            colony_summary.average_mood, colony_summary.average_relationship
+            "Mood {:.0}  Rel {:+.0}  C{} T{}",
+            colony_summary.average_mood,
+            colony_summary.average_relationship,
+            colony_summary.close_pairs,
+            colony_summary.strained_pairs
         ),
         rect.x + 15.0,
-        stats_y + 96.0,
+        stats_y + 79.0,
         13.0,
         LIGHTGRAY,
-    );
-    draw_text(
-        &format!(
-            "Close {}  Tense {}",
-            colony_summary.close_pairs, colony_summary.strained_pairs
-        ),
-        rect.x + 15.0,
-        stats_y + 112.0,
-        13.0,
-        relationship_color(colony_summary.average_relationship),
     );
     draw_text(
         &truncate_text(
@@ -291,14 +332,14 @@ pub fn draw_side_panel(
             32,
         ),
         rect.x + 15.0,
-        stats_y + 128.0,
+        stats_y + 95.0,
         12.0,
-        LIGHTGRAY,
+        relationship_color(colony_summary.average_relationship),
     );
     draw_text(
         &truncate_text(&watchlist_text("Tense", &colony_summary.tense_pairs), 32),
         rect.x + 15.0,
-        stats_y + 144.0,
+        stats_y + 111.0,
         12.0,
         GRAY,
     );
@@ -308,13 +349,12 @@ pub fn draw_side_panel(
             next_tech_label(technology.next_locked_tech())
         ),
         rect.x + 15.0,
-        stats_y + 160.0,
+        stats_y + 127.0,
         11.0,
         GRAY,
     );
 
-    let help_y = rect.y + rect.h - 28.0;
-    let log_y = (stats_y + 174.0).min(help_y - 68.0);
+    let log_y = (stats_y + 145.0).min(rect.y + rect.h - 82.0);
     draw_text("Colony Log", rect.x + 15.0, log_y, 18.0, WHITE);
     draw_line(
         rect.x + 10.0,
@@ -357,23 +397,6 @@ pub fn draw_side_panel(
             }
         }
     }
-
-    // Help section
-    draw_line(
-        rect.x + 10.0,
-        help_y,
-        rect.x + rect.w - 10.0,
-        help_y,
-        1.0,
-        GRAY,
-    );
-    draw_text(
-        "[Space] Pause  [1/2/3] Priority",
-        rect.x + 15.0,
-        help_y + 18.0,
-        12.0,
-        GRAY,
-    );
 
     result
 }

@@ -139,8 +139,9 @@ impl PlaytestSystem {
             return;
         }
 
-        if MissionSystem::launch_perimeter_scan(state).is_ok() {
-            strategy.next_mission_tick = state.tick + 30;
+        let mission_type = MissionSystem::recommended_mission_type(state);
+        if MissionSystem::launch_mission(state, mission_type).is_ok() {
+            strategy.next_mission_tick = state.tick + mission_type.definition().cooldown_minutes;
         } else {
             strategy.next_mission_tick = state.tick + 60;
         }

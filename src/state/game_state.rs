@@ -4,6 +4,7 @@ use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
 use crate::data::game_state::TimeSpeed;
 use crate::data::grid::{Grid, CELL_SIZE};
+use crate::data::mission::MissionType;
 use crate::data::priority::ColonyPriority;
 use crate::data::types::Position;
 use crate::game::building_system::PlacementResult;
@@ -95,7 +96,7 @@ impl GameplayState {
             self.toggle_building(BuildingType::ExplorationGate);
         }
         if is_key_pressed(KeyCode::M) {
-            self.launch_perimeter_scan();
+            self.launch_recommended_mission();
         }
 
         // Escape to cancel building mode
@@ -163,16 +164,37 @@ impl GameplayState {
         }
     }
 
-    fn launch_perimeter_scan(&mut self) {
-        if let Err(error) = MissionSystem::launch_perimeter_scan(&mut self.data) {
+    fn launch_recommended_mission(&mut self) {
+        let mission_type = MissionSystem::recommended_mission_type(&self.data);
+        self.launch_mission(mission_type);
+    }
+
+    fn launch_mission(&mut self, mission_type: MissionType) {
+        if let Err(error) = MissionSystem::launch_mission(&mut self.data, mission_type) {
+            let definition = mission_type.definition();
             let (title, detail) = match error {
                 crate::systems::mission_system::LaunchMissionError::NoExplorationGate => (
                     "No Exploration Gate",
-                    "Build an Exploration Gate before sending missions.",
+                    format!(
+                        "Build an Exploration Gate before sending {}.",
+                        definition.name
+                    ),
                 ),
                 crate::systems::mission_system::LaunchMissionError::NoAvailableColonist => (
                     "No available mission crew",
-                    "Colonists who are already away or hurt cannot be sent.",
+                    format!(
+                        "{} needs a colonist who is not away or hurt.",
+                        definition.name
+                    ),
+                ),
+                crate::systems::mission_system::LaunchMissionError::MissionCooldown {
+                    remaining_ticks,
+                } => (
+                    "Mission crew regrouping",
+                    format!(
+                        "Wait {} more minutes before launching another mission.",
+                        remaining_ticks
+                    ),
                 ),
             };
 
@@ -320,8 +342,8 @@ impl GameplayState {
             Some(SidePanelHit::Undo) => {
                 self.undo_last_building();
             }
-            Some(SidePanelHit::Mission) => {
-                self.launch_perimeter_scan();
+            Some(SidePanelHit::Mission(mission_type)) => {
+                self.launch_mission(mission_type);
             }
             None => {}
         }
@@ -844,6 +866,7 @@ impl State for GameplayState {
         );
 
         let colony_summary = SummarySystem::colony_pressure_summary(&self.data);
+        let mission_plans = MissionSystem::mission_plans(&self.data);
         let _panel_result = draw_side_panel(
             &self.layout,
             self.selected_building,
@@ -855,10 +878,7 @@ impl State for GameplayState {
             &ScenarioSystem::objective_line(&self.data),
             self.data.scenario.outcome,
             self.data.missions.active_count(),
-            crate::data::mission::MissionType::PerimeterScan
-                .definition()
-                .duration_minutes,
-            MissionSystem::perimeter_scan_danger_percent(&self.data),
+            &mission_plans,
             &self.data.technology,
             &colony_summary,
             &self.data.event_log,
