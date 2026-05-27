@@ -5,6 +5,7 @@ use crate::data::game_state::TimeSpeed;
 use crate::data::priority::ColonyPriority;
 use crate::data::resources::ResourceState;
 use crate::systems::time_system::TimeSystem;
+use crate::ui::font::{draw_text, measure_text};
 use crate::ui::hit_zones::{
     priority_button_rect, speed_button_rect, top_bar_speed_at, BUTTON_GAP, PRIORITY_BUTTON_START_X,
     PRIORITY_BUTTON_W, PRIORITY_LABEL_X,

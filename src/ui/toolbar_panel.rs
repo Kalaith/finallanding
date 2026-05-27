@@ -6,6 +6,7 @@ use crate::data::priority::ColonyPriority;
 use crate::data::resources::ResourceState;
 use crate::data::technology::{TechId, TechnologyState};
 use crate::systems::mission_system::MissionPlan;
+use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
     toolbar_buildings_for_mode, toolbar_context_item_rect, toolbar_context_rect,
     toolbar_list_item_rect, ToolbarMode,

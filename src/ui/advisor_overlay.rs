@@ -1,6 +1,7 @@
 use super::Layout;
 use crate::systems::advisor_system::{AdvisorPlan, AdvisorSeverity};
 use crate::systems::objective_system::{ObjectiveCard, ObjectiveStatus};
+use crate::ui::font::draw_text;
 use crate::ui::style;
 use macroquad::prelude::*;
 

@@ -21,6 +21,7 @@ use crate::systems::summary_system::SummarySystem;
 use crate::systems::time_events::TimeEventCollector;
 use crate::systems::time_system::TimeSystem;
 use crate::systems::work_system::WorkSystem;
+use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use crate::ui::{
     draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,

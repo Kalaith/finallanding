@@ -8,6 +8,7 @@ use crate::data::scenario::ScenarioOutcome;
 use crate::data::technology::{TechId, TechnologyState};
 use crate::systems::mission_system::MissionPlan;
 use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
+use crate::ui::font::{draw_text, measure_text};
 use crate::ui::hit_zones::{build_button_rect, mission_button_rect, undo_button_rect};
 use crate::ui::style;
 use macroquad::prelude::*;

@@ -1,5 +1,6 @@
 use super::Layout;
 use crate::data::building::BuildingType;
+use crate::ui::font::{draw_text, measure_text};
 use crate::ui::hit_zones::{toolbar_button_rect, ToolbarMode};
 use crate::ui::style;
 use crate::ui::tooltip::draw_tooltip_near_mouse;

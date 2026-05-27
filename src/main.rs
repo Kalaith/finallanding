@@ -22,6 +22,7 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    ui::font::init_ui_font();
     let mut game: Game = Game::new().await;
 
     loop {

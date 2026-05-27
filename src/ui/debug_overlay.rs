@@ -6,6 +6,7 @@ use crate::data::resources::ResourceState;
 use crate::data::scenario::ScenarioOutcome;
 use crate::data::technology::{TechId, TechnologyState};
 use crate::data::types::Position;
+use crate::ui::font::draw_text;
 use macroquad::prelude::*;
 
 /// Draw debug overlay with game state information

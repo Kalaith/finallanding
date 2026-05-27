@@ -5,6 +5,7 @@ use crate::data::game_state::GameState;
 use crate::data::resources::ResourceState;
 use crate::systems::summary_system::ColonyPressureSummary;
 use crate::ui::art::PlaceholderArt;
+use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use macroquad::prelude::*;
 

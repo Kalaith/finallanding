@@ -1,3 +1,4 @@
+use crate::ui::font::draw_text;
 use macroquad::prelude::*;
 
 pub const PANEL_BG: Color = Color::new(0.075, 0.095, 0.1, 0.9);

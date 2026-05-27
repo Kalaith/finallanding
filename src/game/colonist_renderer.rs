@@ -1,5 +1,6 @@
 use crate::data::colonist::{Colonist, ColonistState};
 use crate::data::game_state::GameState;
+use crate::ui::font::draw_text;
 use macroquad::prelude::*;
 
 const TILE_SIZE: f32 = 32.0;

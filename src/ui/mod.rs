@@ -7,6 +7,7 @@ pub mod art;
 pub mod bottom_toolbar;
 pub mod colonist_inspector;
 pub mod debug_overlay;
+pub mod font;
 pub mod hit_zones;
 pub mod isometric;
 pub mod layout;

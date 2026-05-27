@@ -4,6 +4,7 @@ use crate::data::colonist::{
 };
 use crate::data::schedule::ActivityType;
 use crate::ui::art::PlaceholderArt;
+use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use macroquad::prelude::*;
 

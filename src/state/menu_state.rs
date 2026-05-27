@@ -1,5 +1,6 @@
 use crate::state::game_state::GameplayState;
 use crate::state::{State, StateTransition};
+use crate::ui::font::{draw_text, measure_text};
 use crate::ui::menu_start_rect;
 use macroquad::prelude::*;
 
