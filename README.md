@@ -26,7 +26,7 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 - Top bar buttons: adjust time speed.
 - Z: undo placement.
 - Esc: cancel current tool.
-- Assign mode: page through survivor cards, hover to preview social pressure, click a survivor card to cycle their work role, then click a compatible map building to pin or clear their recovery/work space; warnings flag over-capacity or tense pins.
+- Assign mode: page through survivor cards, hover to preview social pressure, click a survivor card to cycle their work role, click a compatible map building to pin or clear their recovery/work space, then use Copy H/Copy W to batch-copy selected pins to compatible visible survivors; warnings flag over-capacity or tense pins.
 - Log mode: review the live social brief and page through daily relationship reports.
 - Research mode: click a mission card to launch a field mission when the colony has an Exploration Gate.
 
@@ -49,7 +49,7 @@ Strong social ties can now surface directly on the colony map through survivor p
 - Use Build, Rooms, and Objects modes to place at least one Habitat, Mess Hall, Workshop, Storage, and Exploration Gate.
 - Hover toolbar buttons and context cards; confirm tooltips stay inside the playable view.
 - Change priorities from Colony mode after an incident and confirm the advisor responds.
-- Use Assign mode to page through the roster, retask one survivor, then pin a compatible Habitat or work space from the map and confirm the HOME/WORK marker and any conflict warning appears.
+- Use Assign mode to page through the roster, retask one survivor, pin a compatible Habitat or work space from the map, then copy HOME/WORK pins to compatible visible survivors and confirm any conflict warning appears.
 - Confirm tense/supportive survivors show visible body-language markers on the colony map before opening the inspector.
 - Open Log mode after several day summaries and confirm the social archive pages through older relationship recommendations.
 - Launch at least two different mission types from Research mode and compare risk/reward.

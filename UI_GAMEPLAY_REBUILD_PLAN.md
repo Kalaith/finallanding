@@ -319,6 +319,7 @@ Completed in the active rebuild:
 - Assign mode now supports direct map-based room pins: selected survivors can be assigned to a recovery Habitat and a compatible work space, and those pins steer sleep/work routing.
 - Assign mode now warns when pinned rooms are over capacity or place tense survivors in the same Habitat/work space.
 - Assign mode now pages the survivor roster so every colonist remains reachable while the selected survivor stays pinned for pair and room directives.
+- Assign mode now includes page-scoped `COPY H`/`COPY W` batch controls that copy the selected survivor's compatible room pins to visible survivors while respecting Habitat capacity and work-role compatibility.
 - Log mode now includes a compact social brief that highlights mood, close/tense pair counts, and the strongest relationship signal before recent events.
 - End-of-day social reports are now preserved as social history entries, and Log mode shows a compact latest-three-day social timeline with mood, relationship, and strain metrics.
 - Log mode now pages the social archive so older daily relationship reports remain reviewable after more than three summaries.
@@ -349,7 +350,7 @@ Highest-value remaining items:
    - Add authored building sprites or higher-fidelity cutaway art for each room/object.
 
 3. Expand relationship-manager gameplay.
-   - Expand room pins into batch reassignment controls when the colony has many duplicate spaces.
+   - Add broader all-colony assignment workflows once colony size grows beyond the current paged roster.
    - Add richer archive filters or event drilldowns once the daily report history becomes dense enough to need search.
    - Upgrade relationship-reactive body language from procedural pose swaps to richer animation frames when production art is available.
 

@@ -48,6 +48,12 @@ pub enum PageAction {
     Next,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AssignBatchAction {
+    Home,
+    Work,
+}
+
 impl ToolbarMode {
     pub fn all() -> &'static [ToolbarMode] {
         &[
@@ -255,6 +261,25 @@ pub fn assign_page_action_at(context: Rect, x: f32, y: f32) -> Option<PageAction
     }
     if contains(assign_page_next_rect(context), x, y) {
         return Some(PageAction::Next);
+    }
+
+    None
+}
+
+pub fn assign_batch_home_rect(context: Rect) -> Rect {
+    Rect::new(context.x + context.w - 132.0, context.y + 94.0, 58.0, 17.0)
+}
+
+pub fn assign_batch_work_rect(context: Rect) -> Rect {
+    Rect::new(context.x + context.w - 68.0, context.y + 94.0, 58.0, 17.0)
+}
+
+pub fn assign_batch_action_at(context: Rect, x: f32, y: f32) -> Option<AssignBatchAction> {
+    if contains(assign_batch_home_rect(context), x, y) {
+        return Some(AssignBatchAction::Home);
+    }
+    if contains(assign_batch_work_rect(context), x, y) {
+        return Some(AssignBatchAction::Work);
     }
 
     None
@@ -542,6 +567,26 @@ mod tests {
         );
         assert_eq!(
             assign_page_action_at(context, context.x + 18.0, context.y + 82.0),
+            None
+        );
+    }
+
+    #[test]
+    fn test_assign_batch_hit_zones_match_copy_controls() {
+        let context = Rect::new(380.0, 500.0, 520.0, 126.0);
+        let (home_x, home_y) = center(assign_batch_home_rect(context));
+        let (work_x, work_y) = center(assign_batch_work_rect(context));
+
+        assert_eq!(
+            assign_batch_action_at(context, home_x, home_y),
+            Some(AssignBatchAction::Home)
+        );
+        assert_eq!(
+            assign_batch_action_at(context, work_x, work_y),
+            Some(AssignBatchAction::Work)
+        );
+        assert_eq!(
+            assign_batch_action_at(context, context.x + 18.0, context.y + 111.0),
             None
         );
     }

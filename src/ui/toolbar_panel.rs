@@ -11,7 +11,8 @@ use crate::systems::relationship_directive_system::{PairDirective, RelationshipD
 use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
 use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
-    assign_page_next_rect, assign_page_previous_rect, log_page_next_rect, log_page_previous_rect,
+    assign_batch_home_rect, assign_batch_work_rect, assign_page_next_rect,
+    assign_page_previous_rect, log_page_next_rect, log_page_previous_rect,
     toolbar_buildings_for_mode, toolbar_context_item_rect, toolbar_context_rect,
     toolbar_list_item_rect, ToolbarMode,
 };
@@ -363,6 +364,9 @@ fn draw_assign_context(
         selected_colonist_id.and_then(|id| colonists.iter().find(|colonist| colonist.id == id));
     let selected_warning = selected_colonist
         .and_then(|colonist| assignment_pin_warning(colonist, colonists, technology));
+    if let Some(colonist) = selected_colonist {
+        draw_assign_batch_controls(context, colonist);
+    }
     let footer = selected_colonist
         .map(|colonist| format!("Selected {} | click map spaces to pin rooms", colonist.name))
         .unwrap_or_else(|| {
@@ -389,6 +393,39 @@ fn draw_assign_context(
     } else if let (Some(name), Some(forecast)) = (hovered_name, hovered_forecast) {
         draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &name, &forecast.detail);
     }
+}
+
+fn draw_assign_batch_controls(context: Rect, selected_colonist: &Colonist) {
+    let home = assign_batch_home_rect(context);
+    let work = assign_batch_work_rect(context);
+    let mouse = mouse_position().into();
+    let home_enabled = selected_colonist.assigned_habitat.is_some();
+    let work_enabled = selected_colonist.assigned_workplace.is_some();
+
+    style::draw_button(home, false, home_enabled && home.contains(mouse));
+    style::draw_button(work, false, work_enabled && work.contains(mouse));
+    draw_text(
+        "COPY H",
+        home.x + 7.0,
+        home.y + 12.0,
+        style::TINY_SIZE,
+        if home_enabled {
+            style::TEXT_PRIMARY
+        } else {
+            style::TEXT_MUTED
+        },
+    );
+    draw_text(
+        "COPY W",
+        work.x + 7.0,
+        work.y + 12.0,
+        style::TINY_SIZE,
+        if work_enabled {
+            style::TEXT_PRIMARY
+        } else {
+            style::TEXT_MUTED
+        },
+    );
 }
 
 fn draw_assign_page_controls(context: Rect, current_page: usize, page_count: usize) {

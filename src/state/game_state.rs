@@ -29,14 +29,14 @@ use crate::systems::work_system::WorkSystem;
 use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use crate::ui::{
-    assign_page_action_at, draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector,
-    draw_debug_overlay, draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
-    draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar, log_page_action_at,
-    restart_button_rect, side_panel_hit_at, social_history_page_count,
+    assign_batch_action_at, assign_page_action_at, draw_advisor_overlay, draw_bottom_toolbar,
+    draw_colonist_inspector, draw_debug_overlay, draw_iso_diamond, draw_iso_diamond_lines,
+    draw_iso_prism, draw_right_rail, draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar,
+    log_page_action_at, restart_button_rect, side_panel_hit_at, social_history_page_count,
     toolbar_building_at_for_mode, toolbar_buildings_for_mode, toolbar_colonist_index_at,
     toolbar_context_rect, toolbar_mission_at, toolbar_mode_at, toolbar_priority_at,
-    top_bar_priority_at, top_bar_speed_at, IsoView, Layout, PageAction, PlaceholderArt,
-    SidePanelHit, SpritePose, ToolbarMode,
+    top_bar_priority_at, top_bar_speed_at, AssignBatchAction, IsoView, Layout, PageAction,
+    PlaceholderArt, SidePanelHit, SpritePose, ToolbarMode,
 };
 use macroquad::prelude::*;
 
@@ -415,6 +415,11 @@ impl GameplayState {
                 }
             }
             ToolbarMode::Assign => {
+                if let Some(action) = assign_batch_action_at(context, mouse_x, mouse_y) {
+                    self.apply_assign_batch_action(action);
+                    return true;
+                }
+
                 if let Some(action) = assign_page_action_at(context, mouse_x, mouse_y) {
                     self.update_assign_roster_page(action);
                     return true;
@@ -474,6 +479,87 @@ impl GameplayState {
         }
 
         self.social_history_page = self.social_history_page.min(page_count.saturating_sub(1));
+    }
+
+    fn apply_assign_batch_action(&mut self, action: AssignBatchAction) {
+        let Some(selected_id) = self.selected_colonist_id else {
+            return;
+        };
+        let visible_indices = assign_visible_colonist_indices(
+            &self.data.colonists,
+            self.selected_colonist_id,
+            self.assign_roster_page,
+        );
+
+        let Some(selected) = self.colonist_by_id(selected_id).cloned() else {
+            return;
+        };
+
+        let (title, detail) = match action {
+            AssignBatchAction::Home => {
+                let Some(habitat_id) = selected.assigned_habitat else {
+                    self.log_batch_assignment_unavailable("home", &selected.name);
+                    return;
+                };
+                let capacity = 2 + self.data.technology.habitat_capacity_bonus();
+                let assigned = apply_batch_home_pin(
+                    &mut self.data.colonists,
+                    selected_id,
+                    habitat_id,
+                    &visible_indices,
+                    capacity,
+                );
+                batch_assignment_log(
+                    "Batch recovery pins",
+                    &selected.name,
+                    "H",
+                    habitat_id,
+                    assigned,
+                )
+            }
+            AssignBatchAction::Work => {
+                let Some(workplace_id) = selected.assigned_workplace else {
+                    self.log_batch_assignment_unavailable("work", &selected.name);
+                    return;
+                };
+                let Some(building_type) = self
+                    .data
+                    .building_system
+                    .get_building(workplace_id)
+                    .map(|building| building.building_type)
+                else {
+                    self.log_batch_assignment_unavailable("work", &selected.name);
+                    return;
+                };
+                let assigned = apply_batch_work_pin(
+                    &mut self.data.colonists,
+                    selected_id,
+                    workplace_id,
+                    building_type,
+                    &visible_indices,
+                );
+                batch_assignment_log(
+                    "Batch work pins",
+                    &selected.name,
+                    "W",
+                    workplace_id,
+                    assigned,
+                )
+            }
+        };
+
+        self.data.push_log(LogCategory::Social, title, detail);
+    }
+
+    fn log_batch_assignment_unavailable(&mut self, pin_kind: &str, selected_name: &str) {
+        self.data.push_log(
+            LogCategory::Social,
+            "Batch assignment unavailable",
+            format!(
+                "{} needs a pinned {} space before that pin can be copied to the visible roster.",
+                selected_name, pin_kind
+            ),
+        );
     }
 
     fn assign_colonist_index_for_slot(&self, slot: usize) -> Option<usize> {
@@ -2375,6 +2461,98 @@ fn assign_visible_colonist_indices(
     indices
 }
 
+fn apply_batch_home_pin(
+    colonists: &mut [Colonist],
+    selected_id: u32,
+    habitat_id: u32,
+    visible_indices: &[usize],
+    capacity: u32,
+) -> Vec<String> {
+    let mut assigned_count = colonists
+        .iter()
+        .filter(|colonist| colonist.assigned_habitat == Some(habitat_id))
+        .count() as u32;
+    let mut assigned = Vec::new();
+
+    for index in visible_indices {
+        if assigned_count >= capacity {
+            break;
+        }
+
+        let Some(colonist) = colonists.get_mut(*index) else {
+            continue;
+        };
+        if colonist.id == selected_id || colonist.assigned_habitat == Some(habitat_id) {
+            continue;
+        }
+
+        colonist.assigned_habitat = Some(habitat_id);
+        assigned_count += 1;
+        assigned.push(colonist.name.clone());
+    }
+
+    assigned
+}
+
+fn apply_batch_work_pin(
+    colonists: &mut [Colonist],
+    selected_id: u32,
+    workplace_id: u32,
+    building_type: BuildingType,
+    visible_indices: &[usize],
+) -> Vec<String> {
+    let mut assigned = Vec::new();
+
+    for index in visible_indices {
+        let Some(colonist) = colonists.get_mut(*index) else {
+            continue;
+        };
+        if colonist.id == selected_id
+            || colonist.assigned_workplace == Some(workplace_id)
+            || colonist.job_preference.work_building_type() != building_type
+        {
+            continue;
+        }
+
+        colonist.assigned_workplace = Some(workplace_id);
+        if matches!(
+            colonist.state,
+            ColonistState::Working | ColonistState::Moving { .. }
+        ) {
+            colonist.state = ColonistState::Idle;
+            colonist.activity_location = ActivityLocation::None;
+        }
+        assigned.push(colonist.name.clone());
+    }
+
+    assigned
+}
+
+fn batch_assignment_log(
+    title: &'static str,
+    source_name: &str,
+    pin_prefix: &str,
+    building_id: u32,
+    assigned: Vec<String>,
+) -> (String, String) {
+    let detail = if assigned.is_empty() {
+        format!(
+            "{} had no compatible visible survivors to copy {}#{} to.",
+            source_name, pin_prefix, building_id
+        )
+    } else {
+        format!(
+            "Copied {}#{} from {} to {}.",
+            pin_prefix,
+            building_id,
+            source_name,
+            truncate_text(&assigned.join(", "), 54)
+        )
+    };
+
+    (title.to_string(), detail)
+}
+
 fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
     colonist
         .relationships
@@ -2618,6 +2796,70 @@ mod tests {
             assign_visible_colonist_indices(&colonists, None, 1),
             vec![5, 6, 7]
         );
+    }
+
+    #[test]
+    fn test_batch_home_pin_respects_visible_page_and_capacity() {
+        let mut colonists = (0..5)
+            .map(|id| {
+                Colonist::new(
+                    id,
+                    format!("Colonist {}", id),
+                    Position::new(id as i32, 0),
+                    Trait::HardWorker,
+                    JobPreference::Builder,
+                )
+            })
+            .collect::<Vec<_>>();
+        colonists[0].assigned_habitat = Some(7);
+
+        let assigned = apply_batch_home_pin(&mut colonists, 0, 7, &[0, 1, 2, 3], 2);
+
+        assert_eq!(assigned, vec!["Colonist 1".to_string()]);
+        assert_eq!(colonists[1].assigned_habitat, Some(7));
+        assert_eq!(colonists[2].assigned_habitat, None);
+    }
+
+    #[test]
+    fn test_batch_work_pin_only_copies_to_compatible_visible_roles() {
+        let mut colonists = vec![
+            Colonist::new(
+                0,
+                "Alice".to_string(),
+                Position::new(0, 0),
+                Trait::HardWorker,
+                JobPreference::Builder,
+            ),
+            Colonist::new(
+                1,
+                "Bob".to_string(),
+                Position::new(1, 0),
+                Trait::FastWalker,
+                JobPreference::Builder,
+            ),
+            Colonist::new(
+                2,
+                "Diana".to_string(),
+                Position::new(2, 0),
+                Trait::Gourmet,
+                JobPreference::Cook,
+            ),
+        ];
+        colonists[0].assigned_workplace = Some(9);
+        colonists[1].state = ColonistState::Working;
+        colonists[1].activity_location = ActivityLocation::Building {
+            building_id: 3,
+            building_type: BuildingType::Workshop,
+        };
+
+        let assigned =
+            apply_batch_work_pin(&mut colonists, 0, 9, BuildingType::Workshop, &[0, 1, 2]);
+
+        assert_eq!(assigned, vec!["Bob".to_string()]);
+        assert_eq!(colonists[1].assigned_workplace, Some(9));
+        assert_eq!(colonists[1].state, ColonistState::Idle);
+        assert_eq!(colonists[1].activity_location, ActivityLocation::None);
+        assert_eq!(colonists[2].assigned_workplace, None);
     }
 
     #[test]
