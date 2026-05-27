@@ -7,14 +7,13 @@ use crate::data::resources::ResourceState;
 use crate::systems::time_system::TimeSystem;
 use crate::ui::font::{draw_text, measure_text};
 use crate::ui::hit_zones::{
-    priority_button_rect, speed_button_rect, top_bar_speed_at, BUTTON_GAP, PRIORITY_BUTTON_START_X,
+    priority_button_rect, speed_button_rect, BUTTON_GAP, PRIORITY_BUTTON_START_X,
     PRIORITY_BUTTON_W, PRIORITY_LABEL_X,
 };
 use crate::ui::style;
 use macroquad::prelude::*;
 
 /// Draw the top bar with time and speed controls
-/// Returns the new TimeSpeed if changed, None otherwise
 pub fn draw_top_bar(
     layout: &Layout,
     tick: u64,
@@ -23,8 +22,9 @@ pub fn draw_top_bar(
     average_mood: f32,
     resources: &ResourceState,
     current_priority: ColonyPriority,
-) -> Option<TimeSpeed> {
+) {
     let rect = layout.top_bar();
+    let mouse_pos: Vec2 = mouse_position().into();
 
     style::draw_deep_panel(Rect::new(12.0, 12.0, rect.w.min(840.0), rect.h - 16.0));
 
@@ -57,7 +57,6 @@ pub fn draw_top_bar(
     );
 
     // Speed controls
-    let mut new_speed: Option<TimeSpeed> = None;
     let speeds = [
         (TimeSpeed::Paused, "II", "Pause"),
         (TimeSpeed::Normal, ">", "Normal"),
@@ -69,12 +68,7 @@ pub fn draw_top_bar(
         let button_rect = speed_button_rect(i);
         let is_active = current_speed == *speed;
 
-        let (mx, my) = mouse_position();
-        style::draw_button(
-            button_rect,
-            is_active,
-            button_rect.contains(Vec2::new(mx, my)),
-        );
+        style::draw_button(button_rect, is_active, button_rect.contains(mouse_pos));
 
         let text_w = measure_text(label, None, 16, 1.0).width;
         draw_text(
@@ -88,10 +82,6 @@ pub fn draw_top_bar(
                 style::TEXT_BODY
             },
         );
-
-        if is_mouse_button_pressed(MouseButton::Left) {
-            new_speed = top_bar_speed_at(mx, my);
-        }
     }
 
     draw_text("PRIORITY", PRIORITY_LABEL_X, 24.0, 12.0, style::TEXT_MUTED);
@@ -99,12 +89,7 @@ pub fn draw_top_bar(
     for (i, priority) in ColonyPriority::all().iter().enumerate() {
         let button_rect = priority_button_rect(i);
         let is_active = current_priority == *priority;
-        let (mx, my) = mouse_position();
-        style::draw_button(
-            button_rect,
-            is_active,
-            button_rect.contains(Vec2::new(mx, my)),
-        );
+        style::draw_button(button_rect, is_active, button_rect.contains(mouse_pos));
 
         let label = format!("[{}] {}", priority.shortcut(), priority.short_label());
         let text_w = measure_text(&label, None, 13, 1.0).width;
@@ -149,6 +134,4 @@ pub fn draw_top_bar(
             draw_text(&compact_status, compact_x, 42.0, 14.0, style::TEXT_BODY);
         }
     }
-
-    new_speed
 }

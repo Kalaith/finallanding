@@ -3898,7 +3898,7 @@ impl State for GameplayState {
         );
 
         // Draw UI components (on top)
-        let _ = draw_top_bar(
+        draw_top_bar(
             &self.layout,
             self.data.tick,
             self.data.time.speed,
