@@ -92,7 +92,7 @@ pub fn draw_colonist_inspector(
         .unwrap_or_else(|| "No strong tie yet".to_string());
 
     draw_text(
-        &format!("Strongest tie: {}", truncate(&relationship, 34)),
+        &format!("Strongest relationship: {}", truncate(&relationship, 28)),
         x + 14.0,
         y + 114.0,
         12.0,

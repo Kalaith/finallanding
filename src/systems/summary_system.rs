@@ -18,6 +18,8 @@ pub struct ColonyPressureSummary {
     pub average_relationship: f32,
     pub close_pairs: u32,
     pub strained_pairs: u32,
+    pub connected_pairs: Vec<RelationshipPairSummary>,
+    pub tense_pairs: Vec<RelationshipPairSummary>,
     pub strongest_pair: Option<RelationshipPairSummary>,
     pub weakest_pair: Option<RelationshipPairSummary>,
 }
@@ -34,6 +36,8 @@ impl SummarySystem {
         let mut relationship_count = 0;
         let mut close_pairs = 0;
         let mut strained_pairs = 0;
+        let mut connected_pairs = Vec::new();
+        let mut tense_pairs = Vec::new();
         let mut strongest_pair: Option<RelationshipPairSummary> = None;
         let mut weakest_pair: Option<RelationshipPairSummary> = None;
 
@@ -56,10 +60,12 @@ impl SummarySystem {
 
                 if average_value >= 10 {
                     close_pairs += 1;
+                    connected_pairs.push(pair.clone());
                 }
 
                 if average_value <= -10 {
                     strained_pairs += 1;
+                    tense_pairs.push(pair.clone());
                 }
 
                 if strongest_pair
@@ -84,11 +90,18 @@ impl SummarySystem {
             0.0
         };
 
+        connected_pairs.sort_by(|left, right| right.value.cmp(&left.value));
+        tense_pairs.sort_by(|left, right| left.value.cmp(&right.value));
+        connected_pairs.truncate(3);
+        tense_pairs.truncate(3);
+
         ColonyPressureSummary {
             average_mood,
             average_relationship,
             close_pairs,
             strained_pairs,
+            connected_pairs,
+            tense_pairs,
             strongest_pair,
             weakest_pair,
         }
@@ -165,6 +178,8 @@ mod tests {
         assert_eq!(summary.close_pairs, 0);
         assert_eq!(summary.strained_pairs, 0);
         assert_eq!(summary.average_relationship, 0.0);
+        assert!(summary.connected_pairs.is_empty());
+        assert!(summary.tense_pairs.is_empty());
         assert_eq!(
             summary.strongest_pair.as_ref().map(|pair| pair.label),
             Some("Neutral")
@@ -191,6 +206,9 @@ mod tests {
 
         assert_eq!(summary.close_pairs, 0);
         assert_eq!(summary.strained_pairs, 2);
+        assert_eq!(summary.tense_pairs.len(), 2);
+        assert_eq!(summary.tense_pairs[0].value, -32);
+        assert_eq!(summary.tense_pairs[1].value, -15);
         assert_eq!(
             summary.weakest_pair.as_ref().map(|pair| pair.value),
             Some(-32)
@@ -215,6 +233,8 @@ mod tests {
 
         assert_eq!(summary.close_pairs, 1);
         assert_eq!(summary.strained_pairs, 0);
+        assert_eq!(summary.connected_pairs.len(), 1);
+        assert_eq!(summary.connected_pairs[0].value, 40);
         assert_eq!(
             summary.strongest_pair.as_ref().map(|pair| pair.value),
             Some(40)

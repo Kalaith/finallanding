@@ -15,28 +15,30 @@ enum RelationshipSource {
 }
 
 impl RelationshipSource {
+    fn label(self) -> &'static str {
+        match self {
+            RelationshipSource::Work => "Work",
+            RelationshipSource::Meal => "Meal",
+            RelationshipSource::SharedHabitat => "Habitat",
+        }
+    }
+
     fn positive_detail(self) -> &'static str {
         match self {
-            RelationshipSource::Work => {
-                "Working the same station built trust; compatible crews do better together."
-            }
-            RelationshipSource::Meal => "A shared meal gave them neutral ground to reconnect.",
-            RelationshipSource::SharedHabitat => {
-                "Recovering in the same habitat made the space feel safer."
-            }
+            RelationshipSource::Work => "compatible crews built trust at the same station",
+            RelationshipSource::Meal => "a shared meal gave them neutral ground to reconnect",
+            RelationshipSource::SharedHabitat => "recovering together made the habitat feel safer",
         }
     }
 
     fn negative_detail(self) -> &'static str {
         match self {
             RelationshipSource::Work => {
-                "Low mood or a disliked coworker made the shift feel forced."
+                "low mood or a disliked coworker made the shift feel forced"
             }
-            RelationshipSource::Meal => {
-                "Stress followed them into the Mess Hall; the meal did not clear the tension."
-            }
+            RelationshipSource::Meal => "stress followed them into the Mess Hall",
             RelationshipSource::SharedHabitat => {
-                "Cramped recovery space kept them close to someone they already mistrust."
+                "cramped recovery space kept them close to someone they mistrust"
             }
         }
     }
@@ -192,7 +194,9 @@ impl SocialSystem {
     ) {
         let name_a = Self::colonist_name(state, id_a);
         let name_b = Self::colonist_name(state, id_b);
-        let old_value = Self::relationship_value(state, id_a, id_b);
+        let old_a = Self::relationship_value(state, id_a, id_b);
+        let old_b = Self::relationship_value(state, id_b, id_a);
+        let old_value = (old_a + old_b) / 2;
         let old_label = relationship_label(old_value);
 
         let new_a = Self::apply_one_way_update(state, id_a, id_b, change);
@@ -200,23 +204,51 @@ impl SocialSystem {
         let new_value = (new_a + new_b) / 2;
         let new_label = relationship_label(new_value);
 
-        if old_label != new_label {
-            let direction = if change > 0 { "improved" } else { "worsened" };
+        if Self::should_log_relationship_shift(change, old_value, new_value, old_label, new_label) {
             let detail = if change > 0 {
                 source.positive_detail()
             } else {
                 source.negative_detail()
             };
+            let title = if old_label != new_label {
+                format!("{} and {} are now {}", name_a, name_b, new_label)
+            } else if change > 0 {
+                format!("{} and {} connected", name_a, name_b)
+            } else {
+                format!("{} and {} clashed", name_a, name_b)
+            };
 
             state.push_log(
                 LogCategory::Social,
-                format!("{} and {} are now {}", name_a, name_b, new_label),
+                title,
                 format!(
-                    "Their relationship {} from {} to {} ({:+}). {}",
-                    direction, old_label, new_label, change, detail
+                    "{}: {}. {} -> {} ({:+}, now {:+}).",
+                    source.label(),
+                    detail,
+                    old_label,
+                    new_label,
+                    change,
+                    new_value
                 ),
             );
         }
+    }
+
+    fn should_log_relationship_shift(
+        change: i32,
+        old_value: i32,
+        new_value: i32,
+        old_label: &str,
+        new_label: &str,
+    ) -> bool {
+        if change == 0 || old_value == new_value {
+            return false;
+        }
+
+        old_label != new_label
+            || old_value == 0
+            || old_value.signum() != new_value.signum()
+            || new_value.abs() % 10 == 0
     }
 
     fn apply_one_way_update(state: &mut GameState, from_id: u32, to_id: u32, change: i32) -> i32 {
@@ -290,5 +322,40 @@ mod tests {
 
         assert_eq!(state.colonists[0].relationships.get(&2), Some(&2));
         assert_eq!(state.colonists[1].relationships.get(&1), Some(&2));
+    }
+
+    #[test]
+    fn test_first_work_relationship_change_logs_visible_reason() {
+        let mut state = GameState::new();
+        state.priority.active = ColonyPriority::Recovery;
+
+        for id in 1..=2 {
+            let mut colonist = Colonist::new(
+                id,
+                format!("Colonist {}", id),
+                Position::new(id as i32, 0),
+                Trait::HardWorker,
+                JobPreference::Builder,
+            );
+            colonist.state = ColonistState::Working;
+            colonist.activity_location = ActivityLocation::Building {
+                building_id: 12,
+                building_type: BuildingType::Workshop,
+            };
+            colonist.mood = 60.0;
+            state.colonists.push(colonist);
+        }
+
+        SocialSystem::check_working_together(&mut state);
+
+        let log = state
+            .event_log
+            .iter()
+            .find(|entry| entry.category == LogCategory::Social)
+            .expect("first relationship shift should be logged");
+        assert_eq!(log.title, "Colonist 1 and Colonist 2 connected");
+        assert!(log.detail.contains("Work:"));
+        assert!(log.detail.contains("Neutral -> Neutral"));
+        assert!(log.detail.contains("now +1"));
     }
 }

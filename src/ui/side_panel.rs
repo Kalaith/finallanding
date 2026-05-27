@@ -247,8 +247,11 @@ pub fn draw_side_panel(
     );
     draw_text(
         &format!(
-            "Salvage {}  Meals {}",
-            resources.salvage, resources.prepared_meals
+            "Salvage {}  Meals {}  Tech {}/{}",
+            resources.salvage,
+            resources.prepared_meals,
+            technology.unlocked_count(),
+            TechId::all().len()
         ),
         rect.x + 15.0,
         stats_y + 61.0,
@@ -256,12 +259,7 @@ pub fn draw_side_panel(
         LIGHTGRAY,
     );
     draw_text(
-        &format!(
-            "Status {}  Tech {}/{}",
-            resources.condition.label(),
-            technology.unlocked_count(),
-            TechId::all().len()
-        ),
+        &format!("Status {}", resources.condition.label()),
         rect.x + 15.0,
         stats_y + 77.0,
         13.0,
@@ -269,21 +267,11 @@ pub fn draw_side_panel(
     );
     draw_text(
         &format!(
-            "Next tech: {}",
-            next_tech_label(technology.next_locked_tech())
-        ),
-        rect.x + 15.0,
-        stats_y + 93.0,
-        12.0,
-        GRAY,
-    );
-    draw_text(
-        &format!(
             "Mood {:.0}  Relations {:+.0}",
             colony_summary.average_mood, colony_summary.average_relationship
         ),
         rect.x + 15.0,
-        stats_y + 112.0,
+        stats_y + 96.0,
         13.0,
         LIGHTGRAY,
     );
@@ -293,32 +281,40 @@ pub fn draw_side_panel(
             colony_summary.close_pairs, colony_summary.strained_pairs
         ),
         rect.x + 15.0,
-        stats_y + 128.0,
+        stats_y + 112.0,
         13.0,
         relationship_color(colony_summary.average_relationship),
     );
     draw_text(
         &truncate_text(
-            &pair_summary_text("Best", colony_summary.strongest_pair.as_ref()),
-            30,
+            &watchlist_text("Connected", &colony_summary.connected_pairs),
+            32,
         ),
         rect.x + 15.0,
-        stats_y + 144.0,
+        stats_y + 128.0,
         12.0,
         LIGHTGRAY,
     );
     draw_text(
-        &truncate_text(
-            &pair_summary_text("Watch", colony_summary.weakest_pair.as_ref()),
-            30,
-        ),
+        &truncate_text(&watchlist_text("Tense", &colony_summary.tense_pairs), 32),
         rect.x + 15.0,
-        stats_y + 160.0,
+        stats_y + 144.0,
         12.0,
         GRAY,
     );
+    draw_text(
+        &format!(
+            "Next tech: {}",
+            next_tech_label(technology.next_locked_tech())
+        ),
+        rect.x + 15.0,
+        stats_y + 160.0,
+        11.0,
+        GRAY,
+    );
 
-    let log_y = stats_y + 178.0;
+    let help_y = rect.y + rect.h - 28.0;
+    let log_y = (stats_y + 174.0).min(help_y - 68.0);
     draw_text("Colony Log", rect.x + 15.0, log_y, 18.0, WHITE);
     draw_line(
         rect.x + 10.0,
@@ -340,7 +336,7 @@ pub fn draw_side_panel(
         );
     } else {
         for (i, log) in visible_logs.iter().enumerate() {
-            let y = log_y + 32.0 + i as f32 * 18.0;
+            let y = log_y + 31.0 + i as f32 * 42.0;
             let prefix = category_prefix(log.category);
             let title = truncate_text(&log.title, 24);
             draw_text(
@@ -350,11 +346,19 @@ pub fn draw_side_panel(
                 11.0,
                 LIGHTGRAY,
             );
+            for (line_index, detail_line) in wrapped_lines(&log.detail, 31, 2).iter().enumerate() {
+                draw_text(
+                    detail_line,
+                    rect.x + 15.0,
+                    y + 14.0 + line_index as f32 * 12.0,
+                    10.0,
+                    GRAY,
+                );
+            }
         }
     }
 
     // Help section
-    let help_y = rect.y + rect.h - 65.0;
     draw_line(
         rect.x + 10.0,
         help_y,
@@ -363,19 +367,10 @@ pub fn draw_side_panel(
         1.0,
         GRAY,
     );
-    draw_text("Controls", rect.x + 15.0, help_y + 20.0, 16.0, WHITE);
-    draw_text("[Space] Pause", rect.x + 15.0, help_y + 40.0, 12.0, GRAY);
     draw_text(
-        "[1/2/3] Priority",
-        rect.x + 100.0,
-        help_y + 40.0,
-        12.0,
-        GRAY,
-    );
-    draw_text(
-        "[Esc] Cancel  [F3] Debug",
+        "[Space] Pause  [1/2/3] Priority",
         rect.x + 15.0,
-        help_y + 55.0,
+        help_y + 18.0,
         12.0,
         GRAY,
     );
@@ -429,14 +424,16 @@ fn relationship_color(value: f32) -> Color {
     }
 }
 
-fn pair_summary_text(prefix: &str, pair: Option<&RelationshipPairSummary>) -> String {
-    pair.map(|pair| {
-        format!(
-            "{}: {}/{} {} ({:+})",
-            prefix, pair.first_name, pair.second_name, pair.label, pair.value
-        )
-    })
-    .unwrap_or_else(|| format!("{}: no pairs yet", prefix))
+fn watchlist_text(prefix: &str, pairs: &[RelationshipPairSummary]) -> String {
+    pairs
+        .first()
+        .map(|pair| {
+            format!(
+                "{}: {}/{} {} ({:+})",
+                prefix, pair.first_name, pair.second_name, pair.label, pair.value
+            )
+        })
+        .unwrap_or_else(|| format!("{}: none yet", prefix))
 }
 
 fn truncate_text(text: &str, max_chars: usize) -> String {
@@ -450,4 +447,43 @@ fn truncate_text(text: &str, max_chars: usize) -> String {
         .collect::<String>();
     truncated.push_str("...");
     truncated
+}
+
+fn wrapped_lines(text: &str, max_chars: usize, max_lines: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut current = String::new();
+
+    for word in text.split_whitespace() {
+        let projected_len = if current.is_empty() {
+            word.chars().count()
+        } else {
+            current.chars().count() + 1 + word.chars().count()
+        };
+
+        if projected_len > max_chars && !current.is_empty() {
+            lines.push(current);
+            current = word.to_string();
+
+            if lines.len() == max_lines {
+                break;
+            }
+        } else {
+            if !current.is_empty() {
+                current.push(' ');
+            }
+            current.push_str(word);
+        }
+    }
+
+    if lines.len() < max_lines && !current.is_empty() {
+        lines.push(current);
+    }
+
+    if lines.len() == max_lines && text.chars().count() > lines.join(" ").chars().count() {
+        if let Some(last) = lines.last_mut() {
+            *last = truncate_text(last, max_chars);
+        }
+    }
+
+    lines
 }
