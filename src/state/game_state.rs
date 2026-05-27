@@ -3,7 +3,6 @@ use crate::data::colonist::{Colonist, ColonistState};
 use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
 use crate::data::game_state::TimeSpeed;
-use crate::data::grid::{Grid, CELL_SIZE};
 use crate::data::mission::MissionType;
 use crate::data::priority::ColonyPriority;
 use crate::data::types::Position;
@@ -23,8 +22,10 @@ use crate::systems::time_system::TimeSystem;
 use crate::systems::work_system::WorkSystem;
 use crate::ui::{
     draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
-    draw_right_rail, draw_top_bar, restart_button_rect, side_panel_hit_at, top_bar_priority_at,
-    top_bar_speed_at, Layout, PlaceholderArt, SidePanelHit,
+    draw_iso_diamond, draw_iso_diamond_lines, draw_right_rail, draw_toolbar_context_panel,
+    draw_top_bar, restart_button_rect, side_panel_hit_at, toolbar_building_at,
+    toolbar_context_rect, toolbar_mission_at, toolbar_mode_at, top_bar_priority_at,
+    top_bar_speed_at, IsoView, Layout, PlaceholderArt, SidePanelHit, ToolbarMode,
 };
 use macroquad::prelude::*;
 
@@ -47,6 +48,8 @@ pub struct GameplayState {
     layout: Layout,
     /// Debug overlay visible
     debug_mode: bool,
+    /// Active bottom-toolbar mode.
+    toolbar_mode: ToolbarMode,
     /// Placeholder visual assets extracted from the rebuild reference.
     art: PlaceholderArt,
 }
@@ -78,6 +81,7 @@ impl GameplayState {
             time_accumulator: 0.0,
             layout: Layout::default(),
             debug_mode: false,
+            toolbar_mode: ToolbarMode::Build,
             art: PlaceholderArt::new(),
         }
     }
@@ -87,20 +91,26 @@ impl GameplayState {
         // Number keys select buildings (Q, W, E, R, T for 5 buildings)
         if is_key_pressed(KeyCode::Q) {
             self.toggle_building(BuildingType::Habitat);
+            self.toolbar_mode = ToolbarMode::Build;
         }
         if is_key_pressed(KeyCode::W) {
             self.toggle_building(BuildingType::MessHall);
+            self.toolbar_mode = ToolbarMode::Build;
         }
         if is_key_pressed(KeyCode::E) {
             self.toggle_building(BuildingType::Workshop);
+            self.toolbar_mode = ToolbarMode::Build;
         }
         if is_key_pressed(KeyCode::R) {
             self.toggle_building(BuildingType::Storage);
+            self.toolbar_mode = ToolbarMode::Build;
         }
         if is_key_pressed(KeyCode::T) {
             self.toggle_building(BuildingType::ExplorationGate);
+            self.toolbar_mode = ToolbarMode::Build;
         }
         if is_key_pressed(KeyCode::M) {
+            self.toolbar_mode = ToolbarMode::Research;
             self.launch_recommended_mission();
         }
 
@@ -238,7 +248,7 @@ impl GameplayState {
         };
 
         if is_mouse_button_pressed(MouseButton::Left) {
-            let pos = Grid::world_to_grid(mouse_x - game_area.x, mouse_y - game_area.y);
+            let pos = self.iso_view().screen_to_grid(vec2(mouse_x, mouse_y));
             let feedback = PlanningSystem::building_feedback(&self.data, building_type, pos);
             if let Some(reason) = feedback.invalid_reason.as_ref() {
                 self.data.push_log(
@@ -302,6 +312,10 @@ impl GameplayState {
             return;
         }
 
+        if self.update_toolbar_click(mouse_x, mouse_y) {
+            return;
+        }
+
         let panel = self.layout.side_panel();
         if mouse_x >= panel.x
             && mouse_x <= panel.x + panel.w
@@ -310,6 +324,41 @@ impl GameplayState {
         {
             return;
         }
+    }
+
+    fn update_toolbar_click(&mut self, mouse_x: f32, mouse_y: f32) -> bool {
+        let toolbar = self.layout.bottom_toolbar();
+        if let Some(mode) = toolbar_mode_at(toolbar, mouse_x, mouse_y) {
+            self.toolbar_mode = mode;
+            if mode != ToolbarMode::Build
+                && mode != ToolbarMode::Rooms
+                && mode != ToolbarMode::Objects
+            {
+                self.selected_building = None;
+            }
+            return true;
+        }
+
+        let context = toolbar_context_rect(toolbar);
+        if !context.contains(Vec2::new(mouse_x, mouse_y)) {
+            return false;
+        }
+
+        match self.toolbar_mode {
+            ToolbarMode::Build | ToolbarMode::Rooms | ToolbarMode::Objects => {
+                if let Some(building_type) = toolbar_building_at(context, mouse_x, mouse_y) {
+                    self.toggle_building(building_type);
+                }
+            }
+            ToolbarMode::Research => {
+                if let Some(mission_type) = toolbar_mission_at(context, mouse_x, mouse_y) {
+                    self.launch_mission(mission_type);
+                }
+            }
+            ToolbarMode::Colony | ToolbarMode::Assign | ToolbarMode::Log => {}
+        }
+
+        true
     }
 
     fn update_colonist_selection(&mut self) {
@@ -352,6 +401,14 @@ impl GameplayState {
             }
             None => {}
         }
+    }
+
+    fn iso_view(&self) -> IsoView {
+        IsoView::for_area(
+            self.layout.game_area(),
+            self.data.grid.width as u32,
+            self.data.grid.height as u32,
+        )
     }
 
     fn scenario_restart_transition(&self) -> Option<StateTransition> {
@@ -505,37 +562,42 @@ impl GameplayState {
 
     /// Draw buildings on the grid
     fn draw_buildings(&self) {
-        let game_area = self.layout.game_area();
+        let iso = self.iso_view();
         for building in self.data.building_system.buildings() {
-            let (wx, wy) = Grid::grid_to_world(building.position.x, building.position.y);
             let (width, height) = building.size();
             let (r, g, b) = building.building_type.color();
-
-            let color = Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0);
-            draw_rectangle(
-                game_area.x + wx,
-                game_area.y + wy,
-                width as f32 * CELL_SIZE,
-                height as f32 * CELL_SIZE,
-                color,
+            let color = Color::new(
+                r as f32 / 255.0 * 0.72,
+                g as f32 / 255.0 * 0.72,
+                b as f32 / 255.0 * 0.72,
+                1.0,
             );
 
-            // Draw border
-            draw_rectangle_lines(
-                game_area.x + wx,
-                game_area.y + wy,
-                width as f32 * CELL_SIZE,
-                height as f32 * CELL_SIZE,
-                2.0,
+            for cell in building.occupied_cells() {
+                let center = iso.grid_to_screen(cell);
+                draw_iso_diamond(center, iso.tile_w, iso.tile_h, color);
+                draw_iso_diamond_lines(
+                    center,
+                    iso.tile_w,
+                    iso.tile_h,
+                    1.0,
+                    Color::new(0.82, 0.82, 0.76, 0.55),
+                );
+            }
+
+            let name = building.building_type.name();
+            let label_pos = iso.grid_to_screen(Position::new(
+                building.position.x + width as i32 / 2,
+                building.position.y + height as i32 / 2,
+            ));
+            let label_width = measure_text(name, None, 12, 1.0).width;
+            draw_text(
+                name,
+                label_pos.x - label_width * 0.5,
+                label_pos.y - 8.0,
+                12.0,
                 WHITE,
             );
-
-            // Draw building name
-            let name = building.building_type.name();
-            let center_x =
-                game_area.x + wx + (width as f32 * CELL_SIZE) / 2.0 - (name.len() as f32 * 3.0);
-            let center_y = game_area.y + wy + (height as f32 * CELL_SIZE) / 2.0 + 5.0;
-            draw_text(name, center_x, center_y, 14.0, WHITE);
         }
     }
 
@@ -552,8 +614,8 @@ impl GameplayState {
                 return;
             }
 
-            let pos = Grid::world_to_grid(mouse_x - game_area.x, mouse_y - game_area.y);
-            let (wx, wy) = Grid::grid_to_world(pos.x, pos.y);
+            let iso = self.iso_view();
+            let pos = iso.screen_to_grid(vec2(mouse_x, mouse_y));
             let (width, height) = building_type.size();
             let feedback = PlanningSystem::building_feedback(&self.data, building_type, pos);
             let can_place = feedback.can_place();
@@ -565,24 +627,15 @@ impl GameplayState {
                 Color::new(1.0, 0.0, 0.0, 0.4)
             };
 
-            draw_rectangle(
-                game_area.x + wx,
-                game_area.y + wy,
-                width as f32 * CELL_SIZE,
-                height as f32 * CELL_SIZE,
-                color,
-            );
+            for dx in 0..width as i32 {
+                for dy in 0..height as i32 {
+                    let center = iso.grid_to_screen(Position::new(pos.x + dx, pos.y + dy));
+                    draw_iso_diamond(center, iso.tile_w, iso.tile_h, color);
+                }
+            }
 
-            // Draw outline
             let outline_color = if can_place { GREEN } else { RED };
-            draw_rectangle_lines(
-                game_area.x + wx,
-                game_area.y + wy,
-                width as f32 * CELL_SIZE,
-                height as f32 * CELL_SIZE,
-                2.0,
-                outline_color,
-            );
+            let label_pos = iso.grid_to_screen(pos);
 
             draw_text(
                 &format!(
@@ -592,8 +645,8 @@ impl GameplayState {
                     height,
                     building_type.salvage_cost()
                 ),
-                game_area.x + wx,
-                game_area.y + wy - 4.0,
+                label_pos.x - 18.0,
+                label_pos.y - 8.0,
                 14.0,
                 outline_color,
             );
@@ -676,12 +729,10 @@ impl GameplayState {
 
     /// Draw the grid with offset for top bar
     fn draw_grid_with_offset(&self) {
-        let game_area = self.layout.game_area();
+        let iso = self.iso_view();
 
         for y in 0..self.data.grid.height {
             for x in 0..self.data.grid.width {
-                let (wx, wy) = Grid::grid_to_world(x as i32, y as i32);
-
                 let cell = self.data.grid.get_cell(x as i32, y as i32);
                 let color = match cell {
                     Some(c) => match c.cell_type {
@@ -692,18 +743,12 @@ impl GameplayState {
                     None => BLACK,
                 };
 
-                draw_rectangle(
-                    game_area.x + wx,
-                    game_area.y + wy,
-                    CELL_SIZE,
-                    CELL_SIZE,
-                    color,
-                );
-                draw_rectangle_lines(
-                    game_area.x + wx,
-                    game_area.y + wy,
-                    CELL_SIZE,
-                    CELL_SIZE,
+                let center = iso.grid_to_screen(Position::new(x as i32, y as i32));
+                draw_iso_diamond(center, iso.tile_w, iso.tile_h, color);
+                draw_iso_diamond_lines(
+                    center,
+                    iso.tile_w,
+                    iso.tile_h,
                     1.0,
                     Color::new(0.12, 0.13, 0.11, 0.45),
                 );
@@ -712,29 +757,23 @@ impl GameplayState {
 
         // Highlight hovered cell
         if let Some(pos) = self.hovered_cell {
-            let (wx, wy) = Grid::grid_to_world(pos.x, pos.y);
-            draw_rectangle_lines(
-                game_area.x + wx,
-                game_area.y + wy,
-                CELL_SIZE,
-                CELL_SIZE,
-                2.0,
-                YELLOW,
-            );
+            let center = iso.grid_to_screen(pos);
+            draw_iso_diamond_lines(center, iso.tile_w, iso.tile_h, 2.0, YELLOW);
         }
     }
 
     /// Draw colonists with offset for top bar
     fn draw_colonists_with_offset(&self, hovered_colonist_id: Option<u32>) {
-        let game_area = self.layout.game_area();
+        let iso = self.iso_view();
 
         for colonist in &self.data.colonists {
             if colonist.is_on_mission() {
                 continue;
             }
 
-            let x = game_area.x + colonist.visual_x;
-            let y = game_area.y + colonist.visual_y;
+            let foot = iso.grid_to_screen(colonist.position);
+            let x = foot.x - 16.0;
+            let y = foot.y - 28.0;
             let size = 24.0;
 
             // Colonist color based on state
@@ -842,8 +881,9 @@ impl GameplayState {
             .iter()
             .filter(|colonist| !colonist.is_on_mission())
             .filter_map(|colonist| {
-                let center_x = game_area.x + colonist.visual_x + 16.0;
-                let center_y = game_area.y + colonist.visual_y + 16.0;
+                let foot = self.iso_view().grid_to_screen(colonist.position);
+                let center_x = foot.x;
+                let center_y = foot.y - 8.0;
                 let dx = mouse_x - center_x;
                 let dy = mouse_y - center_y;
                 let distance_sq = dx * dx + dy * dy;
@@ -953,8 +993,10 @@ impl State for GameplayState {
         // Update hovered cell based on mouse position (account for UI offset)
         let (mouse_x, mouse_y) = mouse_position();
         let game_area = self.layout.game_area();
-        let grid_pos = Grid::world_to_grid(mouse_x - game_area.x, mouse_y - game_area.y);
-        if self.data.grid.is_in_bounds(grid_pos.x, grid_pos.y) {
+        let grid_pos = self.iso_view().screen_to_grid(vec2(mouse_x, mouse_y));
+        if game_area.contains(vec2(mouse_x, mouse_y))
+            && self.data.grid.is_in_bounds(grid_pos.x, grid_pos.y)
+        {
             self.hovered_cell = Some(grid_pos);
         } else {
             self.hovered_cell = None;
@@ -997,6 +1039,7 @@ impl State for GameplayState {
         );
 
         let colony_summary = SummarySystem::colony_pressure_summary(&self.data);
+        let mission_plans = MissionSystem::mission_plans(&self.data);
         draw_right_rail(
             &self.layout,
             &self.data,
@@ -1004,7 +1047,17 @@ impl State for GameplayState {
             ResourceSystem::daily_supply_need(&self.data),
             &colony_summary,
         );
-        draw_bottom_toolbar(&self.layout, self.selected_building);
+        draw_toolbar_context_panel(
+            &self.layout,
+            self.toolbar_mode,
+            self.selected_building,
+            &self.data.resources,
+            &mission_plans,
+            &self.data.technology,
+            self.data.missions.active_count(),
+            &self.data.event_log,
+        );
+        draw_bottom_toolbar(&self.layout, self.toolbar_mode, self.selected_building);
 
         // Debug overlay
         if self.debug_mode {
