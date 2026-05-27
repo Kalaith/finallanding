@@ -13,10 +13,10 @@ use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
     assign_batch_rect, assign_filter_rect, assign_page_next_rect, assign_page_previous_rect,
     assign_role_filter_rect, assign_sort_rect, log_filter_rect, log_page_next_rect,
-    log_page_previous_rect, log_search_clear_rect, log_search_rect, log_timeline_row_rect,
-    toolbar_buildings_for_mode, toolbar_context_item_rect, toolbar_context_rect,
-    toolbar_list_item_rect, AssignBatchAction, AssignRosterFilter, AssignRosterSort, LogFilter,
-    ToolbarMode,
+    log_page_previous_rect, log_search_clear_rect, log_search_export_rect, log_search_rect,
+    log_timeline_row_rect, toolbar_buildings_for_mode, toolbar_context_item_rect,
+    toolbar_context_rect, toolbar_list_item_rect, AssignBatchAction, AssignRosterFilter,
+    AssignRosterSort, LogFilter, ToolbarMode,
 };
 use crate::ui::style;
 use crate::ui::tooltip::draw_tooltip_near_mouse;
@@ -1052,9 +1052,11 @@ fn draw_log_context(
 fn draw_log_search_control(context: Rect, query: &str, active: bool) {
     let search = log_search_rect(context);
     let clear = log_search_clear_rect(context);
+    let export = log_search_export_rect(context);
     let mouse = mouse_position().into();
     style::draw_button(search, active, search.contains(mouse));
     style::draw_button(clear, false, !query.is_empty() && clear.contains(mouse));
+    style::draw_button(export, false, export.contains(mouse));
 
     let mut label = if query.is_empty() {
         "SEARCH REPORTS".to_string()
@@ -1086,6 +1088,13 @@ fn draw_log_search_control(context: Rect, query: &str, active: bool) {
         } else {
             style::TEXT_PRIMARY
         },
+    );
+    draw_text(
+        "EXP",
+        export.x + 9.0,
+        export.y + 12.0,
+        style::TINY_SIZE,
+        style::TEXT_PRIMARY,
     );
 }
 

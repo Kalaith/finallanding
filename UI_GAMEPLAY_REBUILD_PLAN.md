@@ -327,6 +327,7 @@ Completed in the active rebuild:
 - Log mode now filters the social archive by all, tense, or supportive reports for faster relationship review.
 - Log mode now searches daily report titles, details, recommendations, and day numbers while preserving the existing archive filters and drilldowns.
 - Log mode now supports persistent click-to-open drilldowns for daily social reports, including the report detail and recommendation.
+- Log mode now exports the full social archive to `docs/exports/social_archive.md` for out-of-game relationship review.
 - The colony surface now has deterministic crash-site dressing with wreckage, cables, tracks, and richer room-specific cutaway details on placed buildings.
 - Colony-map hover/selection states now use stronger survivor rings plus building footprint and roof outlines for hovered or selected room-assignment spaces.
 - `scripts/capture_ui_smoke.ps1` captures 1280x720, 1920x1080, Assign-mode, Log-mode, placement-preview, and pose-variant gameplay screenshots under `docs/verification/` and checks important map, rail, active-toolbar, and placement-preview regions for visible pixels.
@@ -355,7 +356,6 @@ Highest-value remaining items:
 
 3. Expand relationship-manager gameplay.
    - Add building-instance assignment filters once colony size grows beyond the current paged roster.
-   - Add exportable social archives once daily report history becomes dense enough to need out-of-game review.
    - Upgrade relationship-reactive body language from procedural pose swaps to richer animation frames when production art is available.
 
 4. Improve screenshot verification depth.

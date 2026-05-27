@@ -52,6 +52,7 @@ pub enum PageAction {
 pub enum LogSearchAction {
     Focus,
     Clear,
+    Export,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -435,12 +436,19 @@ pub fn log_search_clear_rect(context: Rect) -> Rect {
     Rect::new(context.x + 278.0, context.y + 13.0, 42.0, 17.0)
 }
 
+pub fn log_search_export_rect(context: Rect) -> Rect {
+    Rect::new(context.x + 326.0, context.y + 13.0, 46.0, 17.0)
+}
+
 pub fn log_search_action_at(context: Rect, x: f32, y: f32) -> Option<LogSearchAction> {
     if contains(log_search_rect(context), x, y) {
         return Some(LogSearchAction::Focus);
     }
     if contains(log_search_clear_rect(context), x, y) {
         return Some(LogSearchAction::Clear);
+    }
+    if contains(log_search_export_rect(context), x, y) {
+        return Some(LogSearchAction::Export);
     }
 
     None
@@ -840,6 +848,7 @@ mod tests {
         let context = Rect::new(380.0, 500.0, 520.0, 126.0);
         let (search_x, search_y) = center(log_search_rect(context));
         let (clear_x, clear_y) = center(log_search_clear_rect(context));
+        let (export_x, export_y) = center(log_search_export_rect(context));
 
         assert_eq!(
             log_search_action_at(context, search_x, search_y),
@@ -848,6 +857,10 @@ mod tests {
         assert_eq!(
             log_search_action_at(context, clear_x, clear_y),
             Some(LogSearchAction::Clear)
+        );
+        assert_eq!(
+            log_search_action_at(context, export_x, export_y),
+            Some(LogSearchAction::Export)
         );
         assert_eq!(
             log_search_action_at(context, context.x + 18.0, context.y + 82.0),

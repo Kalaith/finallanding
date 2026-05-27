@@ -41,6 +41,7 @@ use crate::ui::{
     LogFilter, LogSearchAction, PageAction, PlaceholderArt, SidePanelHit, SpritePose, ToolbarMode,
 };
 use macroquad::prelude::*;
+use std::path::PathBuf;
 
 const SECONDS_PER_GAME_TICK: f32 = 0.25;
 
@@ -535,6 +536,10 @@ impl GameplayState {
                             self.social_history_page = 0;
                             self.selected_social_history_day = None;
                         }
+                        LogSearchAction::Export => {
+                            self.social_history_search_active = false;
+                            self.export_social_archive();
+                        }
                     }
                     return true;
                 }
@@ -609,6 +614,33 @@ impl GameplayState {
         }
 
         self.social_history_page = self.social_history_page.min(page_count.saturating_sub(1));
+    }
+
+    fn export_social_archive(&mut self) {
+        if self.data.social_history.is_empty() {
+            self.data.push_log(
+                LogCategory::Social,
+                "Social archive export skipped",
+                "No daily social reports have been recorded yet.".to_string(),
+            );
+            return;
+        }
+
+        match write_social_archive_markdown(&self.data.social_history) {
+            Ok(path) => self.data.push_log(
+                LogCategory::Social,
+                "Social archive exported",
+                format!(
+                    "Wrote {} daily relationship reports to {}.",
+                    self.data.social_history.len(),
+                    path.display()
+                ),
+            ),
+            Err(error) => {
+                self.data
+                    .push_log(LogCategory::System, "Social archive export failed", error)
+            }
+        }
     }
 
     fn apply_assign_batch_action(&mut self, action: AssignBatchAction) {
@@ -2547,6 +2579,33 @@ fn initial_selected_social_history_day(data: &GameState) -> Option<u32> {
         .filter(|day| data.social_history.iter().any(|entry| entry.day == *day))
 }
 
+fn write_social_archive_markdown(history: &[SocialHistoryEntry]) -> Result<PathBuf, String> {
+    let output_dir = PathBuf::from("docs").join("exports");
+    std::fs::create_dir_all(&output_dir)
+        .map_err(|error| format!("Could not create {}: {}", output_dir.display(), error))?;
+    let output_path = output_dir.join("social_archive.md");
+    std::fs::write(&output_path, social_archive_markdown(history))
+        .map_err(|error| format!("Could not write {}: {}", output_path.display(), error))?;
+    Ok(output_path)
+}
+
+fn social_archive_markdown(history: &[SocialHistoryEntry]) -> String {
+    let mut output = String::from("# The Final Landing Social Archive\n\n");
+    output.push_str(&format!("Reports: {}\n\n", history.len()));
+
+    for entry in history.iter().rev() {
+        output.push_str(&format!("## Day {}: {}\n\n", entry.day, entry.title));
+        output.push_str(&format!(
+            "- Mood: {:.0}\n- Relationship: {:+.0}\n- Close pairs: {}\n- Strained pairs: {}\n\n",
+            entry.average_mood, entry.average_relationship, entry.close_pairs, entry.strained_pairs
+        ));
+        output.push_str(&format!("{}\n\n", entry.detail));
+        output.push_str(&format!("Recommendation: {}\n\n", entry.recommendation));
+    }
+
+    output
+}
+
 fn toolbar_mode_from_name(value: &str) -> Option<ToolbarMode> {
     match value.trim().to_ascii_lowercase().as_str() {
         "build" => Some(ToolbarMode::Build),
@@ -3160,6 +3219,39 @@ mod tests {
             Some(JobPreference::Builder)
         );
         assert_eq!(next_assign_role_filter(Some(JobPreference::Hauler)), None);
+    }
+
+    #[test]
+    fn test_social_archive_markdown_exports_latest_report_first() {
+        let history = vec![
+            SocialHistoryEntry::new(
+                1,
+                "Early friction",
+                "Alice and Fiona need space.",
+                "Use Apart before the next work block.",
+                46.0,
+                -8.0,
+                0,
+                1,
+            ),
+            SocialHistoryEntry::new(
+                2,
+                "Shared meal",
+                "Bob and Diana stabilized dinner.",
+                "Keep the supportive pair together.",
+                62.0,
+                12.0,
+                1,
+                0,
+            ),
+        ];
+
+        let export = social_archive_markdown(&history);
+
+        assert!(export.contains("# The Final Landing Social Archive"));
+        assert!(export.contains("Reports: 2"));
+        assert!(export.find("Day 2").unwrap() < export.find("Day 1").unwrap());
+        assert!(export.contains("Recommendation: Keep the supportive pair together."));
     }
 
     #[test]

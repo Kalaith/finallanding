@@ -27,7 +27,7 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 - Z: undo placement.
 - Esc: cancel current tool.
 - Assign mode: filter the roster by relationship state, pinned spaces, and work role; sort by roster order, low mood, or strongest bond pressure; hover survivor cards to preview social pressure, click a card to cycle work role, click a compatible map building to pin or clear recovery/work space, then use P-H/P-W to copy pins across the visible page or ALL-H/ALL-W across the full colony.
-- Log mode: review the live social brief, search page/filter daily relationship reports by all, tense, or supportive days, and click a report for its recommendation drilldown.
+- Log mode: review the live social brief, search page/filter daily relationship reports by all, tense, or supportive days, click a report for its recommendation drilldown, and export the archive to Markdown for out-of-game review.
 - Research mode: click a mission card to launch a field mission when the colony has an Exploration Gate.
 
 ## Current Scope
@@ -51,7 +51,7 @@ Strong social ties can now surface directly on the colony map through survivor p
 - Change priorities from Colony mode after an incident and confirm the advisor responds.
 - Use Assign mode to filter and sort the roster, retask one survivor, pin a compatible Habitat or work space from the map, then copy HOME/WORK pins to the visible page and across the full colony, confirming any conflict warning appears.
 - Confirm tense/supportive survivors show visible body-language markers on the colony map before opening the inspector.
-- Open Log mode after several day summaries and confirm the social archive search, pages, filters, and drilldowns into older relationship recommendations.
+- Open Log mode after several day summaries and confirm the social archive search, pages, filters, drilldowns, and Markdown export into older relationship recommendations.
 - Launch at least two different mission types from Research mode and compare risk/reward.
 - Hover and inspect one colonist, then identify their strongest or weakest relationship.
 - Reach victory or failure, then use the restart button to begin another run.
