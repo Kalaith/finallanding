@@ -1,6 +1,8 @@
+use crate::data::building::BuildingType;
 use crate::data::colonist::relationship_label;
 use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
+use crate::systems::resource_system::ResourceSystem;
 
 pub struct SummarySystem;
 
@@ -22,6 +24,13 @@ pub struct ColonyPressureSummary {
     pub tense_pairs: Vec<RelationshipPairSummary>,
     pub strongest_pair: Option<RelationshipPairSummary>,
     pub weakest_pair: Option<RelationshipPairSummary>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DailyStoryReport {
+    pub title: String,
+    pub detail: String,
+    pub recommendation: String,
 }
 
 impl SummarySystem {
@@ -112,25 +121,96 @@ impl SummarySystem {
             return;
         }
 
+        let report = Self::previous_day_report(state, new_day);
+        state.push_log(LogCategory::Colony, report.title, report.detail);
+    }
+
+    pub fn previous_day_report(state: &GameState, new_day: u32) -> DailyStoryReport {
         let previous_day = new_day.saturating_sub(1).max(1);
         let summary = Self::colony_pressure_summary(state);
 
         let title = if summary.average_mood < 30.0 || summary.strained_pairs > 2 {
-            "Colony strain is rising"
+            "Colony strain rose"
         } else if summary.average_mood > 65.0 && summary.average_relationship > 8.0 {
-            "The colony feels connected"
+            "The colony found rhythm"
         } else {
             "The colony held together"
         };
 
-        state.push_log(
-            LogCategory::Colony,
-            format!("Day {} summary", previous_day),
-            format!(
-                "{}. Average mood {:.0}, average relationship {:+.0}, strained pairs {}.",
-                title, summary.average_mood, summary.average_relationship, summary.strained_pairs
+        let best = summary
+            .strongest_pair
+            .as_ref()
+            .map(|pair| {
+                format!(
+                    "{} and {} were the strongest bond ({} {:+}).",
+                    pair.first_name, pair.second_name, pair.label, pair.value
+                )
+            })
+            .unwrap_or_else(|| "No clear bond stood out yet.".to_string());
+        let worst = summary
+            .weakest_pair
+            .as_ref()
+            .map(|pair| {
+                format!(
+                    "{} and {} carried the sharpest tension ({} {:+}).",
+                    pair.first_name, pair.second_name, pair.label, pair.value
+                )
+            })
+            .unwrap_or_else(|| "No visible conflict stood out yet.".to_string());
+        let recommendation = Self::pressure_recommendation(state, &summary);
+
+        DailyStoryReport {
+            title: format!("Day {} summary", previous_day),
+            detail: format!(
+                "{}. Mood {:.0}, relationship average {:+.0}, strained pairs {}. {} {} Next pressure: {}",
+                title,
+                summary.average_mood,
+                summary.average_relationship,
+                summary.strained_pairs,
+                best,
+                worst,
+                recommendation
             ),
-        );
+            recommendation,
+        }
+    }
+
+    fn pressure_recommendation(state: &GameState, summary: &ColonyPressureSummary) -> String {
+        let daily_need = ResourceSystem::daily_supply_need(state).max(1);
+
+        if state.resources.supplies < daily_need * 2 {
+            return format!(
+                "raise supplies above {} before the next ration check.",
+                daily_need * 2
+            );
+        }
+
+        let habitat_capacity = state
+            .building_system
+            .buildings()
+            .iter()
+            .filter(|building| building.building_type == BuildingType::Habitat)
+            .count() as u32
+            * (2 + state.technology.habitat_capacity_bonus());
+        if habitat_capacity < state.colonists.len() as u32 {
+            return "add habitat capacity so recovery does not create nightly pressure."
+                .to_string();
+        }
+
+        if summary.average_mood < 40.0 {
+            return "use Recovery priority before low mood turns into refusals.".to_string();
+        }
+
+        if summary.strained_pairs > 0 {
+            return "separate tense pairs with recovery time or different work stations."
+                .to_string();
+        }
+
+        if state.technology.unlocked_count() < state.scenario.required_tech_unlocks {
+            return "keep scouting until field technology is secure.".to_string();
+        }
+
+        "maintain the supply buffer and protect the strongest social bonds.".to_string()
     }
 }
 
@@ -243,6 +323,31 @@ mod tests {
             summary.strongest_pair.as_ref().map(|pair| pair.label),
             Some("Close")
         );
+    }
+
+    #[test]
+    fn test_daily_story_report_names_best_worst_and_pressure() {
+        let mut state = GameState::new();
+        state.resources.supplies = 1;
+        state.colonists.push(test_colonist(1, "Alice"));
+        state.colonists.push(test_colonist(2, "Bob"));
+        state.colonists.push(test_colonist(3, "Charlie"));
+        state.colonists[0].relationships.insert(2, 24);
+        state.colonists[1].relationships.insert(1, 20);
+        state.colonists[0].relationships.insert(3, -18);
+        state.colonists[2].relationships.insert(1, -14);
+
+        let report = SummarySystem::previous_day_report(&state, 3);
+
+        assert_eq!(report.title, "Day 2 summary");
+        assert!(report
+            .detail
+            .contains("Alice and Bob were the strongest bond"));
+        assert!(report
+            .detail
+            .contains("Alice and Charlie carried the sharpest tension"));
+        assert!(report.detail.contains("Next pressure: raise supplies"));
+        assert!(report.recommendation.contains("raise supplies"));
     }
 
     fn test_colonist(id: u32, name: &str) -> Colonist {

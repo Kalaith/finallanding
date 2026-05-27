@@ -23,24 +23,48 @@ impl RelationshipSource {
         }
     }
 
-    fn positive_detail(self) -> &'static str {
-        match self {
-            RelationshipSource::Work => "compatible crews built trust at the same station",
-            RelationshipSource::Meal => "a shared meal gave them neutral ground to reconnect",
-            RelationshipSource::SharedHabitat => "recovering together made the habitat feel safer",
-        }
+    fn positive_detail(self, old_value: i32, new_value: i32) -> &'static str {
+        let options = match self {
+            RelationshipSource::Work => &[
+                "compatible crews built trust at the same station",
+                "one covered the other's weak spot during the shift",
+                "shared repair pressure turned into practical respect",
+            ][..],
+            RelationshipSource::Meal => &[
+                "a shared meal gave them neutral ground to reconnect",
+                "meal time let the tension drain out of the conversation",
+                "they found a small routine worth repeating over dinner",
+            ],
+            RelationshipSource::SharedHabitat => &[
+                "recovering together made the habitat feel safer",
+                "quiet rest helped them see each other as reliable",
+                "shared shelter turned into a brief moment of trust",
+            ],
+        };
+
+        options[relationship_detail_index(old_value, new_value, options.len())]
     }
 
-    fn negative_detail(self) -> &'static str {
-        match self {
-            RelationshipSource::Work => {
-                "low mood or a disliked coworker made the shift feel forced"
-            }
-            RelationshipSource::Meal => "stress followed them into the Mess Hall",
-            RelationshipSource::SharedHabitat => {
-                "cramped recovery space kept them close to someone they mistrust"
-            }
-        }
+    fn negative_detail(self, old_value: i32, new_value: i32) -> &'static str {
+        let options = match self {
+            RelationshipSource::Work => &[
+                "low mood or a disliked coworker made the shift feel forced",
+                "the work pace left too little patience for compromise",
+                "a bad handoff made the whole station feel personal",
+            ][..],
+            RelationshipSource::Meal => &[
+                "stress followed them into the Mess Hall",
+                "the table felt too small for the argument they carried in",
+                "they ate together but left less willing to cooperate",
+            ],
+            RelationshipSource::SharedHabitat => &[
+                "cramped recovery space kept them close to someone they mistrust",
+                "resting near unresolved tension made recovery shallow",
+                "sleeping arrangements turned small irritation into resentment",
+            ],
+        };
+
+        options[relationship_detail_index(old_value, new_value, options.len())]
     }
 }
 
@@ -206,9 +230,9 @@ impl SocialSystem {
 
         if Self::should_log_relationship_shift(change, old_value, new_value, old_label, new_label) {
             let detail = if change > 0 {
-                source.positive_detail()
+                source.positive_detail(old_value, new_value)
             } else {
-                source.negative_detail()
+                source.negative_detail(old_value, new_value)
             };
             let title = if old_label != new_label {
                 format!("{} and {} are now {}", name_a, name_b, new_label)
@@ -287,6 +311,14 @@ impl SocialSystem {
             .map(|c| c.name.clone())
             .unwrap_or_else(|| format!("Colonist {}", colonist_id))
     }
+}
+
+fn relationship_detail_index(old_value: i32, new_value: i32, len: usize) -> usize {
+    if len == 0 {
+        return 0;
+    }
+
+    (old_value.abs() as usize + new_value.abs() as usize) % len
 }
 
 #[cfg(test)]
