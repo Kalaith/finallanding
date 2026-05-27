@@ -74,6 +74,8 @@ pub struct GameplayState {
     assign_roster_sort: AssignRosterSort,
     /// Optional work-role filter in the Assign mode roster.
     assign_role_filter: Option<JobPreference>,
+    /// Optional room/work-space instance filter in the Assign mode roster.
+    assign_building_filter: Option<u32>,
     /// Current page in the Log mode social archive.
     social_history_page: usize,
     /// Active filter in the Log mode social archive.
@@ -130,6 +132,7 @@ impl GameplayState {
             assign_roster_filter: AssignRosterFilter::All,
             assign_roster_sort: AssignRosterSort::Roster,
             assign_role_filter: None,
+            assign_building_filter: None,
             social_history_page: 0,
             social_history_filter: LogFilter::All,
             social_history_query: String::new(),
@@ -415,11 +418,21 @@ impl GameplayState {
     }
 
     fn update_pointer_ui_input(&mut self) {
-        if !is_mouse_button_pressed(MouseButton::Left) {
+        let assign_room_filter_click =
+            self.toolbar_mode == ToolbarMode::Assign && is_mouse_button_pressed(MouseButton::Right);
+        if !is_mouse_button_pressed(MouseButton::Left) && !assign_room_filter_click {
             return;
         }
 
         let (mouse_x, mouse_y) = mouse_position();
+
+        if assign_room_filter_click {
+            if self.layout.game_area().contains(vec2(mouse_x, mouse_y)) {
+                self.update_assign_building_filter_click();
+                return;
+            }
+            return;
+        }
 
         if mouse_y <= self.layout.top_bar_height {
             self.update_top_bar_click(mouse_x, mouse_y);
@@ -437,6 +450,31 @@ impl GameplayState {
             && mouse_y <= panel.y + panel.h
         {
             return;
+        }
+    }
+
+    fn update_assign_building_filter_click(&mut self) {
+        let clicked = self
+            .building_at_mouse()
+            .map(|building| (building.id, building.building_type.name().to_string()));
+        self.assign_roster_page = 0;
+
+        if let Some((building_id, name)) = clicked {
+            self.assign_building_filter = Some(building_id);
+            self.data.push_log(
+                LogCategory::Social,
+                "Assignment room filter set",
+                format!(
+                    "Assign roster now shows survivors pinned to {} #{}.",
+                    name, building_id
+                ),
+            );
+        } else if self.assign_building_filter.take().is_some() {
+            self.data.push_log(
+                LogCategory::Social,
+                "Assignment room filter cleared",
+                "Assign roster now shows survivors from every pinned room.".to_string(),
+            );
         }
     }
 
@@ -514,6 +552,7 @@ impl GameplayState {
                     self.assign_roster_filter,
                     self.assign_roster_sort,
                     self.assign_role_filter,
+                    self.assign_building_filter,
                 )
                 .len();
                 if let Some(slot) =
@@ -581,6 +620,7 @@ impl GameplayState {
             self.selected_colonist_id,
             self.assign_roster_filter,
             self.assign_role_filter,
+            self.assign_building_filter,
         );
         match action {
             PageAction::Previous => {
@@ -657,6 +697,7 @@ impl GameplayState {
                 self.assign_roster_filter,
                 self.assign_roster_sort,
                 self.assign_role_filter,
+                self.assign_building_filter,
             )
         };
         let scope = if action.targets_all() {
@@ -746,6 +787,7 @@ impl GameplayState {
             self.assign_roster_filter,
             self.assign_roster_sort,
             self.assign_role_filter,
+            self.assign_building_filter,
         )
         .get(slot)
         .copied()
@@ -962,6 +1004,9 @@ impl GameplayState {
 
     fn clear_building_assignments(&mut self, building_id: u32) -> Vec<String> {
         let mut cleared = Vec::new();
+        if self.assign_building_filter == Some(building_id) {
+            self.assign_building_filter = None;
+        }
         for colonist in &mut self.data.colonists {
             let mut changed = false;
             if colonist.assigned_habitat == Some(building_id) {
@@ -2642,6 +2687,7 @@ fn assign_roster_page_count(
     selected_colonist_id: Option<u32>,
     active_filter: AssignRosterFilter,
     active_role_filter: Option<JobPreference>,
+    active_building_filter: Option<u32>,
 ) -> usize {
     let selected_exists = selected_colonist_id
         .and_then(|id| colonists.iter().position(|colonist| colonist.id == id))
@@ -2650,6 +2696,7 @@ fn assign_roster_page_count(
         .filter(|index| Some(colonists[*index].id) != selected_colonist_id)
         .filter(|index| {
             assign_roster_filter_matches(&colonists[*index], active_filter, active_role_filter)
+                && assign_building_filter_matches(&colonists[*index], active_building_filter)
         })
         .count();
     let page_size = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(usize::from(selected_exists));
@@ -2664,6 +2711,7 @@ fn assign_visible_colonist_indices(
     active_filter: AssignRosterFilter,
     active_sort: AssignRosterSort,
     active_role_filter: Option<JobPreference>,
+    active_building_filter: Option<u32>,
 ) -> Vec<usize> {
     let mut indices = Vec::new();
 
@@ -2681,6 +2729,7 @@ fn assign_visible_colonist_indices(
             selected_colonist_id,
             active_filter,
             active_role_filter,
+            active_building_filter,
         ) - 1,
     );
 
@@ -2690,6 +2739,7 @@ fn assign_visible_colonist_indices(
         active_filter,
         active_sort,
         active_role_filter,
+        active_building_filter,
     );
     indices.extend(roster.into_iter().skip(page * open_slots).take(open_slots));
 
@@ -2702,11 +2752,13 @@ fn assign_sorted_roster_indices(
     active_filter: AssignRosterFilter,
     active_sort: AssignRosterSort,
     active_role_filter: Option<JobPreference>,
+    active_building_filter: Option<u32>,
 ) -> Vec<usize> {
     let mut indices = (0..colonists.len())
         .filter(|index| Some(*index) != selected_index)
         .filter(|index| {
             assign_roster_filter_matches(&colonists[*index], active_filter, active_role_filter)
+                && assign_building_filter_matches(&colonists[*index], active_building_filter)
         })
         .collect::<Vec<_>>();
 
@@ -2752,6 +2804,12 @@ fn relationship_pressure_score(colonist: &Colonist) -> i32 {
         .map(|value| value.abs())
         .max()
         .unwrap_or(0)
+}
+
+fn assign_building_filter_matches(colonist: &Colonist, building_id: Option<u32>) -> bool {
+    building_id.is_none_or(|id| {
+        colonist.assigned_habitat == Some(id) || colonist.assigned_workplace == Some(id)
+    })
 }
 
 fn next_assign_role_filter(current: Option<JobPreference>) -> Option<JobPreference> {
@@ -3094,6 +3152,7 @@ mod tests {
                 AssignRosterFilter::All,
                 AssignRosterSort::Roster,
                 None,
+                None,
             ),
             vec![5, 0, 1, 2, 3]
         );
@@ -3104,6 +3163,7 @@ mod tests {
                 0,
                 AssignRosterFilter::All,
                 AssignRosterSort::Roster,
+                None,
                 None,
             ),
             vec![0, 1, 2, 3, 4]
@@ -3125,7 +3185,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(
-            assign_roster_page_count(&colonists, Some(5), AssignRosterFilter::All, None),
+            assign_roster_page_count(&colonists, Some(5), AssignRosterFilter::All, None, None),
             2
         );
         assert_eq!(
@@ -3135,6 +3195,7 @@ mod tests {
                 1,
                 AssignRosterFilter::All,
                 AssignRosterSort::Roster,
+                None,
                 None,
             ),
             vec![5, 4, 6, 7]
@@ -3146,6 +3207,7 @@ mod tests {
                 1,
                 AssignRosterFilter::All,
                 AssignRosterSort::Roster,
+                None,
                 None,
             ),
             vec![5, 6, 7]
@@ -3177,6 +3239,7 @@ mod tests {
                 AssignRosterFilter::Risk,
                 AssignRosterSort::Bond,
                 None,
+                None,
             ),
             vec![5, 3, 1]
         );
@@ -3206,8 +3269,40 @@ mod tests {
                 AssignRosterFilter::All,
                 AssignRosterSort::Roster,
                 Some(JobPreference::Cook),
+                None,
             ),
             vec![5, 1, 4]
+        );
+    }
+
+    #[test]
+    fn test_assign_visible_indices_filter_building_instance() {
+        let mut colonists = (0..6)
+            .map(|id| {
+                Colonist::new(
+                    id,
+                    format!("Colonist {}", id),
+                    Position::new(id as i32, 0),
+                    Trait::HardWorker,
+                    JobPreference::Builder,
+                )
+            })
+            .collect::<Vec<_>>();
+        colonists[1].assigned_habitat = Some(7);
+        colonists[3].assigned_workplace = Some(7);
+        colonists[4].assigned_habitat = Some(8);
+
+        assert_eq!(
+            assign_visible_colonist_indices(
+                &colonists,
+                Some(5),
+                0,
+                AssignRosterFilter::All,
+                AssignRosterSort::Roster,
+                None,
+                Some(7),
+            ),
+            vec![5, 1, 3]
         );
     }
 
@@ -3533,6 +3628,7 @@ impl State for GameplayState {
             self.assign_roster_filter,
             self.assign_roster_sort,
             self.assign_role_filter,
+            self.assign_building_filter,
             self.social_history_page,
             self.social_history_filter,
             &self.social_history_query,

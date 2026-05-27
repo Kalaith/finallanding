@@ -39,6 +39,7 @@ pub fn draw_toolbar_context_panel(
     assign_roster_filter: AssignRosterFilter,
     assign_roster_sort: AssignRosterSort,
     assign_role_filter: Option<JobPreference>,
+    assign_building_filter: Option<u32>,
     social_history_page: usize,
     social_history_filter: LogFilter,
     social_history_query: &str,
@@ -73,6 +74,7 @@ pub fn draw_toolbar_context_panel(
             assign_roster_filter,
             assign_roster_sort,
             assign_role_filter,
+            assign_building_filter,
             technology,
         ),
         ToolbarMode::Log => draw_log_context(
@@ -268,6 +270,7 @@ fn draw_assign_context(
     active_filter: AssignRosterFilter,
     active_sort: AssignRosterSort,
     active_role_filter: Option<JobPreference>,
+    active_building_filter: Option<u32>,
     technology: &TechnologyState,
 ) {
     let mut hovered_forecast = None;
@@ -290,6 +293,7 @@ fn draw_assign_context(
         selected_colonist_id,
         active_filter,
         active_role_filter,
+        active_building_filter,
     );
     let current_page = assign_roster_page.min(page_count.saturating_sub(1));
     if page_count > 1 {
@@ -303,6 +307,7 @@ fn draw_assign_context(
         active_filter,
         active_sort,
         active_role_filter,
+        active_building_filter,
     )
     .into_iter()
     .enumerate()
@@ -411,7 +416,15 @@ fn draw_assign_context(
         draw_assign_batch_controls(context, colonist);
     }
     let footer = selected_colonist
-        .map(|colonist| format!("Selected {} | click map spaces to pin rooms", colonist.name))
+        .map(|colonist| {
+            let filter_note = active_building_filter
+                .map(|id| format!(" | room filter #{}", id))
+                .unwrap_or_default();
+            format!(
+                "Selected {} | click rooms to pin | right-click room to filter{}",
+                colonist.name, filter_note
+            )
+        })
         .unwrap_or_else(|| {
             "Roles, pair directives, and space directives shape work blocks.".to_string()
         });
@@ -617,6 +630,7 @@ fn assign_roster_page_count(
     selected_colonist_id: Option<u32>,
     active_filter: AssignRosterFilter,
     active_role_filter: Option<JobPreference>,
+    active_building_filter: Option<u32>,
 ) -> usize {
     let selected_exists = selected_colonist_id
         .and_then(|id| colonists.iter().position(|colonist| colonist.id == id))
@@ -626,6 +640,7 @@ fn assign_roster_page_count(
         .filter(|colonist| Some(colonist.id) != selected_colonist_id)
         .filter(|colonist| {
             assign_roster_filter_matches(colonist, active_filter, active_role_filter)
+                && assign_building_filter_matches(colonist, active_building_filter)
         })
         .count();
     let page_size = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(usize::from(selected_exists));
@@ -640,6 +655,7 @@ fn assign_visible_colonists<'a>(
     active_filter: AssignRosterFilter,
     active_sort: AssignRosterSort,
     active_role_filter: Option<JobPreference>,
+    active_building_filter: Option<u32>,
 ) -> Vec<&'a Colonist> {
     let mut visible = Vec::new();
 
@@ -658,6 +674,7 @@ fn assign_visible_colonists<'a>(
             selected_colonist_id,
             active_filter,
             active_role_filter,
+            active_building_filter,
         ) - 1,
     );
 
@@ -667,6 +684,7 @@ fn assign_visible_colonists<'a>(
         active_filter,
         active_sort,
         active_role_filter,
+        active_building_filter,
     );
     visible.extend(roster.into_iter().skip(page * open_slots).take(open_slots));
 
@@ -679,12 +697,14 @@ fn assign_sorted_roster<'a>(
     active_filter: AssignRosterFilter,
     active_sort: AssignRosterSort,
     active_role_filter: Option<JobPreference>,
+    active_building_filter: Option<u32>,
 ) -> Vec<&'a Colonist> {
     let mut roster = colonists
         .iter()
         .filter(|colonist| Some(colonist.id) != selected_id)
         .filter(|colonist| {
             assign_roster_filter_matches(colonist, active_filter, active_role_filter)
+                && assign_building_filter_matches(colonist, active_building_filter)
         })
         .collect::<Vec<_>>();
 
@@ -729,6 +749,12 @@ fn relationship_pressure_score(colonist: &Colonist) -> i32 {
         .map(|value| value.abs())
         .max()
         .unwrap_or(0)
+}
+
+fn assign_building_filter_matches(colonist: &Colonist, building_id: Option<u32>) -> bool {
+    building_id.is_none_or(|id| {
+        colonist.assigned_habitat == Some(id) || colonist.assigned_workplace == Some(id)
+    })
 }
 
 fn assign_role_filter_label(role: Option<JobPreference>) -> &'static str {
@@ -1406,6 +1432,7 @@ mod tests {
             AssignRosterFilter::All,
             AssignRosterSort::Roster,
             None,
+            None,
         )
         .into_iter()
         .map(|colonist| colonist.id)
@@ -1424,13 +1451,14 @@ mod tests {
             AssignRosterFilter::All,
             AssignRosterSort::Roster,
             None,
+            None,
         )
         .into_iter()
         .map(|colonist| colonist.id)
         .collect::<Vec<_>>();
 
         assert_eq!(
-            assign_roster_page_count(&colonists, Some(5), AssignRosterFilter::All, None),
+            assign_roster_page_count(&colonists, Some(5), AssignRosterFilter::All, None, None),
             2
         );
         assert_eq!(page, vec![5, 4, 6, 7]);
@@ -1450,6 +1478,7 @@ mod tests {
             0,
             AssignRosterFilter::Pinned,
             AssignRosterSort::Mood,
+            None,
             None,
         )
         .into_iter()
@@ -1473,6 +1502,30 @@ mod tests {
             AssignRosterFilter::All,
             AssignRosterSort::Roster,
             Some(JobPreference::Cook),
+            None,
+        )
+        .into_iter()
+        .map(|colonist| colonist.id)
+        .collect::<Vec<_>>();
+
+        assert_eq!(visible, vec![5, 1, 3]);
+    }
+
+    #[test]
+    fn test_assign_visible_colonists_filter_building_instance() {
+        let mut colonists = (0..6).map(test_colonist).collect::<Vec<_>>();
+        colonists[1].assigned_habitat = Some(7);
+        colonists[3].assigned_workplace = Some(7);
+        colonists[4].assigned_habitat = Some(8);
+
+        let visible = assign_visible_colonists(
+            &colonists,
+            Some(5),
+            0,
+            AssignRosterFilter::All,
+            AssignRosterSort::Roster,
+            None,
+            Some(7),
         )
         .into_iter()
         .map(|colonist| colonist.id)
