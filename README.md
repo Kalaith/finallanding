@@ -27,6 +27,7 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 - Z: undo placement.
 - Esc: cancel current tool.
 - Assign mode: hover a survivor card to preview social pressure, then click to cycle their work role.
+- Log mode: review the live social brief and the latest three daily relationship reports.
 - Research mode: click a mission card to launch a field mission when the colony has an Exploration Gate.
 
 ## Current Scope
@@ -39,7 +40,7 @@ The left rail surfaces current objectives and alerts while the right rail tracks
 - `cargo test`: runs unit coverage plus a headless reference playthrough.
 - The reference playthrough starts at Day 1 07:00, advances through the live mission, work, resource, relationship, technology, and scenario systems, and asserts a Day 7 victory inside the 30-40 minute normal-speed window.
 - UI hit-zone tests verify the visible menu, speed, priority, building, undo, and mission controls resolve to the intended gameplay actions.
-- `.\scripts\capture_ui_smoke.ps1`: builds the native game, captures gameplay screenshots at 1280x720 and 1920x1080, and verifies that both PNGs are nonempty.
+- `.\scripts\capture_ui_smoke.ps1`: builds the native game, captures gameplay screenshots at 1280x720, 1920x1080, Assign mode, Log mode, and pose setup, then verifies important visible regions.
 
 ## Playtest Checklist
 
@@ -48,6 +49,7 @@ The left rail surfaces current objectives and alerts while the right rail tracks
 - Hover toolbar buttons and context cards; confirm tooltips stay inside the playable view.
 - Change priorities from Colony mode after an incident and confirm the advisor responds.
 - Use Assign mode to retask one survivor, then confirm their listed role and assignment log mention the expected social pressure.
+- Open Log mode after a day summary and confirm the social timeline preserves recent relationship recommendations.
 - Launch at least two different mission types from Research mode and compare risk/reward.
 - Hover and inspect one colonist, then identify their strongest or weakest relationship.
 - Reach victory or failure, then use the restart button to begin another run.

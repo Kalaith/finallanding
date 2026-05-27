@@ -386,6 +386,7 @@ fn draw_log_context(
     social_history: &[SocialHistoryEntry],
     summary: &ColonyPressureSummary,
 ) {
+    let mut hovered_history = None;
     let social_brief = social_brief_lines(summary);
     draw_text(
         &social_brief.header,
@@ -402,21 +403,56 @@ fn draw_log_context(
         style::TEXT_BODY,
     );
 
-    if let Some(history) = social_history.last() {
+    let timeline = social_timeline_rows(social_history);
+    if !timeline.is_empty() {
         draw_text(
-            &style::truncate_text(&format!("Day {}: {}", history.day, history.title), 54),
+            "SOCIAL TIMELINE",
             context.x + 18.0,
-            context.y + 87.0,
+            context.y + 82.0,
             style::TINY_SIZE,
             style::HEADING_BLUE,
         );
-        draw_text(
-            &style::truncate_text(&history.recommendation, 72),
-            context.x + 18.0,
-            context.y + 104.0,
-            style::TINY_SIZE,
-            style::TEXT_MUTED,
-        );
+
+        for (index, row) in timeline.iter().enumerate() {
+            let y = context.y + 94.0 + index as f32 * 13.0;
+            let rect = Rect::new(context.x + 12.0, y - 11.0, context.w - 24.0, 13.0);
+            if rect.contains(mouse_position().into()) {
+                hovered_history = Some(row);
+                draw_rectangle(
+                    rect.x,
+                    rect.y,
+                    rect.w,
+                    rect.h,
+                    Color::new(0.1, 0.14, 0.15, 0.7),
+                );
+            }
+            draw_rectangle(rect.x, rect.y, 3.0, rect.h, row.color);
+            draw_text(
+                &format!("D{}", row.day),
+                rect.x + 9.0,
+                y,
+                style::TINY_SIZE,
+                row.color,
+            );
+            draw_text(
+                &style::truncate_text(&row.title, 34),
+                rect.x + 39.0,
+                y,
+                style::TINY_SIZE,
+                style::TEXT_BODY,
+            );
+            draw_text(
+                &row.metrics,
+                rect.x + rect.w - 104.0,
+                y,
+                style::TINY_SIZE,
+                style::TEXT_MUTED,
+            );
+        }
+
+        if let Some(row) = hovered_history {
+            draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &row.title, &row.detail);
+        }
         return;
     }
 
@@ -455,6 +491,42 @@ fn draw_log_context(
 
     if let Some(log) = hovered_log {
         draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &log.title, &log.detail);
+    }
+}
+
+struct SocialTimelineRow {
+    day: u32,
+    title: String,
+    detail: String,
+    metrics: String,
+    color: Color,
+}
+
+fn social_timeline_rows(history: &[SocialHistoryEntry]) -> Vec<SocialTimelineRow> {
+    history
+        .iter()
+        .rev()
+        .take(3)
+        .map(|entry| SocialTimelineRow {
+            day: entry.day,
+            title: entry.title.clone(),
+            detail: format!("{} {}", entry.detail, entry.recommendation),
+            metrics: format!(
+                "M{:.0} R{:+.0} T{}",
+                entry.average_mood, entry.average_relationship, entry.strained_pairs
+            ),
+            color: social_history_color(entry),
+        })
+        .collect()
+}
+
+fn social_history_color(entry: &SocialHistoryEntry) -> Color {
+    if entry.strained_pairs > 0 || entry.average_relationship < -5.0 {
+        style::ALERT_RED
+    } else if entry.close_pairs > 0 || entry.average_relationship > 8.0 {
+        style::BAR_GREEN
+    } else {
+        style::HEADING_BLUE
     }
 }
 
@@ -650,5 +722,42 @@ mod tests {
 
         assert_eq!(history.day, 2);
         assert_eq!(history.recommendation, "Keep Charlie and Evan together.");
+    }
+
+    #[test]
+    fn test_social_timeline_rows_show_latest_three_days_first() {
+        let history = (0..5)
+            .map(|day| {
+                SocialHistoryEntry::new(
+                    day,
+                    format!("Day {} summary", day),
+                    "Social detail.",
+                    "Recommendation.",
+                    50.0 + day as f32,
+                    day as f32,
+                    day,
+                    0,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let rows = social_timeline_rows(&history);
+
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].day, 4);
+        assert_eq!(rows[1].day, 3);
+        assert_eq!(rows[2].day, 2);
+        assert_eq!(rows[0].metrics, "M54 R+4 T0");
+    }
+
+    #[test]
+    fn test_social_timeline_colors_pressure_and_support() {
+        let tense = SocialHistoryEntry::new(2, "", "", "", 42.0, -2.0, 0, 1);
+        let close = SocialHistoryEntry::new(3, "", "", "", 68.0, 9.0, 1, 0);
+        let neutral = SocialHistoryEntry::new(4, "", "", "", 55.0, 0.0, 0, 0);
+
+        assert_eq!(social_history_color(&tense), style::ALERT_RED);
+        assert_eq!(social_history_color(&close), style::BAR_GREEN);
+        assert_eq!(social_history_color(&neutral), style::HEADING_BLUE);
     }
 }

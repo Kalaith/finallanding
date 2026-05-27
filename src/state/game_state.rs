@@ -1688,16 +1688,40 @@ fn seed_social_history_for_capture(data: &mut GameState) {
         return;
     }
 
-    data.push_social_history(SocialHistoryEntry::new(
-        0,
-        "Crash night summary",
-        "The first shelter line held, but Alice and Fiona carried visible tension while Charlie and Evan kept field work steady.",
-        "Use Assign to keep Alice and Fiona apart until recovery space improves.",
-        50.0,
-        1.0,
-        2,
-        1,
-    ));
+    for entry in [
+        SocialHistoryEntry::new(
+            0,
+            "Crash night summary",
+            "The first shelter line held, but Alice and Fiona carried visible tension while Charlie and Evan kept field work steady.",
+            "Use Assign to keep Alice and Fiona apart until recovery space improves.",
+            50.0,
+            1.0,
+            2,
+            1,
+        ),
+        SocialHistoryEntry::new(
+            1,
+            "Mess routine settled",
+            "Shared meals improved morale around Bob and Diana, but the workshop queue still created late shifts.",
+            "Keep cooks near supportive partners and reduce workshop crowding.",
+            58.0,
+            6.0,
+            2,
+            0,
+        ),
+        SocialHistoryEntry::new(
+            2,
+            "Workshop strain returned",
+            "Alice and Fiona overlapped at the stockpile again, cutting into the recovery gains from yesterday.",
+            "Separate tense workers before assigning the next salvage push.",
+            47.0,
+            -4.0,
+            1,
+            1,
+        ),
+    ] {
+        data.push_social_history(entry);
+    }
 }
 
 fn seed_activity_poses_for_capture(data: &mut GameState) {

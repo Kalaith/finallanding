@@ -316,9 +316,9 @@ Completed in the active rebuild:
 - The map and right rail now expose relationship pressure/support through compact social badges and Friendly/Tense value chips.
 - Assign mode now supports player-authored pair and space directives between selected survivors, and those directives influence future workplace and habitat choices.
 - Log mode now includes a compact social brief that highlights mood, close/tense pair counts, and the strongest relationship signal before recent events.
-- End-of-day social reports are now preserved as social history entries and Log mode can show the latest historical recommendation separately from the live event ticker.
+- End-of-day social reports are now preserved as social history entries, and Log mode shows a compact latest-three-day social timeline with mood, relationship, and strain metrics.
 - The colony surface now has deterministic crash-site dressing with wreckage, cables, tracks, and richer room-specific cutaway details on placed buildings.
-- `scripts/capture_ui_smoke.ps1` captures 1280x720, 1920x1080, Assign-mode, and Log-mode gameplay screenshots under `docs/verification/` and checks important map, rail, and active-toolbar regions for visible pixels.
+- `scripts/capture_ui_smoke.ps1` captures 1280x720, 1920x1080, Assign-mode, Log-mode, and pose-variant gameplay screenshots under `docs/verification/` and checks important map, rail, and active-toolbar regions for visible pixels.
 
 Validation currently passing:
 
@@ -345,7 +345,7 @@ Highest-value remaining items:
 
 3. Expand relationship-manager gameplay.
    - Expand relationship directives into persistent team/room assignment panels once the colony has more than one candidate room per type.
-   - Expand social history beyond the latest report into a scrollable multi-day timeline.
+   - Add a scrollable or paged social archive once more than three daily reports need to be reviewed in-session.
    - Add relationship-reactive body language and transition animations so social tension is visible before opening panels.
 
 4. Improve screenshot verification depth.
