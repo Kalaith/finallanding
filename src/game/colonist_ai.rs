@@ -13,6 +13,7 @@ use std::collections::HashMap;
 /// Movement speed for visual interpolation (pixels per frame)
 const VISUAL_MOVE_SPEED: f32 = 2.0;
 const REFUSAL_LOG_COOLDOWN_TICKS: u64 = 60;
+const SOCIAL_STRAIN_LOG_COOLDOWN_TICKS: u64 = 120;
 
 type PendingLog = (LogCategory, String, String);
 
@@ -38,6 +39,11 @@ pub fn update_colonists(state: &mut GameState, elapsed_ticks: u64) {
         .iter()
         .filter(|c| !c.is_on_mission())
         .map(|c| (c.position, c.id))
+        .collect();
+    let colonist_names: HashMap<u32, String> = state
+        .colonists
+        .iter()
+        .map(|colonist| (colonist.id, colonist.name.clone()))
         .collect();
 
     let mut building_occupancy: HashMap<u32, u32> = HashMap::new();
@@ -69,6 +75,7 @@ pub fn update_colonists(state: &mut GameState, elapsed_ticks: u64) {
             &mut state.colonists[i],
             &scheduled_activity,
             &occupied,
+            &colonist_names,
             &buildings,
             &mut building_occupancy,
             habitat_capacity,
@@ -89,6 +96,7 @@ fn update_colonist_ai(
     colonist: &mut Colonist,
     scheduled_activity: &ActivityType,
     occupied: &HashMap<Position, u32>,
+    colonist_names: &HashMap<u32, String>,
     buildings: &[(u32, BuildingType, Position, (u32, u32))],
     building_occupancy: &mut HashMap<u32, u32>,
     habitat_capacity: u32,
@@ -164,7 +172,14 @@ fn update_colonist_ai(
             }
         }
         ColonistState::Moving { target } => {
-            let next_pos = get_next_move_position(colonist, target, occupied);
+            let next_pos = get_next_move_position(
+                colonist,
+                target,
+                occupied,
+                colonist_names,
+                current_tick,
+                pending_logs,
+            );
             colonist.position = next_pos;
 
             if colonist.position == target {
@@ -477,6 +492,9 @@ fn get_next_move_position(
     colonist: &mut Colonist,
     target: Position,
     occupied: &HashMap<Position, u32>,
+    colonist_names: &HashMap<u32, String>,
+    current_tick: u64,
+    pending_logs: &mut Vec<PendingLog>,
 ) -> Position {
     let mut next = colonist.position;
     let current = colonist.position;
@@ -495,10 +513,16 @@ fn get_next_move_position(
 
     if next != current {
         if let Some(other_id) = occupied.get(&next) {
-            if let Some(rel) = colonist.relationships.get(other_id) {
-                if *rel < -20 {
-                    colonist.mood -= 5.0;
-                }
+            let relationship = colonist.relationships.get(other_id).copied().unwrap_or(0);
+            if relationship < -20 {
+                colonist.mood = (colonist.mood - 5.0).clamp(0.0, 100.0);
+                log_social_strain(
+                    colonist,
+                    *other_id,
+                    colonist_names,
+                    current_tick,
+                    pending_logs,
+                );
             }
 
             let horiz = Position::new(
@@ -534,4 +558,30 @@ fn get_next_move_position(
     }
 
     next
+}
+
+fn log_social_strain(
+    colonist: &mut Colonist,
+    other_id: u32,
+    colonist_names: &HashMap<u32, String>,
+    current_tick: u64,
+    pending_logs: &mut Vec<PendingLog>,
+) {
+    if current_tick.saturating_sub(colonist.last_social_strain_tick)
+        < SOCIAL_STRAIN_LOG_COOLDOWN_TICKS
+    {
+        return;
+    }
+
+    colonist.last_social_strain_tick = current_tick;
+    let other_name = colonist_names
+        .get(&other_id)
+        .cloned()
+        .unwrap_or_else(|| format!("Colonist {}", other_id));
+
+    pending_logs.push((
+        LogCategory::Social,
+        format!("{} avoided {}", colonist.name, other_name),
+        "A strained relationship made a crowded path stressful. Mood dropped.".to_string(),
+    ));
 }

@@ -1,5 +1,5 @@
 use crate::data::building::BuildingType;
-use crate::data::colonist::ColonistState;
+use crate::data::colonist::{Colonist, ColonistState};
 use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
 use crate::data::game_state::TimeSpeed;
@@ -19,8 +19,8 @@ use crate::systems::time_events::TimeEventCollector;
 use crate::systems::time_system::TimeSystem;
 use crate::systems::work_system::WorkSystem;
 use crate::ui::{
-    draw_advisor_overlay, draw_debug_overlay, draw_side_panel, draw_top_bar, side_panel_hit_at,
-    top_bar_priority_at, top_bar_speed_at, Layout, SidePanelHit,
+    draw_advisor_overlay, draw_colonist_inspector, draw_debug_overlay, draw_side_panel,
+    draw_top_bar, side_panel_hit_at, top_bar_priority_at, top_bar_speed_at, Layout, SidePanelHit,
 };
 use macroquad::prelude::*;
 
@@ -31,6 +31,8 @@ pub struct GameplayState {
     hovered_cell: Option<Position>,
     /// Currently selected building type for placement (None = not in build mode)
     selected_building: Option<BuildingType>,
+    /// Selected colonist for relationship inspection.
+    selected_colonist_id: Option<u32>,
     /// Time event collector for processing time-based events
     time_events: TimeEventCollector,
     /// Previous tick for event detection
@@ -65,6 +67,7 @@ impl GameplayState {
             data,
             hovered_cell: None,
             selected_building: None,
+            selected_colonist_id: None,
             time_events: TimeEventCollector::new(),
             time_accumulator: 0.0,
             layout: Layout::default(),
@@ -262,6 +265,24 @@ impl GameplayState {
         {
             self.update_side_panel_click(mouse_x, mouse_y, panel);
         }
+    }
+
+    fn update_colonist_selection(&mut self) {
+        if self.selected_building.is_some() || !is_mouse_button_pressed(MouseButton::Left) {
+            return;
+        }
+
+        let game_area = self.layout.game_area();
+        let (mouse_x, mouse_y) = mouse_position();
+        if mouse_x < game_area.x
+            || mouse_x > game_area.x + game_area.w
+            || mouse_y < game_area.y
+            || mouse_y > game_area.y + game_area.h
+        {
+            return;
+        }
+
+        self.selected_colonist_id = self.colonist_id_at_mouse();
     }
 
     fn update_top_bar_click(&mut self, mouse_x: f32, mouse_y: f32) {
@@ -512,7 +533,7 @@ impl GameplayState {
     }
 
     /// Draw colonists with offset for top bar
-    fn draw_colonists_with_offset(&self) {
+    fn draw_colonists_with_offset(&self, hovered_colonist_id: Option<u32>) {
         let offset_y = self.layout.top_bar_height;
 
         for colonist in &self.data.colonists {
@@ -536,6 +557,17 @@ impl GameplayState {
 
             // Draw colonist as circle with state indicator
             draw_circle(x + 16.0, y + 16.0, size / 2.0, color);
+            if Some(colonist.id) == hovered_colonist_id
+                || Some(colonist.id) == self.selected_colonist_id
+            {
+                draw_circle_lines(
+                    x + 16.0,
+                    y + 16.0,
+                    size / 2.0 + 4.0,
+                    2.0,
+                    Color::new(1.0, 1.0, 1.0, 0.8),
+                );
+            }
             draw_circle_lines(x + 16.0, y + 16.0, size / 2.0, 2.0, WHITE);
 
             // Name label
@@ -548,6 +580,54 @@ impl GameplayState {
                 WHITE,
             );
         }
+    }
+
+    fn colonist_id_at_mouse(&self) -> Option<u32> {
+        let game_area = self.layout.game_area();
+        let (mouse_x, mouse_y) = mouse_position();
+        if mouse_x < game_area.x
+            || mouse_x > game_area.x + game_area.w
+            || mouse_y < game_area.y
+            || mouse_y > game_area.y + game_area.h
+        {
+            return None;
+        }
+
+        self.data
+            .colonists
+            .iter()
+            .filter(|colonist| !colonist.is_on_mission())
+            .filter_map(|colonist| {
+                let center_x = colonist.visual_x + 16.0;
+                let center_y = colonist.visual_y + self.layout.top_bar_height + 16.0;
+                let dx = mouse_x - center_x;
+                let dy = mouse_y - center_y;
+                let distance_sq = dx * dx + dy * dy;
+
+                if distance_sq <= 18.0 * 18.0 {
+                    Some((colonist.id, distance_sq))
+                } else {
+                    None
+                }
+            })
+            .min_by(|(_, left), (_, right)| left.total_cmp(right))
+            .map(|(id, _)| id)
+    }
+
+    fn colonist_by_id(&self, id: u32) -> Option<&Colonist> {
+        self.data
+            .colonists
+            .iter()
+            .find(|colonist| colonist.id == id)
+    }
+
+    fn inspected_colonist(&self, hovered_colonist_id: Option<u32>) -> Option<&Colonist> {
+        hovered_colonist_id
+            .and_then(|id| self.colonist_by_id(id))
+            .or_else(|| {
+                self.selected_colonist_id
+                    .and_then(|id| self.colonist_by_id(id))
+            })
     }
 }
 
@@ -577,6 +657,7 @@ impl State for GameplayState {
         }
 
         self.update_pointer_ui_input();
+        self.update_colonist_selection();
 
         let elapsed_ticks = self.advance_time();
         if elapsed_ticks > 0 {
@@ -607,13 +688,21 @@ impl State for GameplayState {
     }
 
     fn draw(&self) {
+        let hovered_colonist_id = self.colonist_id_at_mouse();
+
         // Draw game area (grid, buildings, colonists)
         self.draw_grid_with_offset();
         self.draw_buildings();
         self.draw_ghost_preview();
-        self.draw_colonists_with_offset();
+        self.draw_colonists_with_offset(hovered_colonist_id);
         let advisor_plan = AdvisorSystem::plan(&self.data);
         draw_advisor_overlay(&self.layout, &advisor_plan);
+        draw_colonist_inspector(
+            &self.layout,
+            self.inspected_colonist(hovered_colonist_id),
+            &self.data.colonists,
+            self.data.tick,
+        );
 
         // Draw UI components (on top)
         let _ = draw_top_bar(

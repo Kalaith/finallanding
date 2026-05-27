@@ -31,6 +31,8 @@ pub struct Colonist {
     #[serde(default)]
     pub last_refusal_tick: u64,
     #[serde(default)]
+    pub last_social_strain_tick: u64,
+    #[serde(default)]
     pub injured_until_tick: Option<u64>,
     #[serde(default)]
     pub active_mission_id: Option<u32>,
@@ -128,6 +130,7 @@ impl Colonist {
             mood: 50.0,
             mood_modifiers: Vec::new(),
             last_refusal_tick: 0,
+            last_social_strain_tick: 0,
             injured_until_tick: None,
             active_mission_id: None,
         }

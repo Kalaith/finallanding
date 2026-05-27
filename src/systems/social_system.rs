@@ -17,20 +17,26 @@ enum RelationshipSource {
 impl RelationshipSource {
     fn positive_detail(self) -> &'static str {
         match self {
-            RelationshipSource::Work => "Repeated work in the same building improved trust.",
-            RelationshipSource::Meal => "Sharing meals gave them time to connect.",
+            RelationshipSource::Work => {
+                "Working the same station built trust; compatible crews do better together."
+            }
+            RelationshipSource::Meal => "A shared meal gave them neutral ground to reconnect.",
             RelationshipSource::SharedHabitat => {
-                "Sharing a habitat made them more comfortable together."
+                "Recovering in the same habitat made the space feel safer."
             }
         }
     }
 
     fn negative_detail(self) -> &'static str {
         match self {
-            RelationshipSource::Work => "Low mood and forced proximity made the work shift tense.",
-            RelationshipSource::Meal => "A shared meal turned tense instead of restorative.",
+            RelationshipSource::Work => {
+                "Low mood or a disliked coworker made the shift feel forced."
+            }
+            RelationshipSource::Meal => {
+                "Stress followed them into the Mess Hall; the meal did not clear the tension."
+            }
             RelationshipSource::SharedHabitat => {
-                "Sharing cramped recovery space increased tension."
+                "Cramped recovery space kept them close to someone they already mistrust."
             }
         }
     }
@@ -205,7 +211,10 @@ impl SocialSystem {
             state.push_log(
                 LogCategory::Social,
                 format!("{} and {} are now {}", name_a, name_b, new_label),
-                format!("Their relationship {}. {}", direction, detail),
+                format!(
+                    "Their relationship {} from {} to {} ({:+}). {}",
+                    direction, old_label, new_label, change, detail
+                ),
             );
         }
     }

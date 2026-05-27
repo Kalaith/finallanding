@@ -130,27 +130,9 @@ mod tests {
     #[test]
     fn test_colony_pressure_summary_finds_best_and_worst_relationships() {
         let mut state = GameState::new();
-        state.colonists.push(Colonist::new(
-            1,
-            "Alice".to_string(),
-            Position::new(0, 0),
-            Trait::HardWorker,
-            JobPreference::Builder,
-        ));
-        state.colonists.push(Colonist::new(
-            2,
-            "Bob".to_string(),
-            Position::new(1, 0),
-            Trait::Gourmet,
-            JobPreference::Cook,
-        ));
-        state.colonists.push(Colonist::new(
-            3,
-            "Charlie".to_string(),
-            Position::new(2, 0),
-            Trait::FastWalker,
-            JobPreference::Explorer,
-        ));
+        state.colonists.push(test_colonist(1, "Alice"));
+        state.colonists.push(test_colonist(2, "Bob"));
+        state.colonists.push(test_colonist(3, "Charlie"));
 
         state.colonists[0].relationships.insert(2, 24);
         state.colonists[1].relationships.insert(1, 20);
@@ -169,5 +151,87 @@ mod tests {
             summary.weakest_pair.as_ref().map(|pair| pair.value),
             Some(-16)
         );
+    }
+
+    #[test]
+    fn test_colony_pressure_summary_keeps_neutral_pairs_clear() {
+        let mut state = GameState::new();
+        state.colonists.push(test_colonist(1, "Alice"));
+        state.colonists.push(test_colonist(2, "Bob"));
+        state.colonists.push(test_colonist(3, "Charlie"));
+
+        let summary = SummarySystem::colony_pressure_summary(&state);
+
+        assert_eq!(summary.close_pairs, 0);
+        assert_eq!(summary.strained_pairs, 0);
+        assert_eq!(summary.average_relationship, 0.0);
+        assert_eq!(
+            summary.strongest_pair.as_ref().map(|pair| pair.label),
+            Some("Neutral")
+        );
+        assert_eq!(
+            summary.weakest_pair.as_ref().map(|pair| pair.value),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn test_colony_pressure_summary_counts_multiple_hostile_pairs() {
+        let mut state = GameState::new();
+        state.colonists.push(test_colonist(1, "Alice"));
+        state.colonists.push(test_colonist(2, "Bob"));
+        state.colonists.push(test_colonist(3, "Charlie"));
+
+        state.colonists[0].relationships.insert(2, -34);
+        state.colonists[1].relationships.insert(1, -30);
+        state.colonists[0].relationships.insert(3, -16);
+        state.colonists[2].relationships.insert(1, -14);
+
+        let summary = SummarySystem::colony_pressure_summary(&state);
+
+        assert_eq!(summary.close_pairs, 0);
+        assert_eq!(summary.strained_pairs, 2);
+        assert_eq!(
+            summary.weakest_pair.as_ref().map(|pair| pair.value),
+            Some(-32)
+        );
+        assert_eq!(
+            summary.weakest_pair.as_ref().map(|pair| pair.label),
+            Some("Hostile")
+        );
+    }
+
+    #[test]
+    fn test_colony_pressure_summary_finds_one_strong_positive_pair() {
+        let mut state = GameState::new();
+        state.colonists.push(test_colonist(1, "Alice"));
+        state.colonists.push(test_colonist(2, "Bob"));
+        state.colonists.push(test_colonist(3, "Charlie"));
+
+        state.colonists[0].relationships.insert(2, 42);
+        state.colonists[1].relationships.insert(1, 38);
+
+        let summary = SummarySystem::colony_pressure_summary(&state);
+
+        assert_eq!(summary.close_pairs, 1);
+        assert_eq!(summary.strained_pairs, 0);
+        assert_eq!(
+            summary.strongest_pair.as_ref().map(|pair| pair.value),
+            Some(40)
+        );
+        assert_eq!(
+            summary.strongest_pair.as_ref().map(|pair| pair.label),
+            Some("Close")
+        );
+    }
+
+    fn test_colonist(id: u32, name: &str) -> Colonist {
+        Colonist::new(
+            id,
+            name.to_string(),
+            Position::new(id as i32, 0),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        )
     }
 }
