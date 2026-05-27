@@ -43,10 +43,7 @@ impl IsoView {
 }
 
 pub fn draw_iso_diamond(center: Vec2, tile_w: f32, tile_h: f32, color: Color) {
-    let top = vec2(center.x, center.y);
-    let right = vec2(center.x + tile_w * 0.5, center.y + tile_h * 0.5);
-    let bottom = vec2(center.x, center.y + tile_h);
-    let left = vec2(center.x - tile_w * 0.5, center.y + tile_h * 0.5);
+    let [top, right, bottom, left] = iso_diamond_points(center, tile_w, tile_h);
     draw_triangle(top, right, bottom, color);
     draw_triangle(top, bottom, left, color);
 }
@@ -58,14 +55,75 @@ pub fn draw_iso_diamond_lines(
     thickness: f32,
     color: Color,
 ) {
-    let top = vec2(center.x, center.y);
-    let right = vec2(center.x + tile_w * 0.5, center.y + tile_h * 0.5);
-    let bottom = vec2(center.x, center.y + tile_h);
-    let left = vec2(center.x - tile_w * 0.5, center.y + tile_h * 0.5);
+    let [top, right, bottom, left] = iso_diamond_points(center, tile_w, tile_h);
     draw_line(top.x, top.y, right.x, right.y, thickness, color);
     draw_line(right.x, right.y, bottom.x, bottom.y, thickness, color);
     draw_line(bottom.x, bottom.y, left.x, left.y, thickness, color);
     draw_line(left.x, left.y, top.x, top.y, thickness, color);
+}
+
+pub fn iso_diamond_points(center: Vec2, tile_w: f32, tile_h: f32) -> [Vec2; 4] {
+    [
+        vec2(center.x, center.y),
+        vec2(center.x + tile_w * 0.5, center.y + tile_h * 0.5),
+        vec2(center.x, center.y + tile_h),
+        vec2(center.x - tile_w * 0.5, center.y + tile_h * 0.5),
+    ]
+}
+
+pub fn draw_iso_prism(
+    center: Vec2,
+    width: f32,
+    height: f32,
+    wall_height: f32,
+    roof_color: Color,
+    front_color: Color,
+    side_color: Color,
+) {
+    let [_top, right, bottom, left] = iso_diamond_points(center, width, height);
+    let right_drop = right + vec2(0.0, wall_height);
+    let bottom_drop = bottom + vec2(0.0, wall_height);
+    let left_drop = left + vec2(0.0, wall_height);
+
+    draw_quad(right, right_drop, bottom_drop, bottom, front_color);
+    draw_quad(bottom, bottom_drop, left_drop, left, side_color);
+    draw_iso_diamond(center, width, height, roof_color);
+    draw_iso_diamond_lines(
+        center,
+        width,
+        height,
+        1.0,
+        Color::new(0.84, 0.84, 0.76, 0.55),
+    );
+    draw_line(
+        right.x,
+        right.y,
+        right_drop.x,
+        right_drop.y,
+        1.0,
+        Color::new(0.03, 0.035, 0.035, 0.8),
+    );
+    draw_line(
+        left.x,
+        left.y,
+        left_drop.x,
+        left_drop.y,
+        1.0,
+        Color::new(0.03, 0.035, 0.035, 0.8),
+    );
+    draw_line(
+        bottom_drop.x,
+        bottom_drop.y,
+        left_drop.x,
+        left_drop.y,
+        1.0,
+        Color::new(0.03, 0.035, 0.035, 0.7),
+    );
+}
+
+fn draw_quad(a: Vec2, b: Vec2, c: Vec2, d: Vec2, color: Color) {
+    draw_triangle(a, b, c, color);
+    draw_triangle(a, c, d, color);
 }
 
 #[cfg(test)]
@@ -82,5 +140,15 @@ mod tests {
             view.screen_to_grid(screen + vec2(0.0, view.tile_h * 0.25)),
             position
         );
+    }
+
+    #[test]
+    fn test_iso_diamond_points_keep_expected_order() {
+        let points = iso_diamond_points(vec2(10.0, 20.0), 40.0, 20.0);
+
+        assert_eq!(points[0], vec2(10.0, 20.0));
+        assert_eq!(points[1], vec2(30.0, 30.0));
+        assert_eq!(points[2], vec2(10.0, 40.0));
+        assert_eq!(points[3], vec2(-10.0, 30.0));
     }
 }

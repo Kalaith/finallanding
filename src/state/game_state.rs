@@ -21,13 +21,15 @@ use crate::systems::summary_system::SummarySystem;
 use crate::systems::time_events::TimeEventCollector;
 use crate::systems::time_system::TimeSystem;
 use crate::systems::work_system::WorkSystem;
+use crate::ui::style;
 use crate::ui::{
     draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
-    draw_iso_diamond, draw_iso_diamond_lines, draw_right_rail, draw_toolbar_context_panel,
-    draw_top_bar, restart_button_rect, side_panel_hit_at, toolbar_building_at_for_mode,
-    toolbar_buildings_for_mode, toolbar_colonist_index_at, toolbar_context_rect,
-    toolbar_mission_at, toolbar_mode_at, toolbar_priority_at, top_bar_priority_at,
-    top_bar_speed_at, IsoView, Layout, PlaceholderArt, SidePanelHit, ToolbarMode,
+    draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
+    draw_toolbar_context_panel, draw_top_bar, restart_button_rect, side_panel_hit_at,
+    toolbar_building_at_for_mode, toolbar_buildings_for_mode, toolbar_colonist_index_at,
+    toolbar_context_rect, toolbar_mission_at, toolbar_mode_at, toolbar_priority_at,
+    top_bar_priority_at, top_bar_speed_at, IsoView, Layout, PlaceholderArt, SidePanelHit,
+    ToolbarMode,
 };
 use macroquad::prelude::*;
 
@@ -655,6 +657,14 @@ impl GameplayState {
                 );
             }
 
+            self.draw_building_shell(
+                building.building_type,
+                building.position,
+                width,
+                height,
+                &iso,
+            );
+
             let name = building.building_type.name();
             let label_pos = iso.grid_to_screen(Position::new(
                 building.position.x + width as i32 / 2,
@@ -669,6 +679,36 @@ impl GameplayState {
                 WHITE,
             );
         }
+    }
+
+    fn draw_building_shell(
+        &self,
+        building_type: BuildingType,
+        position: Position,
+        width: u32,
+        height: u32,
+        iso: &IsoView,
+    ) {
+        let center = iso.grid_to_screen(Position::new(
+            position.x + width as i32 / 2,
+            position.y + height as i32 / 2,
+        ));
+        let shell_width = iso.tile_w * width as f32 * 0.86;
+        let shell_height = iso.tile_h * height as f32 * 0.86;
+        let wall_height = building_wall_height(building_type, iso.tile_h);
+        let roof_center = center - vec2(0.0, wall_height + iso.tile_h * 0.12);
+        let (roof, front, side) = building_shell_colors(building_type);
+
+        draw_iso_prism(
+            roof_center,
+            shell_width,
+            shell_height,
+            wall_height,
+            roof,
+            front,
+            side,
+        );
+        draw_building_shell_detail(building_type, roof_center, shell_width, shell_height);
     }
 
     /// Draw ghost preview of building at cursor
@@ -982,6 +1022,134 @@ impl GameplayState {
                 self.selected_colonist_id
                     .and_then(|id| self.colonist_by_id(id))
             })
+    }
+}
+
+fn building_wall_height(building_type: BuildingType, tile_h: f32) -> f32 {
+    let multiplier = match building_type {
+        BuildingType::Habitat => 0.95,
+        BuildingType::MessHall => 0.78,
+        BuildingType::Workshop => 1.12,
+        BuildingType::Storage => 0.64,
+        BuildingType::ExplorationGate => 1.25,
+    };
+    tile_h * multiplier
+}
+
+fn building_shell_colors(building_type: BuildingType) -> (Color, Color, Color) {
+    match building_type {
+        BuildingType::Habitat => (
+            Color::new(0.24, 0.34, 0.42, 1.0),
+            Color::new(0.13, 0.2, 0.25, 1.0),
+            Color::new(0.09, 0.15, 0.19, 1.0),
+        ),
+        BuildingType::MessHall => (
+            Color::new(0.48, 0.36, 0.18, 1.0),
+            Color::new(0.29, 0.21, 0.11, 1.0),
+            Color::new(0.2, 0.15, 0.09, 1.0),
+        ),
+        BuildingType::Workshop => (
+            Color::new(0.39, 0.31, 0.25, 1.0),
+            Color::new(0.24, 0.18, 0.15, 1.0),
+            Color::new(0.16, 0.13, 0.12, 1.0),
+        ),
+        BuildingType::Storage => (
+            Color::new(0.35, 0.36, 0.34, 1.0),
+            Color::new(0.2, 0.22, 0.21, 1.0),
+            Color::new(0.15, 0.16, 0.16, 1.0),
+        ),
+        BuildingType::ExplorationGate => (
+            Color::new(0.32, 0.29, 0.45, 1.0),
+            Color::new(0.2, 0.18, 0.3, 1.0),
+            Color::new(0.13, 0.12, 0.2, 1.0),
+        ),
+    }
+}
+
+fn draw_building_shell_detail(building_type: BuildingType, center: Vec2, width: f32, height: f32) {
+    match building_type {
+        BuildingType::Habitat => {
+            draw_rectangle(
+                center.x - width * 0.14,
+                center.y + height * 0.56,
+                6.0,
+                4.0,
+                style::HEADING_BLUE,
+            );
+            draw_rectangle(
+                center.x + width * 0.05,
+                center.y + height * 0.56,
+                6.0,
+                4.0,
+                style::HEADING_BLUE,
+            );
+        }
+        BuildingType::MessHall => {
+            draw_line(
+                center.x - width * 0.22,
+                center.y + height * 0.48,
+                center.x + width * 0.22,
+                center.y + height * 0.48,
+                2.0,
+                style::ACCENT_GOLD,
+            );
+            draw_circle(center.x, center.y + height * 0.48, 3.0, style::BAR_GOLD);
+        }
+        BuildingType::Workshop => {
+            draw_rectangle(
+                center.x - 6.0,
+                center.y + height * 0.38,
+                12.0,
+                8.0,
+                Color::new(0.07, 0.08, 0.08, 1.0),
+            );
+            draw_line(
+                center.x + width * 0.18,
+                center.y + height * 0.2,
+                center.x + width * 0.25,
+                center.y - 10.0,
+                2.0,
+                style::TEXT_MUTED,
+            );
+        }
+        BuildingType::Storage => {
+            for index in 0..3 {
+                draw_rectangle(
+                    center.x - 18.0 + index as f32 * 12.0,
+                    center.y + height * 0.5,
+                    9.0,
+                    7.0,
+                    Color::new(0.48, 0.42, 0.32, 1.0),
+                );
+            }
+        }
+        BuildingType::ExplorationGate => {
+            let arch_y = center.y + height * 0.36;
+            draw_line(
+                center.x - width * 0.18,
+                arch_y + 18.0,
+                center.x - width * 0.18,
+                arch_y - 10.0,
+                3.0,
+                style::HEADING_BLUE,
+            );
+            draw_line(
+                center.x + width * 0.18,
+                arch_y + 18.0,
+                center.x + width * 0.18,
+                arch_y - 10.0,
+                3.0,
+                style::HEADING_BLUE,
+            );
+            draw_line(
+                center.x - width * 0.18,
+                arch_y - 10.0,
+                center.x + width * 0.18,
+                arch_y - 10.0,
+                3.0,
+                style::HEADING_BLUE,
+            );
+        }
     }
 }
 
