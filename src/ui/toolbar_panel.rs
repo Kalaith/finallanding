@@ -11,14 +11,16 @@ use crate::systems::relationship_directive_system::{PairDirective, RelationshipD
 use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
 use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
-    log_page_next_rect, log_page_previous_rect, toolbar_buildings_for_mode,
-    toolbar_context_item_rect, toolbar_context_rect, toolbar_list_item_rect, ToolbarMode,
+    assign_page_next_rect, assign_page_previous_rect, log_page_next_rect, log_page_previous_rect,
+    toolbar_buildings_for_mode, toolbar_context_item_rect, toolbar_context_rect,
+    toolbar_list_item_rect, ToolbarMode,
 };
 use crate::ui::style;
 use crate::ui::tooltip::draw_tooltip_near_mouse;
 use macroquad::prelude::*;
 
 pub const SOCIAL_TIMELINE_PAGE_SIZE: usize = 3;
+const ASSIGN_ROSTER_SLOT_COUNT: usize = 5;
 
 pub fn draw_toolbar_context_panel(
     layout: &Layout,
@@ -30,6 +32,7 @@ pub fn draw_toolbar_context_panel(
     active_mission_count: usize,
     logs: &[ColonyLogEntry],
     social_history: &[SocialHistoryEntry],
+    assign_roster_page: usize,
     social_history_page: usize,
     active_priority: ColonyPriority,
     colonists: &[Colonist],
@@ -52,9 +55,13 @@ pub fn draw_toolbar_context_panel(
         ToolbarMode::Research => {
             draw_research_context(context, mission_plans, technology, active_mission_count)
         }
-        ToolbarMode::Assign => {
-            draw_assign_context(context, colonists, selected_colonist_id, technology)
-        }
+        ToolbarMode::Assign => draw_assign_context(
+            context,
+            colonists,
+            selected_colonist_id,
+            assign_roster_page,
+            technology,
+        ),
         ToolbarMode::Log => draw_log_context(
             context,
             logs,
@@ -240,12 +247,19 @@ fn draw_assign_context(
     context: Rect,
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
+    assign_roster_page: usize,
     technology: &TechnologyState,
 ) {
     let mut hovered_forecast = None;
     let mut hovered_name = None;
     let mut hovered_directive = None;
-    for (slot, colonist) in assign_visible_colonists(colonists, selected_colonist_id)
+    let page_count = assign_roster_page_count(colonists, selected_colonist_id);
+    let current_page = assign_roster_page.min(page_count.saturating_sub(1));
+    if page_count > 1 {
+        draw_assign_page_controls(context, current_page, page_count);
+    }
+
+    for (slot, colonist) in assign_visible_colonists(colonists, selected_colonist_id, current_page)
         .into_iter()
         .enumerate()
     {
@@ -377,34 +391,87 @@ fn draw_assign_context(
     }
 }
 
+fn draw_assign_page_controls(context: Rect, current_page: usize, page_count: usize) {
+    let previous = assign_page_previous_rect(context);
+    let next = assign_page_next_rect(context);
+    let mouse = mouse_position().into();
+    let can_go_previous = current_page > 0;
+    let can_go_next = current_page + 1 < page_count;
+
+    style::draw_button(previous, false, can_go_previous && previous.contains(mouse));
+    style::draw_button(next, false, can_go_next && next.contains(mouse));
+    draw_text(
+        "<",
+        previous.x + 10.0,
+        previous.y + 12.0,
+        style::TINY_SIZE,
+        if can_go_previous {
+            style::TEXT_PRIMARY
+        } else {
+            style::TEXT_MUTED
+        },
+    );
+    draw_text(
+        ">",
+        next.x + 10.0,
+        next.y + 12.0,
+        style::TINY_SIZE,
+        if can_go_next {
+            style::TEXT_PRIMARY
+        } else {
+            style::TEXT_MUTED
+        },
+    );
+    draw_text(
+        &format!("{}/{}", current_page + 1, page_count),
+        context.x + context.w - 63.0,
+        context.y + 25.0,
+        style::TINY_SIZE,
+        style::TEXT_MUTED,
+    );
+}
+
 struct AssignPairAction {
     label: String,
     detail: String,
     directive: PairDirective,
 }
 
+fn assign_roster_page_count(colonists: &[Colonist], selected_colonist_id: Option<u32>) -> usize {
+    let selected_exists = selected_colonist_id
+        .and_then(|id| colonists.iter().position(|colonist| colonist.id == id))
+        .is_some();
+    let other_count = colonists.len().saturating_sub(usize::from(selected_exists));
+    let page_size = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(usize::from(selected_exists));
+
+    ((other_count + page_size - 1) / page_size).max(1)
+}
+
 fn assign_visible_colonists<'a>(
     colonists: &'a [Colonist],
     selected_colonist_id: Option<u32>,
+    page: usize,
 ) -> Vec<&'a Colonist> {
     let mut visible = Vec::new();
 
-    if let Some(selected_id) = selected_colonist_id {
+    let selected_id =
+        selected_colonist_id.filter(|id| colonists.iter().any(|colonist| colonist.id == *id));
+    if let Some(selected_id) = selected_id {
         if let Some(colonist) = colonists.iter().find(|colonist| colonist.id == selected_id) {
             visible.push(colonist);
         }
     }
 
-    for colonist in colonists {
-        if visible.iter().any(|visible| visible.id == colonist.id) {
-            continue;
-        }
+    let open_slots = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(visible.len());
+    let page = page.min(assign_roster_page_count(colonists, selected_colonist_id) - 1);
 
-        visible.push(colonist);
-        if visible.len() >= 5 {
-            break;
-        }
-    }
+    visible.extend(
+        colonists
+            .iter()
+            .filter(|colonist| Some(colonist.id) != selected_id)
+            .skip(page * open_slots)
+            .take(open_slots),
+    );
 
     visible
 }
@@ -866,12 +933,24 @@ mod tests {
     #[test]
     fn test_assign_visible_colonists_pin_selected_first() {
         let colonists = (0..6).map(test_colonist).collect::<Vec<_>>();
-        let visible = assign_visible_colonists(&colonists, Some(5))
+        let visible = assign_visible_colonists(&colonists, Some(5), 0)
             .into_iter()
             .map(|colonist| colonist.id)
             .collect::<Vec<_>>();
 
         assert_eq!(visible, vec![5, 0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_assign_visible_colonists_page_through_roster() {
+        let colonists = (0..8).map(test_colonist).collect::<Vec<_>>();
+        let page = assign_visible_colonists(&colonists, Some(5), 1)
+            .into_iter()
+            .map(|colonist| colonist.id)
+            .collect::<Vec<_>>();
+
+        assert_eq!(assign_roster_page_count(&colonists, Some(5)), 2);
+        assert_eq!(page, vec![5, 4, 6, 7]);
     }
 
     #[test]

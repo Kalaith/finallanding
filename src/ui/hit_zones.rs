@@ -43,7 +43,7 @@ pub enum ToolbarMode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LogPageAction {
+pub enum PageAction {
     Previous,
     Next,
 }
@@ -230,12 +230,31 @@ pub fn log_page_next_rect(context: Rect) -> Rect {
     Rect::new(context.x + context.w - 34.0, context.y + 72.0, 28.0, 17.0)
 }
 
-pub fn log_page_action_at(context: Rect, x: f32, y: f32) -> Option<LogPageAction> {
+pub fn log_page_action_at(context: Rect, x: f32, y: f32) -> Option<PageAction> {
     if contains(log_page_previous_rect(context), x, y) {
-        return Some(LogPageAction::Previous);
+        return Some(PageAction::Previous);
     }
     if contains(log_page_next_rect(context), x, y) {
-        return Some(LogPageAction::Next);
+        return Some(PageAction::Next);
+    }
+
+    None
+}
+
+pub fn assign_page_previous_rect(context: Rect) -> Rect {
+    Rect::new(context.x + context.w - 96.0, context.y + 13.0, 28.0, 17.0)
+}
+
+pub fn assign_page_next_rect(context: Rect) -> Rect {
+    Rect::new(context.x + context.w - 34.0, context.y + 13.0, 28.0, 17.0)
+}
+
+pub fn assign_page_action_at(context: Rect, x: f32, y: f32) -> Option<PageAction> {
+    if contains(assign_page_previous_rect(context), x, y) {
+        return Some(PageAction::Previous);
+    }
+    if contains(assign_page_next_rect(context), x, y) {
+        return Some(PageAction::Next);
     }
 
     None
@@ -495,14 +514,34 @@ mod tests {
 
         assert_eq!(
             log_page_action_at(context, prev_x, prev_y),
-            Some(LogPageAction::Previous)
+            Some(PageAction::Previous)
         );
         assert_eq!(
             log_page_action_at(context, next_x, next_y),
-            Some(LogPageAction::Next)
+            Some(PageAction::Next)
         );
         assert_eq!(
             log_page_action_at(context, context.x + 18.0, context.y + 82.0),
+            None
+        );
+    }
+
+    #[test]
+    fn test_assign_page_hit_zones_match_roster_controls() {
+        let context = Rect::new(380.0, 500.0, 520.0, 126.0);
+        let (prev_x, prev_y) = center(assign_page_previous_rect(context));
+        let (next_x, next_y) = center(assign_page_next_rect(context));
+
+        assert_eq!(
+            assign_page_action_at(context, prev_x, prev_y),
+            Some(PageAction::Previous)
+        );
+        assert_eq!(
+            assign_page_action_at(context, next_x, next_y),
+            Some(PageAction::Next)
+        );
+        assert_eq!(
+            assign_page_action_at(context, context.x + 18.0, context.y + 82.0),
             None
         );
     }

@@ -29,13 +29,13 @@ use crate::systems::work_system::WorkSystem;
 use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use crate::ui::{
-    draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
-    draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
+    assign_page_action_at, draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector,
+    draw_debug_overlay, draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
     draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar, log_page_action_at,
     restart_button_rect, side_panel_hit_at, social_history_page_count,
     toolbar_building_at_for_mode, toolbar_buildings_for_mode, toolbar_colonist_index_at,
     toolbar_context_rect, toolbar_mission_at, toolbar_mode_at, toolbar_priority_at,
-    top_bar_priority_at, top_bar_speed_at, IsoView, Layout, LogPageAction, PlaceholderArt,
+    top_bar_priority_at, top_bar_speed_at, IsoView, Layout, PageAction, PlaceholderArt,
     SidePanelHit, SpritePose, ToolbarMode,
 };
 use macroquad::prelude::*;
@@ -61,6 +61,8 @@ pub struct GameplayState {
     debug_mode: bool,
     /// Active bottom-toolbar mode.
     toolbar_mode: ToolbarMode,
+    /// Current page in the Assign mode roster.
+    assign_roster_page: usize,
     /// Current page in the Log mode social archive.
     social_history_page: usize,
     /// Placeholder visual assets extracted from the rebuild reference.
@@ -101,6 +103,7 @@ impl GameplayState {
             layout: Layout::default(),
             debug_mode: false,
             toolbar_mode,
+            assign_roster_page: 0,
             social_history_page: 0,
             art: PlaceholderArt::new(),
         }
@@ -407,8 +410,19 @@ impl GameplayState {
                 }
             }
             ToolbarMode::Assign => {
+                if let Some(action) = assign_page_action_at(context, mouse_x, mouse_y) {
+                    self.update_assign_roster_page(action);
+                    return true;
+                }
+
+                let visible_count = assign_visible_colonist_indices(
+                    &self.data.colonists,
+                    self.selected_colonist_id,
+                    self.assign_roster_page,
+                )
+                .len();
                 if let Some(slot) =
-                    toolbar_colonist_index_at(context, self.data.colonists.len(), mouse_x, mouse_y)
+                    toolbar_colonist_index_at(context, visible_count, mouse_x, mouse_y)
                 {
                     if let Some(index) = self.assign_colonist_index_for_slot(slot) {
                         self.update_assign_click(index);
@@ -425,13 +439,29 @@ impl GameplayState {
         true
     }
 
-    fn update_log_page(&mut self, action: LogPageAction) {
+    fn update_assign_roster_page(&mut self, action: PageAction) {
+        let page_count = assign_roster_page_count(&self.data.colonists, self.selected_colonist_id);
+        match action {
+            PageAction::Previous => {
+                self.assign_roster_page = self.assign_roster_page.saturating_sub(1);
+            }
+            PageAction::Next => {
+                if self.assign_roster_page + 1 < page_count {
+                    self.assign_roster_page += 1;
+                }
+            }
+        }
+
+        self.assign_roster_page = self.assign_roster_page.min(page_count.saturating_sub(1));
+    }
+
+    fn update_log_page(&mut self, action: PageAction) {
         let page_count = social_history_page_count(&self.data.social_history);
         match action {
-            LogPageAction::Previous => {
+            PageAction::Previous => {
                 self.social_history_page = self.social_history_page.saturating_sub(1);
             }
-            LogPageAction::Next => {
+            PageAction::Next => {
                 if self.social_history_page + 1 < page_count {
                     self.social_history_page += 1;
                 }
@@ -442,9 +472,13 @@ impl GameplayState {
     }
 
     fn assign_colonist_index_for_slot(&self, slot: usize) -> Option<usize> {
-        assign_visible_colonist_indices(&self.data.colonists, self.selected_colonist_id)
-            .get(slot)
-            .copied()
+        assign_visible_colonist_indices(
+            &self.data.colonists,
+            self.selected_colonist_id,
+            self.assign_roster_page,
+        )
+        .get(slot)
+        .copied()
     }
 
     fn update_assign_click(&mut self, colonist_index: usize) {
@@ -2206,31 +2240,41 @@ fn toolbar_mode_from_name(value: &str) -> Option<ToolbarMode> {
     }
 }
 
+const ASSIGN_ROSTER_SLOT_COUNT: usize = 5;
+
+fn assign_roster_page_count(colonists: &[Colonist], selected_colonist_id: Option<u32>) -> usize {
+    let selected_exists = selected_colonist_id
+        .and_then(|id| colonists.iter().position(|colonist| colonist.id == id))
+        .is_some();
+    let other_count = colonists.len().saturating_sub(usize::from(selected_exists));
+    let page_size = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(usize::from(selected_exists));
+
+    ((other_count + page_size - 1) / page_size).max(1)
+}
+
 fn assign_visible_colonist_indices(
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
+    page: usize,
 ) -> Vec<usize> {
     let mut indices = Vec::new();
 
-    if let Some(selected_id) = selected_colonist_id {
-        if let Some(index) = colonists
-            .iter()
-            .position(|colonist| colonist.id == selected_id)
-        {
-            indices.push(index);
-        }
-    }
+    let selected_index =
+        selected_colonist_id.and_then(|id| colonists.iter().position(|colonist| colonist.id == id));
 
-    for index in 0..colonists.len() {
-        if indices.contains(&index) {
-            continue;
-        }
-
+    if let Some(index) = selected_index {
         indices.push(index);
-        if indices.len() >= 5 {
-            break;
-        }
     }
+
+    let open_slots = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(indices.len());
+    let page = page.min(assign_roster_page_count(colonists, selected_colonist_id) - 1);
+
+    indices.extend(
+        (0..colonists.len())
+            .filter(|index| Some(*index) != selected_index)
+            .skip(page * open_slots)
+            .take(open_slots),
+    );
 
     indices
 }
@@ -2433,12 +2477,37 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(
-            assign_visible_colonist_indices(&colonists, Some(5)),
+            assign_visible_colonist_indices(&colonists, Some(5), 0),
             vec![5, 0, 1, 2, 3]
         );
         assert_eq!(
-            assign_visible_colonist_indices(&colonists, None),
+            assign_visible_colonist_indices(&colonists, None, 0),
             vec![0, 1, 2, 3, 4]
+        );
+    }
+
+    #[test]
+    fn test_assign_visible_indices_page_through_remaining_colonists() {
+        let colonists = (0..8)
+            .map(|id| {
+                Colonist::new(
+                    id,
+                    format!("Colonist {}", id),
+                    Position::new(id as i32, 0),
+                    Trait::HardWorker,
+                    JobPreference::Builder,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(assign_roster_page_count(&colonists, Some(5)), 2);
+        assert_eq!(
+            assign_visible_colonist_indices(&colonists, Some(5), 1),
+            vec![5, 4, 6, 7]
+        );
+        assert_eq!(
+            assign_visible_colonist_indices(&colonists, None, 1),
+            vec![5, 6, 7]
         );
     }
 
@@ -2624,6 +2693,7 @@ impl State for GameplayState {
             self.data.missions.active_count(),
             &self.data.event_log,
             &self.data.social_history,
+            self.assign_roster_page,
             self.social_history_page,
             self.data.priority.active,
             &self.data.colonists,
