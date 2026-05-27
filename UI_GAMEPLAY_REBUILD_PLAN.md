@@ -250,6 +250,8 @@ Done when: a tester can start, read the UI, play a complete run, and restart wit
 
 ## Asset Work Needed
 
+Implementation scope note: this rebuild allows placeholder/generated art. The current game uses production-safe generated survivor portraits/sprites and procedural terrain/building art rather than direct screenshot crops. Final commissioned/licensed art remains a production upgrade, not a blocker for the playable rebuild.
+
 ### Immediate Reference Assets Already Extracted
 
 - `portrait_mara_kovac.png`
@@ -266,7 +268,7 @@ Done when: a tester can start, read the UI, play a complete run, and restart wit
 - `sprite_mess_eli_world.png`
 - `sprite_workshop_worker_world.png`
 
-### Production Asset Requirements
+### Production Asset Upgrade Targets
 
 - 6 colonist portraits, 128x128 or 256x256.
 - 6 isometric standing sprites, idle/work/eat/sleep variants optional.
@@ -346,9 +348,34 @@ Validation currently passing:
 - Screenshot smoke capture at 1280x720, 1920x1080, Assign mode, Log mode, placement-preview, and pose-variant setup
 - Playthrough report capture at `docs/verification/playthrough_report.md`
 
-## Remaining Rebuild Backlog
+## Completion Audit
 
-Highest-value remaining items:
+The requested playable UI/gameplay rebuild is implemented under the approved placeholder/generated-art scope.
+
+Evidence by sprint:
+
+- Sprint A, Visual Foundation: `src/ui/style.rs`, `src/ui/font.rs`, and `assets/fonts/Rajdhani-SemiBold.ttf` provide screenshot-matched colors, panel styling, and Rajdhani UI text.
+- Sprint B, Screenshot Layout Shell: `src/ui/layout.rs`, `src/ui/top_bar.rs`, `src/ui/bottom_toolbar.rs`, `src/ui/right_rail.rs`, `src/ui/colonist_inspector.rs`, and `src/ui/toolbar_panel.rs` implement the top bar, rails, central playfield, and bottom action hub.
+- Sprint C, Isometric Colony Presentation: `src/ui/isometric.rs` and `src/state/game_state.rs` render deterministic isometric terrain, placement previews, buildings, labels, and colonist positions.
+- Sprint D, Colonist Portrait + Sprite System: `src/ui/art.rs` generates 128px portrait masters and idle/move/work/eat/sleep/support/tension world sprite frames wired into inspector, roster, relationship row, and map rendering.
+- Sprint E, Objectives, Alerts, and Minimap: `src/systems/objective_system.rs`, `src/systems/advisor_system.rs`, `src/ui/right_rail.rs`, and the left-rail drawing in `src/state/game_state.rs` expose objective cards, alerts, resources, local map, and survivor state.
+- Sprint F, Gameplay Reframe: toolbar modes, mission launch, priority control, room filtering, Assign-mode pair/space directives, batch room pins, social forecasts, Log-mode archive/search/drilldown/export, and daily social history are implemented and covered by unit/hit-zone tests.
+- Sprint G, Polish + Verification: tooltips, hover/selection outlines, screenshot smoke captures, playthrough report capture, README controls, and the focused manual relationship checklist are in place.
+
+Validation evidence:
+
+- `cargo fmt --check`
+- `cargo test`
+- `cargo build`
+- `git diff --check`
+- Native launch smoke capture
+- `scripts/capture_ui_smoke.ps1`
+- `scripts/capture_playthrough_report.ps1`
+- Manual relationship QA checklist at `docs/verification/manual_relationship_playtest.md`
+
+## Post-Rebuild Production Backlog
+
+These are quality upgrades for a later production-art pass, not blockers for the implemented placeholder/generated-art rebuild:
 
 1. Upgrade generated survivor art to higher-fidelity production assets.
    - Replace the current procedural 128px portrait masters with commissioned, generated, or otherwise licensed production art if the current set is not expressive enough.
