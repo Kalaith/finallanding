@@ -2024,6 +2024,7 @@ impl State for GameplayState {
             self.data.priority.active,
             &self.data.colonists,
             self.selected_colonist_id,
+            &colony_summary,
         );
         draw_bottom_toolbar(&self.layout, self.toolbar_mode, self.selected_building);
 

@@ -8,6 +8,7 @@ use crate::data::technology::{TechId, TechnologyState};
 use crate::systems::assignment_system::{AssignmentPressure, AssignmentSystem};
 use crate::systems::mission_system::MissionPlan;
 use crate::systems::relationship_directive_system::{PairDirective, RelationshipDirectiveSystem};
+use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
 use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
     toolbar_buildings_for_mode, toolbar_context_item_rect, toolbar_context_rect,
@@ -29,6 +30,7 @@ pub fn draw_toolbar_context_panel(
     active_priority: ColonyPriority,
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
+    colony_summary: &ColonyPressureSummary,
 ) {
     let context = toolbar_context_rect(layout.bottom_toolbar());
     style::draw_panel(context);
@@ -47,7 +49,7 @@ pub fn draw_toolbar_context_panel(
             draw_research_context(context, mission_plans, technology, active_mission_count)
         }
         ToolbarMode::Assign => draw_assign_context(context, colonists, selected_colonist_id),
-        ToolbarMode::Log => draw_log_context(context, logs),
+        ToolbarMode::Log => draw_log_context(context, logs, colony_summary),
     }
 }
 
@@ -377,10 +379,26 @@ fn assign_pair_action(
     })
 }
 
-fn draw_log_context(context: Rect, logs: &[ColonyLogEntry]) {
+fn draw_log_context(context: Rect, logs: &[ColonyLogEntry], summary: &ColonyPressureSummary) {
+    let social_brief = social_brief_lines(summary);
+    draw_text(
+        &social_brief.header,
+        context.x + 18.0,
+        context.y + 51.0,
+        style::TINY_SIZE,
+        social_brief.color,
+    );
+    draw_text(
+        &style::truncate_text(&social_brief.detail, 72),
+        context.x + 18.0,
+        context.y + 68.0,
+        style::TINY_SIZE,
+        style::TEXT_BODY,
+    );
+
     let mut hovered_log = None;
-    for (index, log) in logs.iter().rev().take(3).enumerate() {
-        let y = context.y + 54.0 + index as f32 * 22.0;
+    for (index, log) in logs.iter().rev().take(2).enumerate() {
+        let y = context.y + 91.0 + index as f32 * 20.0;
         let row = Rect::new(context.x + 12.0, y - 14.0, context.w - 24.0, 18.0);
         if row.contains(mouse_position().into()) {
             hovered_log = Some(log);
@@ -414,6 +432,55 @@ fn draw_log_context(context: Rect, logs: &[ColonyLogEntry]) {
     if let Some(log) = hovered_log {
         draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &log.title, &log.detail);
     }
+}
+
+struct SocialBriefLines {
+    header: String,
+    detail: String,
+    color: Color,
+}
+
+fn social_brief_lines(summary: &ColonyPressureSummary) -> SocialBriefLines {
+    let color = if summary.strained_pairs > 0 {
+        style::ALERT_RED
+    } else if summary.close_pairs > 0 {
+        style::BAR_GREEN
+    } else {
+        style::HEADING_BLUE
+    };
+
+    let header = format!(
+        "Social pressure: mood {:.0} | close {} | tense {}",
+        summary.average_mood, summary.close_pairs, summary.strained_pairs
+    );
+    let detail = if let Some(pair) = summary
+        .weakest_pair
+        .as_ref()
+        .filter(|pair| pair.value <= -10)
+    {
+        pair_line("Watch", pair)
+    } else if let Some(pair) = summary
+        .strongest_pair
+        .as_ref()
+        .filter(|pair| pair.value >= 10)
+    {
+        pair_line("Protect", pair)
+    } else {
+        "No strong social signal yet; routine will shape the first bonds.".to_string()
+    };
+
+    SocialBriefLines {
+        header,
+        detail,
+        color,
+    }
+}
+
+fn pair_line(prefix: &str, pair: &RelationshipPairSummary) -> String {
+    format!(
+        "{} {} / {}: {} {:+}",
+        prefix, pair.first_name, pair.second_name, pair.label, pair.value
+    )
 }
 
 fn toolbar_tooltip_bounds(context: Rect) -> Rect {
@@ -493,5 +560,54 @@ mod tests {
 
         assert_eq!(action.directive, PairDirective::Separate);
         assert_eq!(action.label, "Apart set -22");
+    }
+
+    #[test]
+    fn test_social_brief_prioritizes_tense_pair() {
+        let summary = ColonyPressureSummary {
+            average_mood: 47.0,
+            average_relationship: -2.0,
+            close_pairs: 1,
+            strained_pairs: 1,
+            connected_pairs: vec![],
+            tense_pairs: vec![],
+            strongest_pair: None,
+            weakest_pair: Some(RelationshipPairSummary {
+                first_name: "Alice".to_string(),
+                second_name: "Fiona".to_string(),
+                value: -24,
+                label: "Tense",
+            }),
+        };
+
+        let brief = social_brief_lines(&summary);
+
+        assert!(brief.header.contains("tense 1"));
+        assert_eq!(brief.detail, "Watch Alice / Fiona: Tense -24");
+        assert_eq!(brief.color, style::ALERT_RED);
+    }
+
+    #[test]
+    fn test_social_brief_names_strongest_pair_when_stable() {
+        let summary = ColonyPressureSummary {
+            average_mood: 62.0,
+            average_relationship: 4.0,
+            close_pairs: 1,
+            strained_pairs: 0,
+            connected_pairs: vec![],
+            tense_pairs: vec![],
+            strongest_pair: Some(RelationshipPairSummary {
+                first_name: "Charlie".to_string(),
+                second_name: "Evan".to_string(),
+                value: 28,
+                label: "Friendly",
+            }),
+            weakest_pair: None,
+        };
+
+        let brief = social_brief_lines(&summary);
+
+        assert_eq!(brief.detail, "Protect Charlie / Evan: Friendly +28");
+        assert_eq!(brief.color, style::BAR_GREEN);
     }
 }
