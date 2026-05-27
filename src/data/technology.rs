@@ -107,9 +107,9 @@ impl TechnologyState {
 
     pub fn injury_duration_ticks(&self) -> u64 {
         if self.has(TechId::FieldMedicine) {
-            45
+            60
         } else {
-            120
+            150
         }
     }
 

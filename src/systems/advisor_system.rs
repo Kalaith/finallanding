@@ -116,8 +116,7 @@ impl AdvisorSystem {
     }
 
     fn add_building_guidance(state: &GameState, lines: &mut Vec<AdvisorLine>) {
-        let habitat_capacity = Self::building_count(state, BuildingType::Habitat) as u32
-            * (2 + state.technology.habitat_capacity_bonus());
+        let habitat_capacity = ResourceSystem::habitat_capacity(state);
         if habitat_capacity < state.colonists.len() as u32 {
             lines.push(AdvisorLine {
                 title: "Shelter every survivor".to_string(),

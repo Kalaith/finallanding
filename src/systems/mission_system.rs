@@ -387,9 +387,9 @@ impl MissionSystem {
 
     fn base_resources_for_mission(mission: &ActiveMission) -> (i32, i32) {
         match mission.mission_type {
-            MissionType::SupplyRun => (5, 1),
-            MissionType::PerimeterScan => (2, 2),
-            MissionType::DeepSurvey => (0, 1),
+            MissionType::SupplyRun => (6, 1),
+            MissionType::PerimeterScan => (2, 1),
+            MissionType::DeepSurvey => (0, 2),
         }
     }
 

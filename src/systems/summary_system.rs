@@ -1,4 +1,3 @@
-use crate::data::building::BuildingType;
 use crate::data::colonist::relationship_label;
 use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
@@ -185,13 +184,7 @@ impl SummarySystem {
             );
         }
 
-        let habitat_capacity = state
-            .building_system
-            .buildings()
-            .iter()
-            .filter(|building| building.building_type == BuildingType::Habitat)
-            .count() as u32
-            * (2 + state.technology.habitat_capacity_bonus());
+        let habitat_capacity = ResourceSystem::habitat_capacity(state);
         if habitat_capacity < state.colonists.len() as u32 {
             return "add habitat capacity so recovery does not create nightly pressure."
                 .to_string();

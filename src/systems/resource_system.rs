@@ -7,7 +7,15 @@ pub struct ResourceSystem;
 
 impl ResourceSystem {
     pub fn daily_supply_need(state: &GameState) -> i32 {
-        (state.colonists.len() as i32
+        let missing_food_penalty = if state.colonists.len() >= 4
+            && Self::building_count(state, BuildingType::MessHall) == 0
+        {
+            state.colonists.len() as i32 * 2
+        } else {
+            0
+        };
+
+        (state.colonists.len() as i32 + missing_food_penalty
             - state.resources.prepared_meals
             - state.technology.daily_supply_reduction())
         .max(0)
@@ -18,16 +26,31 @@ impl ResourceSystem {
     }
 
     pub fn storage_capacity(state: &GameState) -> i32 {
-        let storage_count = state
-            .building_system
-            .buildings()
-            .iter()
-            .filter(|building| building.building_type == BuildingType::Storage)
-            .count() as i32;
+        let storage_count = Self::building_count(state, BuildingType::Storage) as i32;
 
         BASE_STORAGE_CAPACITY
             + storage_count * STORAGE_CAPACITY_BONUS
             + state.technology.storage_capacity_bonus()
+    }
+
+    fn building_count(state: &GameState, building_type: BuildingType) -> usize {
+        state
+            .building_system
+            .buildings()
+            .iter()
+            .filter(|building| building.building_type == building_type)
+            .count()
+    }
+
+    pub fn habitat_capacity(state: &GameState) -> u32 {
+        let habitat_count = state
+            .building_system
+            .buildings()
+            .iter()
+            .filter(|building| building.building_type == BuildingType::Habitat)
+            .count() as u32;
+
+        habitat_count * (2 + state.technology.habitat_capacity_bonus())
     }
 
     pub fn can_afford_building(state: &GameState, building_type: BuildingType) -> bool {
@@ -77,13 +100,20 @@ impl ResourceSystem {
         } else {
             state.colonists.iter().map(|c| c.mood).sum::<f32>() / state.colonists.len() as f32
         };
+        let shelter_deficit =
+            (state.colonists.len() as u32).saturating_sub(Self::habitat_capacity(state));
+        let shelter_pressure = shelter_deficit as f32 * 6.0;
+        let effective_mood = (average_mood - shelter_pressure).max(0.0);
         let daily_need = Self::daily_supply_need(state).max(1);
 
-        let next = if state.resources.supplies <= 0 && average_mood < 15.0 {
+        let next = if state.resources.supplies <= 0 && effective_mood < 15.0 {
             ColonyCondition::Collapsed
-        } else if state.resources.supplies <= 0 || average_mood < 25.0 {
+        } else if state.resources.supplies <= 0 || effective_mood < 25.0 {
             ColonyCondition::Critical
-        } else if state.resources.supplies < daily_need * 2 || average_mood < 45.0 {
+        } else if state.resources.supplies < daily_need * 2
+            || effective_mood < 45.0
+            || shelter_deficit > 0
+        {
             ColonyCondition::Strained
         } else {
             ColonyCondition::Stable
@@ -102,8 +132,11 @@ impl ResourceSystem {
                 LogCategory::Colony,
                 format!("Colony status: {}", next.label()),
                 format!(
-                    "Supplies {}, salvage {}, average mood {:.0}.",
-                    state.resources.supplies, state.resources.salvage, average_mood
+                    "Supplies {}, salvage {}, average mood {:.0}, shelter deficit {}.",
+                    state.resources.supplies,
+                    state.resources.salvage,
+                    average_mood,
+                    shelter_deficit
                 ),
             );
         }
@@ -205,6 +238,26 @@ mod tests {
         ResourceSystem::handle_new_day(&mut state);
 
         assert!(state.colonists[0].mood < 50.0);
+        assert_eq!(state.resources.condition, ColonyCondition::Critical);
+    }
+
+    #[test]
+    fn test_missing_habitat_capacity_strains_condition() {
+        let mut state = GameState::new();
+        state.resources.supplies = 20;
+        for id in 0..6 {
+            state.colonists.push(Colonist::new(
+                id,
+                format!("Colonist {}", id),
+                Position::new(id as i32, 0),
+                Trait::HardWorker,
+                JobPreference::Builder,
+            ));
+        }
+
+        ResourceSystem::update_condition(&mut state);
+
+        assert_eq!(ResourceSystem::habitat_capacity(&state), 0);
         assert_eq!(state.resources.condition, ColonyCondition::Critical);
     }
 }

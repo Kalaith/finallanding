@@ -1,6 +1,7 @@
 use crate::data::building::BuildingType;
 use crate::data::colonist::{ActivityLocation, ColonistState, JobPreference};
 use crate::data::game_state::GameState;
+use crate::data::mission::MissionType;
 use crate::data::priority::ColonyPriority;
 use crate::data::resources::ColonyCondition;
 use crate::data::scenario::ScenarioOutcome;
@@ -23,10 +24,12 @@ pub const NORMAL_SECONDS_PER_TICK: f32 = 0.25;
 #[derive(Clone, Debug)]
 pub struct PlaytestReport {
     pub start_tick: u64,
+    pub strategy: PlaytestStrategyKind,
     pub end_tick: u64,
     pub estimated_normal_minutes: f32,
     pub outcome: ScenarioOutcome,
     pub condition: ColonyCondition,
+    pub average_mood: f32,
     pub supplies: i32,
     pub salvage: i32,
     pub daily_supply_need: i32,
@@ -49,27 +52,79 @@ impl PlaytestReport {
             && self.buildings_placed >= 5
             && self.incidents_triggered >= 1
     }
+
+    pub fn outcome_band(&self) -> PlaytestOutcomeBand {
+        let reached_target_day = self.end_tick >= TimeSystem::TICKS_PER_DAY * 6;
+        if self.outcome == ScenarioOutcome::Victory
+            && self.condition == ColonyCondition::Stable
+            && self.supplies >= self.daily_supply_need.max(1) * 2
+            && self.average_mood >= 50.0
+        {
+            PlaytestOutcomeBand::Win
+        } else if reached_target_day
+            && self.supplies >= self.daily_supply_need.max(1)
+            && self.technologies_unlocked >= self.required_technologies
+            && (self.condition == ColonyCondition::Strained || self.average_mood < 50.0)
+        {
+            PlaytestOutcomeBand::Limp
+        } else {
+            PlaytestOutcomeBand::Fail
+        }
+    }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlaytestStrategyKind {
+    Reference,
+    Conservative,
+    SurveyHeavy,
+    RecoveryHeavy,
+    NoFood,
+    NoHabitats,
+    NoMissions,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlaytestOutcomeBand {
+    Win,
+    Limp,
+    Fail,
+}
+
+#[derive(Clone, Debug)]
 struct ReferenceStrategy {
+    kind: PlaytestStrategyKind,
     missions_completed: u32,
     next_mission_tick: u64,
+}
+
+impl ReferenceStrategy {
+    fn new(kind: PlaytestStrategyKind) -> Self {
+        Self {
+            kind,
+            missions_completed: 0,
+            next_mission_tick: 0,
+        }
+    }
 }
 
 pub struct PlaytestSystem;
 
 impl PlaytestSystem {
     pub fn run_reference_playthrough() -> PlaytestReport {
+        Self::run_strategy_playthrough(PlaytestStrategyKind::Reference)
+    }
+
+    pub fn run_strategy_playthrough(kind: PlaytestStrategyKind) -> PlaytestReport {
         let mut state = GameState::new();
         state.tick = REFERENCE_START_TICK;
         crate::game::colonist_spawner::spawn_initial_colonists(&mut state);
 
-        let mut strategy = ReferenceStrategy::default();
+        let mut strategy = ReferenceStrategy::new(kind);
         let target_tick =
             state.scenario.target_day.saturating_sub(1) as u64 * TimeSystem::TICKS_PER_DAY;
 
-        Self::manage_build_plan(&mut state);
+        Self::manage_build_plan(&mut state, kind);
 
         while state.tick < target_tick && !state.scenario.is_finished() {
             state.tick += 1;
@@ -81,20 +136,20 @@ impl PlaytestSystem {
                 before_active_missions.saturating_sub(after_active_missions) as u32;
             MissionSystem::recover_injured_colonists(&mut state);
 
-            Self::update_priority(&mut state);
+            Self::update_priority(&mut state, kind);
             Self::maybe_launch_mission(&mut state, &mut strategy);
 
             if state.tick % TimeSystem::TICKS_PER_DAY == 0 {
                 let (day, _, _) = TimeSystem::get_time_of_day(state.tick);
                 SummarySystem::summarize_previous_day(&mut state, day);
                 ResourceSystem::handle_new_day(&mut state);
-                Self::manage_build_plan(&mut state);
+                Self::manage_build_plan(&mut state, kind);
             }
 
             if state.tick % TimeSystem::TICKS_PER_HOUR == 0 {
                 IncidentSystem::process_hourly_incidents(&mut state);
                 Self::process_hour(&mut state);
-                Self::manage_build_plan(&mut state);
+                Self::manage_build_plan(&mut state, kind);
             }
 
             ScenarioSystem::evaluate(&mut state);
@@ -109,10 +164,12 @@ impl PlaytestSystem {
 
         PlaytestReport {
             start_tick: REFERENCE_START_TICK,
+            strategy: kind,
             end_tick: state.tick,
             estimated_normal_minutes,
             outcome: state.scenario.outcome,
             condition: state.resources.condition,
+            average_mood: Self::average_mood(&state),
             supplies: state.resources.supplies,
             salvage: state.resources.salvage,
             daily_supply_need: ResourceSystem::daily_supply_need(&state),
@@ -124,19 +181,60 @@ impl PlaytestSystem {
         }
     }
 
-    fn update_priority(state: &mut GameState) {
-        let desired = if state.technology.unlocked_count() < state.scenario.required_tech_unlocks {
-            ColonyPriority::Survey
-        } else if state.resources.supplies < ResourceSystem::daily_supply_need(state).max(1) * 3 {
-            ColonyPriority::Stockpile
-        } else {
-            ColonyPriority::Recovery
+    fn update_priority(state: &mut GameState, kind: PlaytestStrategyKind) {
+        let daily_need = ResourceSystem::daily_supply_need(state).max(1);
+        let desired = match kind {
+            PlaytestStrategyKind::Reference => {
+                if state.technology.unlocked_count() < state.scenario.required_tech_unlocks {
+                    ColonyPriority::Survey
+                } else if state.resources.supplies < daily_need * 3 {
+                    ColonyPriority::Stockpile
+                } else {
+                    ColonyPriority::Recovery
+                }
+            }
+            PlaytestStrategyKind::Conservative => {
+                if state.resources.supplies < daily_need * 4 {
+                    ColonyPriority::Stockpile
+                } else if Self::average_mood(state) < 55.0 {
+                    ColonyPriority::Recovery
+                } else {
+                    ColonyPriority::Survey
+                }
+            }
+            PlaytestStrategyKind::SurveyHeavy => {
+                if state.technology.unlocked_count() < state.scenario.required_tech_unlocks + 1 {
+                    ColonyPriority::Survey
+                } else {
+                    ColonyPriority::Stockpile
+                }
+            }
+            PlaytestStrategyKind::RecoveryHeavy => {
+                if state.resources.supplies < daily_need * 2 {
+                    ColonyPriority::Stockpile
+                } else {
+                    ColonyPriority::Recovery
+                }
+            }
+            PlaytestStrategyKind::NoFood => ColonyPriority::Recovery,
+            PlaytestStrategyKind::NoMissions => ColonyPriority::Survey,
+            PlaytestStrategyKind::NoHabitats => {
+                if state.technology.unlocked_count() < state.scenario.required_tech_unlocks {
+                    ColonyPriority::Survey
+                } else {
+                    ColonyPriority::Stockpile
+                }
+            }
         };
 
         state.priority.active = desired;
     }
 
     fn maybe_launch_mission(state: &mut GameState, strategy: &mut ReferenceStrategy) {
+        if strategy.kind == PlaytestStrategyKind::NoMissions {
+            return;
+        }
+
         if state.tick < strategy.next_mission_tick
             || state.technology.unlocked_count() >= state.scenario.required_tech_unlocks
             || state.missions.active_count() > 0
@@ -144,11 +242,37 @@ impl PlaytestSystem {
             return;
         }
 
-        let mission_type = MissionSystem::recommended_mission_type(state);
+        let mission_type = Self::mission_for_strategy(state, strategy.kind);
         if MissionSystem::launch_mission(state, mission_type).is_ok() {
             strategy.next_mission_tick = state.tick + mission_type.definition().cooldown_minutes;
         } else {
             strategy.next_mission_tick = state.tick + 60;
+        }
+    }
+
+    fn mission_for_strategy(state: &GameState, kind: PlaytestStrategyKind) -> MissionType {
+        match kind {
+            PlaytestStrategyKind::Reference => MissionSystem::recommended_mission_type(state),
+            PlaytestStrategyKind::Conservative => {
+                let daily_need = ResourceSystem::daily_supply_need(state).max(1);
+                if state.resources.supplies < daily_need * 3 {
+                    MissionType::SupplyRun
+                } else {
+                    MissionType::PerimeterScan
+                }
+            }
+            PlaytestStrategyKind::SurveyHeavy => MissionType::DeepSurvey,
+            PlaytestStrategyKind::RecoveryHeavy => {
+                let daily_need = ResourceSystem::daily_supply_need(state).max(1);
+                if state.resources.supplies < daily_need * 2 {
+                    MissionType::SupplyRun
+                } else {
+                    MissionType::PerimeterScan
+                }
+            }
+            PlaytestStrategyKind::NoFood => MissionType::DeepSurvey,
+            PlaytestStrategyKind::NoHabitats => MissionSystem::recommended_mission_type(state),
+            PlaytestStrategyKind::NoMissions => MissionType::PerimeterScan,
         }
     }
 
@@ -228,17 +352,23 @@ impl PlaytestSystem {
         }
     }
 
-    fn manage_build_plan(state: &mut GameState) {
-        Self::ensure_building_count(
-            state,
-            BuildingType::Habitat,
-            &[
-                Position::new(0, 0),
-                Position::new(0, 4),
-                Position::new(3, 4),
-            ],
-        );
-        Self::ensure_building_count(state, BuildingType::MessHall, &[Position::new(3, 0)]);
+    fn manage_build_plan(state: &mut GameState, kind: PlaytestStrategyKind) {
+        if kind != PlaytestStrategyKind::NoHabitats {
+            Self::ensure_building_count(
+                state,
+                BuildingType::Habitat,
+                &[
+                    Position::new(0, 0),
+                    Position::new(0, 4),
+                    Position::new(3, 4),
+                ],
+            );
+        }
+
+        if kind != PlaytestStrategyKind::NoFood {
+            Self::ensure_building_count(state, BuildingType::MessHall, &[Position::new(3, 0)]);
+        }
+
         Self::ensure_building_count(state, BuildingType::Workshop, &[Position::new(7, 0)]);
         Self::ensure_building_count(state, BuildingType::Storage, &[Position::new(10, 0)]);
         Self::ensure_building_count(
@@ -288,6 +418,19 @@ impl PlaytestSystem {
             .find(|building| building.building_type == building_type)
             .map(|building| building.id)
     }
+
+    fn average_mood(state: &GameState) -> f32 {
+        if state.colonists.is_empty() {
+            return 0.0;
+        }
+
+        state
+            .colonists
+            .iter()
+            .map(|colonist| colonist.mood)
+            .sum::<f32>()
+            / state.colonists.len() as f32
+    }
 }
 
 fn activity_for_hour(hour: u32) -> ActivityType {
@@ -308,6 +451,7 @@ mod tests {
         let report = PlaytestSystem::run_reference_playthrough();
 
         assert_eq!(report.start_tick, REFERENCE_START_TICK);
+        assert_eq!(report.strategy, PlaytestStrategyKind::Reference);
         assert_eq!(report.end_tick, TimeSystem::TICKS_PER_DAY * 6);
         assert!(
             report.proves_reference_run(),
@@ -315,5 +459,42 @@ mod tests {
             report
         );
         assert!(report.technologies_unlocked >= report.required_technologies);
+    }
+
+    #[test]
+    fn test_strategy_variants_track_win_limp_or_fail() {
+        let conservative =
+            PlaytestSystem::run_strategy_playthrough(PlaytestStrategyKind::Conservative);
+        let survey = PlaytestSystem::run_strategy_playthrough(PlaytestStrategyKind::SurveyHeavy);
+        let recovery =
+            PlaytestSystem::run_strategy_playthrough(PlaytestStrategyKind::RecoveryHeavy);
+
+        assert_ne!(conservative.outcome_band(), PlaytestOutcomeBand::Fail);
+        assert_ne!(survey.outcome_band(), PlaytestOutcomeBand::Fail);
+        assert_ne!(recovery.outcome_band(), PlaytestOutcomeBand::Fail);
+        assert_eq!(conservative.outcome, ScenarioOutcome::Victory);
+        assert_eq!(survey.outcome, ScenarioOutcome::Victory);
+        assert_eq!(recovery.outcome, ScenarioOutcome::Victory);
+    }
+
+    #[test]
+    fn test_poor_planning_variants_can_fail_day_7() {
+        let no_food = PlaytestSystem::run_strategy_playthrough(PlaytestStrategyKind::NoFood);
+        assert_eq!(no_food.outcome_band(), PlaytestOutcomeBand::Limp);
+        assert_ne!(no_food.outcome, ScenarioOutcome::Victory);
+
+        let no_habitats =
+            PlaytestSystem::run_strategy_playthrough(PlaytestStrategyKind::NoHabitats);
+        assert_eq!(no_habitats.outcome_band(), PlaytestOutcomeBand::Limp);
+        assert_ne!(no_habitats.outcome, ScenarioOutcome::Victory);
+
+        for kind in [PlaytestStrategyKind::NoMissions] {
+            let report = PlaytestSystem::run_strategy_playthrough(kind);
+            assert_eq!(
+                report.outcome_band(),
+                PlaytestOutcomeBand::Fail,
+                "{kind:?} should fail: {report:?}"
+            );
+        }
     }
 }

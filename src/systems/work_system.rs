@@ -4,9 +4,9 @@ use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
 use crate::systems::resource_system::ResourceSystem;
 
-const EXPLORATION_THRESHOLD: u32 = 8;
-const WORKSHOP_THRESHOLD: u32 = 6;
-const KITCHEN_THRESHOLD: u32 = 4;
+const EXPLORATION_THRESHOLD: u32 = 9;
+const WORKSHOP_THRESHOLD: u32 = 7;
+const KITCHEN_THRESHOLD: u32 = 5;
 const HAULING_THRESHOLD: u32 = 5;
 
 pub struct WorkSystem;

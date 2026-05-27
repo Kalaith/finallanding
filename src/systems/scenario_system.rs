@@ -32,6 +32,13 @@ impl ScenarioSystem {
                 "Stable landing secured",
                 "The colony survived the first week with enough infrastructure, knowledge, and supplies to continue.",
             );
+        } else if day >= state.scenario.target_day {
+            Self::finish(
+                state,
+                ScenarioOutcome::Failure,
+                "Landing site unstable",
+                "The colony reached Day 7 without the supplies, condition, or field technology needed to hold the site.",
+            );
         }
     }
 
@@ -41,8 +48,7 @@ impl ScenarioSystem {
     }
 
     pub fn meets_victory_requirements(state: &GameState) -> bool {
-        state.resources.condition != ColonyCondition::Collapsed
-            && state.resources.condition != ColonyCondition::Critical
+        state.resources.condition == ColonyCondition::Stable
             && state.resources.supplies >= ResourceSystem::daily_supply_need(state).max(1)
             && state.technology.unlocked_count() >= state.scenario.required_tech_unlocks
     }
@@ -104,7 +110,7 @@ mod tests {
     }
 
     #[test]
-    fn test_critical_colony_does_not_win_on_target_day() {
+    fn test_critical_colony_fails_on_target_day() {
         let mut state = GameState::new();
         state.tick = TimeSystem::TICKS_PER_DAY * 6;
         state.resources.condition = ColonyCondition::Critical;
@@ -115,7 +121,7 @@ mod tests {
 
         ScenarioSystem::evaluate(&mut state);
 
-        assert_eq!(state.scenario.outcome, ScenarioOutcome::InProgress);
+        assert_eq!(state.scenario.outcome, ScenarioOutcome::Failure);
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-pub const BASE_STORAGE_CAPACITY: i32 = 40;
-pub const STORAGE_CAPACITY_BONUS: i32 = 20;
+pub const BASE_STORAGE_CAPACITY: i32 = 36;
+pub const STORAGE_CAPACITY_BONUS: i32 = 18;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ColonyCondition {
@@ -38,8 +38,8 @@ pub struct ResourceState {
 impl Default for ResourceState {
     fn default() -> Self {
         Self {
-            supplies: 32,
-            salvage: 54,
+            supplies: 30,
+            salvage: 52,
             prepared_meals: 0,
             exploration_progress: 0,
             workshop_progress: 0,
