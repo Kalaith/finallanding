@@ -10,6 +10,7 @@ use crate::game::building_system::PlacementResult;
 use crate::state::{State, StateTransition};
 use crate::systems::advisor_system::AdvisorSystem;
 use crate::systems::mission_system::MissionSystem;
+use crate::systems::planning_system::{BuildingPlacementFeedback, PlanningSystem};
 use crate::systems::proximity_system::ProximitySystem;
 use crate::systems::resource_system::ResourceSystem;
 use crate::systems::scenario_system::ScenarioSystem;
@@ -205,40 +206,57 @@ impl GameplayState {
             return;
         }
 
-        if let (Some(building_type), Some(pos)) = (self.selected_building, self.hovered_cell) {
-            if is_mouse_button_pressed(MouseButton::Left) {
-                if !ResourceSystem::can_afford_building(&self.data, building_type) {
-                    self.data.push_log(
-                        LogCategory::Resource,
-                        format!("Not enough salvage for {}", building_type.name()),
-                        format!(
-                            "{} salvage needed, {} available.",
-                            building_type.salvage_cost(),
-                            self.data.resources.salvage
-                        ),
-                    );
-                    return;
-                }
+        let Some(building_type) = self.selected_building else {
+            return;
+        };
 
-                let result = self.data.building_system.try_place_building(
-                    &mut self.data.grid,
-                    building_type,
-                    pos,
+        if is_mouse_button_pressed(MouseButton::Left) {
+            let pos = Grid::world_to_grid(mouse_x, mouse_y - self.layout.top_bar_height);
+            let feedback = PlanningSystem::building_feedback(&self.data, building_type, pos);
+            if let Some(reason) = feedback.invalid_reason.as_ref() {
+                self.data.push_log(
+                    LogCategory::System,
+                    format!("Cannot place {}", building_type.name()),
+                    format!(
+                        "{} {} helps {}: {}",
+                        reason,
+                        building_type.name(),
+                        feedback.helps,
+                        feedback.purpose
+                    ),
                 );
+                return;
+            }
 
-                if let PlacementResult::Success(building_id) = result {
+            let result = self.data.building_system.try_place_building(
+                &mut self.data.grid,
+                building_type,
+                pos,
+            );
+            let result_reason = placement_result_reason(&result);
+
+            match result {
+                PlacementResult::Success(building_id) => {
                     self.data
                         .resources
                         .spend_salvage(building_type.salvage_cost());
                     self.data.push_log(
                         LogCategory::System,
                         format!("{} placed", building_type.name()),
-                        format!(
-                            "Building #{} cost {} salvage. {} salvage remain.",
+                        PlanningSystem::placement_log_detail(
+                            &feedback,
                             building_id,
-                            building_type.salvage_cost(),
-                            self.data.resources.salvage
+                            self.data.resources.salvage,
                         ),
+                    );
+                }
+                PlacementResult::OutOfBounds
+                | PlacementResult::AreaOccupied
+                | PlacementResult::InvalidBuilding => {
+                    self.data.push_log(
+                        LogCategory::System,
+                        format!("Cannot place {}", building_type.name()),
+                        result_reason.to_string(),
                     );
                 }
             }
@@ -449,15 +467,23 @@ impl GameplayState {
 
     /// Draw ghost preview of building at cursor
     fn draw_ghost_preview(&self) {
-        if let (Some(building_type), Some(pos)) = (self.selected_building, self.hovered_cell) {
+        if let Some(building_type) = self.selected_building {
+            let (mouse_x, mouse_y) = mouse_position();
+            let game_area = self.layout.game_area();
+            if mouse_x < game_area.x
+                || mouse_x > game_area.x + game_area.w
+                || mouse_y < game_area.y
+                || mouse_y > game_area.y + game_area.h
+            {
+                return;
+            }
+
+            let pos = Grid::world_to_grid(mouse_x, mouse_y - self.layout.top_bar_height);
             let (wx, wy) = Grid::grid_to_world(pos.x, pos.y);
             let wy_offset = self.layout.top_bar_height;
             let (width, height) = building_type.size();
-            let can_place =
-                self.data
-                    .building_system
-                    .can_place_building(&self.data.grid, building_type, pos)
-                    && ResourceSystem::can_afford_building(&self.data, building_type);
+            let feedback = PlanningSystem::building_feedback(&self.data, building_type, pos);
+            let can_place = feedback.can_place();
 
             // Green if valid, red if invalid
             let color = if can_place {
@@ -486,12 +512,92 @@ impl GameplayState {
             );
 
             draw_text(
-                &format!("{} salvage", building_type.salvage_cost()),
+                &format!(
+                    "{} {}x{} | {} salvage",
+                    building_type.name(),
+                    width,
+                    height,
+                    building_type.salvage_cost()
+                ),
                 wx,
                 wy + wy_offset - 4.0,
                 14.0,
                 outline_color,
             );
+
+            self.draw_placement_feedback_panel(&feedback);
+        }
+    }
+
+    fn draw_placement_feedback_panel(&self, feedback: &BuildingPlacementFeedback) {
+        let game_area = self.layout.game_area();
+        let width = (game_area.w - 24.0).clamp(260.0, 340.0);
+        let height = 124.0;
+        let (mouse_x, mouse_y) = mouse_position();
+        let x = (mouse_x + 18.0)
+            .min(game_area.x + game_area.w - width - 8.0)
+            .max(game_area.x + 8.0);
+        let y = (mouse_y + 18.0)
+            .min(game_area.y + game_area.h - height - 8.0)
+            .max(game_area.y + 8.0);
+        let status_color = if feedback.can_place() { GREEN } else { ORANGE };
+
+        draw_rectangle(x, y, width, height, Color::new(0.035, 0.04, 0.045, 0.94));
+        draw_rectangle(x, y, 4.0, height, status_color);
+        draw_rectangle_lines(x, y, width, height, 1.0, Color::new(0.45, 0.5, 0.55, 0.85));
+
+        draw_text(
+            &format!(
+                "{} | {}x{} | {} salvage",
+                feedback.building_type.name(),
+                feedback.footprint.0,
+                feedback.footprint.1,
+                feedback.cost
+            ),
+            x + 12.0,
+            y + 22.0,
+            14.0,
+            WHITE,
+        );
+        draw_text(
+            &format!("Helps: {}", feedback.helps),
+            x + 12.0,
+            y + 43.0,
+            12.0,
+            LIGHTGRAY,
+        );
+        draw_text(
+            &truncate_text(feedback.purpose, 48),
+            x + 12.0,
+            y + 63.0,
+            11.0,
+            Color::new(0.75, 0.78, 0.8, 1.0),
+        );
+
+        if let Some(reason) = feedback.invalid_reason.as_ref() {
+            draw_text(
+                &format!("Blocked: {}", truncate_text(reason, 39)),
+                x + 12.0,
+                y + 88.0,
+                12.0,
+                ORANGE,
+            );
+            draw_text(
+                "Move the footprint or pick another building.",
+                x + 12.0,
+                y + 108.0,
+                11.0,
+                GRAY,
+            );
+        } else {
+            draw_text(
+                &format!("Impact: {}", truncate_text(feedback.impact, 42)),
+                x + 12.0,
+                y + 88.0,
+                12.0,
+                LIGHTGRAY,
+            );
+            draw_text("Click to place this plan.", x + 12.0, y + 108.0, 11.0, GRAY);
         }
     }
 
@@ -629,6 +735,28 @@ impl GameplayState {
                     .and_then(|id| self.colonist_by_id(id))
             })
     }
+}
+
+fn placement_result_reason(result: &PlacementResult) -> &'static str {
+    match result {
+        PlacementResult::Success(_) => "Placement succeeded.",
+        PlacementResult::OutOfBounds => "Footprint leaves the map.",
+        PlacementResult::AreaOccupied => "Footprint overlaps blocked or occupied space.",
+        PlacementResult::InvalidBuilding => "Building configuration is invalid.",
+    }
+}
+
+fn truncate_text(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_string();
+    }
+
+    let mut truncated = text
+        .chars()
+        .take(max_chars.saturating_sub(3))
+        .collect::<String>();
+    truncated.push_str("...");
+    truncated
 }
 
 impl State for GameplayState {

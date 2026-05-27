@@ -44,6 +44,42 @@ impl BuildingType {
         }
     }
 
+    pub fn planning_role(&self) -> &'static str {
+        match self {
+            BuildingType::Habitat => "Recovery",
+            BuildingType::MessHall => "Food",
+            BuildingType::Workshop => "Salvage",
+            BuildingType::Storage => "Storage",
+            BuildingType::ExplorationGate => "Exploration",
+        }
+    }
+
+    pub fn purpose(&self) -> &'static str {
+        match self {
+            BuildingType::Habitat => "Beds and recovery space for tired or hurt colonists.",
+            BuildingType::MessHall => "Meal work that lowers the next daily supply draw.",
+            BuildingType::Workshop => "Builder work that converts wreckage into salvage.",
+            BuildingType::Storage => "Raises the supply cap and organizes hauling work.",
+            BuildingType::ExplorationGate => {
+                "Launches scans for tech items and emergency resources."
+            }
+        }
+    }
+
+    pub fn placement_impact(&self) -> &'static str {
+        match self {
+            BuildingType::Habitat => "Adds 2 recovery beds before technology bonuses.",
+            BuildingType::MessHall => {
+                "Lets cooks prepare meals and creates meal-time social contact."
+            }
+            BuildingType::Workshop => "Lets builders recover salvage from the crash site.",
+            BuildingType::Storage => "Adds supply capacity and lets haulers recover salvage.",
+            BuildingType::ExplorationGate => {
+                "Enables perimeter scans for resources, injuries, and technology items."
+            }
+        }
+    }
+
     /// Returns the color for rendering (RGBA as u32)
     pub fn color(&self) -> (u8, u8, u8) {
         match self {
@@ -131,6 +167,15 @@ mod tests {
         assert_eq!(BuildingType::Workshop.salvage_cost(), 10);
         assert_eq!(BuildingType::Storage.salvage_cost(), 6);
         assert_eq!(BuildingType::ExplorationGate.salvage_cost(), 14);
+    }
+
+    #[test]
+    fn test_building_planning_roles_cover_core_needs() {
+        assert_eq!(BuildingType::Habitat.planning_role(), "Recovery");
+        assert_eq!(BuildingType::MessHall.planning_role(), "Food");
+        assert_eq!(BuildingType::Workshop.planning_role(), "Salvage");
+        assert_eq!(BuildingType::Storage.planning_role(), "Storage");
+        assert_eq!(BuildingType::ExplorationGate.planning_role(), "Exploration");
     }
 
     #[test]
