@@ -1,5 +1,5 @@
 use crate::data::colonist::relationship_label;
-use crate::data::event_log::LogCategory;
+use crate::data::event_log::{LogCategory, SocialHistoryEntry};
 use crate::data::game_state::GameState;
 use crate::systems::resource_system::ResourceSystem;
 
@@ -121,6 +121,18 @@ impl SummarySystem {
         }
 
         let report = Self::previous_day_report(state, new_day);
+        let summary = Self::colony_pressure_summary(state);
+        let previous_day = new_day.saturating_sub(1).max(1);
+        state.push_social_history(SocialHistoryEntry::new(
+            previous_day,
+            report.title.clone(),
+            report.detail.clone(),
+            report.recommendation.clone(),
+            summary.average_mood,
+            summary.average_relationship,
+            summary.close_pairs,
+            summary.strained_pairs,
+        ));
         state.push_log(LogCategory::Colony, report.title, report.detail);
     }
 
@@ -341,6 +353,31 @@ mod tests {
             .contains("Alice and Charlie carried the sharpest tension"));
         assert!(report.detail.contains("Next pressure: raise supplies"));
         assert!(report.recommendation.contains("raise supplies"));
+    }
+
+    #[test]
+    fn test_summarize_previous_day_preserves_social_history() {
+        let mut state = GameState::new();
+        state.resources.supplies = 1;
+        state.colonists.push(test_colonist(1, "Alice"));
+        state.colonists.push(test_colonist(2, "Bob"));
+        state.colonists[0].relationships.insert(2, -20);
+        state.colonists[1].relationships.insert(1, -24);
+
+        SummarySystem::summarize_previous_day(&mut state, 2);
+
+        let entry = state
+            .social_history
+            .last()
+            .expect("daily summary should be preserved as history");
+        assert_eq!(entry.day, 1);
+        assert_eq!(entry.title, "Day 1 summary");
+        assert_eq!(entry.strained_pairs, 1);
+        assert!(entry.detail.contains("sharpest tension"));
+        assert!(state
+            .event_log
+            .iter()
+            .any(|entry| entry.title == "Day 1 summary"));
     }
 
     fn test_colonist(id: u32, name: &str) -> Colonist {

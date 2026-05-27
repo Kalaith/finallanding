@@ -1,6 +1,6 @@
 use crate::data::building::BuildingType;
 use crate::data::colonist::{ActivityLocation, Colonist, ColonistState};
-use crate::data::event_log::LogCategory;
+use crate::data::event_log::{LogCategory, SocialHistoryEntry};
 use crate::data::game_state::GameState;
 use crate::data::game_state::TimeSpeed;
 use crate::data::grid::CellType;
@@ -80,6 +80,7 @@ impl GameplayState {
                 data.scenario.required_tech_unlocks
             ),
         );
+        seed_social_history_for_capture(&mut data);
 
         let toolbar_mode = initial_toolbar_mode();
         let selected_colonist_id = initial_selected_colonist_id(&data, toolbar_mode);
@@ -1667,6 +1668,23 @@ fn initial_toolbar_mode() -> ToolbarMode {
         .unwrap_or(ToolbarMode::Build)
 }
 
+fn seed_social_history_for_capture(data: &mut GameState) {
+    if !std::env::var("TFL_SEED_SOCIAL_HISTORY").is_ok_and(|value| value != "0") {
+        return;
+    }
+
+    data.push_social_history(SocialHistoryEntry::new(
+        0,
+        "Crash night summary",
+        "The first shelter line held, but Alice and Fiona carried visible tension while Charlie and Evan kept field work steady.",
+        "Use Assign to keep Alice and Fiona apart until recovery space improves.",
+        50.0,
+        1.0,
+        2,
+        1,
+    ));
+}
+
 fn initial_selected_colonist_id(data: &GameState, toolbar_mode: ToolbarMode) -> Option<u32> {
     std::env::var("TFL_START_SELECTED_COLONIST")
         .ok()
@@ -2021,6 +2039,7 @@ impl State for GameplayState {
             &self.data.technology,
             self.data.missions.active_count(),
             &self.data.event_log,
+            &self.data.social_history,
             self.data.priority.active,
             &self.data.colonists,
             self.selected_colonist_id,

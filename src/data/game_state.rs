@@ -1,5 +1,5 @@
 use super::grid::Grid;
-use crate::data::event_log::{ColonyLogEntry, LogCategory};
+use crate::data::event_log::{ColonyLogEntry, LogCategory, SocialHistoryEntry};
 use crate::data::incident::IncidentState;
 use crate::data::mission::MissionState;
 use crate::data::priority::PriorityState;
@@ -11,6 +11,7 @@ use crate::systems::time_system::TimeSystem;
 use serde::{Deserialize, Serialize};
 
 const MAX_EVENT_LOG_ENTRIES: usize = 80;
+const MAX_SOCIAL_HISTORY_ENTRIES: usize = 14;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TimeSpeed {
@@ -44,6 +45,7 @@ pub struct GameState {
 
     pub colonists: Vec<crate::data::colonist::Colonist>,
     pub event_log: Vec<ColonyLogEntry>,
+    pub social_history: Vec<SocialHistoryEntry>,
     pub resources: ResourceState,
     pub missions: MissionState,
     pub incidents: IncidentState,
@@ -65,6 +67,7 @@ impl GameState {
 
             colonists: Vec::new(),
             event_log: Vec::new(),
+            social_history: Vec::new(),
             resources: ResourceState::default(),
             missions: MissionState::default(),
             incidents: IncidentState::default(),
@@ -94,6 +97,15 @@ impl GameState {
         if self.event_log.len() > MAX_EVENT_LOG_ENTRIES {
             let overflow = self.event_log.len() - MAX_EVENT_LOG_ENTRIES;
             self.event_log.drain(0..overflow);
+        }
+    }
+
+    pub fn push_social_history(&mut self, entry: SocialHistoryEntry) {
+        self.social_history.push(entry);
+
+        if self.social_history.len() > MAX_SOCIAL_HISTORY_ENTRIES {
+            let overflow = self.social_history.len() - MAX_SOCIAL_HISTORY_ENTRIES;
+            self.social_history.drain(0..overflow);
         }
     }
 }

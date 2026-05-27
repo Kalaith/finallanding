@@ -1,7 +1,7 @@
 use super::Layout;
 use crate::data::building::BuildingType;
 use crate::data::colonist::Colonist;
-use crate::data::event_log::{ColonyLogEntry, LogCategory};
+use crate::data::event_log::{ColonyLogEntry, LogCategory, SocialHistoryEntry};
 use crate::data::priority::ColonyPriority;
 use crate::data::resources::ResourceState;
 use crate::data::technology::{TechId, TechnologyState};
@@ -27,6 +27,7 @@ pub fn draw_toolbar_context_panel(
     technology: &TechnologyState,
     active_mission_count: usize,
     logs: &[ColonyLogEntry],
+    social_history: &[SocialHistoryEntry],
     active_priority: ColonyPriority,
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
@@ -49,7 +50,7 @@ pub fn draw_toolbar_context_panel(
             draw_research_context(context, mission_plans, technology, active_mission_count)
         }
         ToolbarMode::Assign => draw_assign_context(context, colonists, selected_colonist_id),
-        ToolbarMode::Log => draw_log_context(context, logs, colony_summary),
+        ToolbarMode::Log => draw_log_context(context, logs, social_history, colony_summary),
     }
 }
 
@@ -379,7 +380,12 @@ fn assign_pair_action(
     })
 }
 
-fn draw_log_context(context: Rect, logs: &[ColonyLogEntry], summary: &ColonyPressureSummary) {
+fn draw_log_context(
+    context: Rect,
+    logs: &[ColonyLogEntry],
+    social_history: &[SocialHistoryEntry],
+    summary: &ColonyPressureSummary,
+) {
     let social_brief = social_brief_lines(summary);
     draw_text(
         &social_brief.header,
@@ -395,6 +401,24 @@ fn draw_log_context(context: Rect, logs: &[ColonyLogEntry], summary: &ColonyPres
         style::TINY_SIZE,
         style::TEXT_BODY,
     );
+
+    if let Some(history) = social_history.last() {
+        draw_text(
+            &style::truncate_text(&format!("Day {}: {}", history.day, history.title), 54),
+            context.x + 18.0,
+            context.y + 87.0,
+            style::TINY_SIZE,
+            style::HEADING_BLUE,
+        );
+        draw_text(
+            &style::truncate_text(&history.recommendation, 72),
+            context.x + 18.0,
+            context.y + 104.0,
+            style::TINY_SIZE,
+            style::TEXT_MUTED,
+        );
+        return;
+    }
 
     let mut hovered_log = None;
     for (index, log) in logs.iter().rev().take(2).enumerate() {
@@ -609,5 +633,22 @@ mod tests {
 
         assert_eq!(brief.detail, "Protect Charlie / Evan: Friendly +28");
         assert_eq!(brief.color, style::BAR_GREEN);
+    }
+
+    #[test]
+    fn test_latest_social_history_is_available_to_log_context() {
+        let history = SocialHistoryEntry::new(
+            2,
+            "Day 2 summary",
+            "Relationships stabilized.",
+            "Keep Charlie and Evan together.",
+            64.0,
+            5.0,
+            1,
+            0,
+        );
+
+        assert_eq!(history.day, 2);
+        assert_eq!(history.recommendation, "Keep Charlie and Evan together.");
     }
 }
