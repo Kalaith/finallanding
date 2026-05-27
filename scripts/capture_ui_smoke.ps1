@@ -138,12 +138,12 @@ function Assert-PlacementPreviewVisible {
 }
 
 $sizes = @(
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "0"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
-    @{ Width = 1920; Height = 1080; Name = "ui_smoke_1920x1080.png"; Fullscreen = "1"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "0"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_assign_1280x720.png"; Fullscreen = "0"; Mode = "assign"; Selected = "5"; ActiveIndex = 5; History = "0"; Poses = "0"; Spaces = "1"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_log_1280x720.png"; Fullscreen = "0"; Mode = "log"; Selected = ""; ActiveIndex = 6; History = "1"; Poses = "0"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_placement_1280x720.png"; Fullscreen = "0"; Mode = "rooms"; Selected = ""; ActiveIndex = 1; History = "0"; Poses = "0"; Spaces = "0"; SelectedBuilding = "habitat"; PreviewX = "5"; PreviewY = "9" },
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_poses_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "1"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" }
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; SocialDay = ""; Poses = "0"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
+    @{ Width = 1920; Height = 1080; Name = "ui_smoke_1920x1080.png"; Fullscreen = "1"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; SocialDay = ""; Poses = "0"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_assign_1280x720.png"; Fullscreen = "0"; Mode = "assign"; Selected = "5"; ActiveIndex = 5; History = "0"; SocialDay = ""; Poses = "0"; Spaces = "1"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_log_1280x720.png"; Fullscreen = "0"; Mode = "log"; Selected = ""; ActiveIndex = 6; History = "1"; SocialDay = "4"; Poses = "0"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_placement_1280x720.png"; Fullscreen = "0"; Mode = "rooms"; Selected = ""; ActiveIndex = 1; History = "0"; SocialDay = ""; Poses = "0"; Spaces = "0"; SelectedBuilding = "habitat"; PreviewX = "5"; PreviewY = "9" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_poses_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; SocialDay = ""; Poses = "1"; Spaces = "0"; SelectedBuilding = ""; PreviewX = ""; PreviewY = "" }
 )
 
 foreach ($size in $sizes) {
@@ -160,6 +160,11 @@ foreach ($size in $sizes) {
     $env:TFL_FULLSCREEN = "$($size.Fullscreen)"
     $env:TFL_START_TOOLBAR_MODE = "$($size.Mode)"
     $env:TFL_SEED_SOCIAL_HISTORY = "$($size.History)"
+    if ($size.SocialDay -ne "") {
+        $env:TFL_START_SOCIAL_HISTORY_DAY = "$($size.SocialDay)"
+    } else {
+        Remove-Item Env:\TFL_START_SOCIAL_HISTORY_DAY -ErrorAction SilentlyContinue
+    }
     $env:TFL_SEED_ACTIVITY_POSES = "$($size.Poses)"
     $env:TFL_SEED_ASSIGN_SPACES = "$($size.Spaces)"
     if ($size.SelectedBuilding -ne "") {
@@ -217,6 +222,7 @@ Remove-Item Env:\TFL_WINDOW_HEIGHT -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_FULLSCREEN -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_START_TOOLBAR_MODE -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_START_SELECTED_COLONIST -ErrorAction SilentlyContinue
+Remove-Item Env:\TFL_START_SOCIAL_HISTORY_DAY -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_START_SELECTED_BUILDING -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_PREVIEW_GRID_X -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_PREVIEW_GRID_Y -ErrorAction SilentlyContinue

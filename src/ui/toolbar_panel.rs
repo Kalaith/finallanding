@@ -13,8 +13,8 @@ use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
     assign_batch_home_rect, assign_batch_work_rect, assign_page_next_rect,
     assign_page_previous_rect, log_filter_rect, log_page_next_rect, log_page_previous_rect,
-    toolbar_buildings_for_mode, toolbar_context_item_rect, toolbar_context_rect,
-    toolbar_list_item_rect, LogFilter, ToolbarMode,
+    log_timeline_row_rect, toolbar_buildings_for_mode, toolbar_context_item_rect,
+    toolbar_context_rect, toolbar_list_item_rect, LogFilter, ToolbarMode,
 };
 use crate::ui::style;
 use crate::ui::tooltip::draw_tooltip_near_mouse;
@@ -36,6 +36,7 @@ pub fn draw_toolbar_context_panel(
     assign_roster_page: usize,
     social_history_page: usize,
     social_history_filter: LogFilter,
+    selected_social_history_day: Option<u32>,
     active_priority: ColonyPriority,
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
@@ -70,6 +71,7 @@ pub fn draw_toolbar_context_panel(
             social_history,
             social_history_page,
             social_history_filter,
+            selected_social_history_day,
             colony_summary,
         ),
     }
@@ -670,6 +672,7 @@ fn draw_log_context(
     social_history: &[SocialHistoryEntry],
     social_history_page: usize,
     social_history_filter: LogFilter,
+    selected_social_history_day: Option<u32>,
     summary: &ColonyPressureSummary,
 ) {
     let mut hovered_history = None;
@@ -718,7 +721,7 @@ fn draw_log_context(
 
         for (index, row) in timeline.iter().enumerate() {
             let y = context.y + 94.0 + index as f32 * 13.0;
-            let rect = Rect::new(context.x + 12.0, y - 11.0, context.w - 24.0, 13.0);
+            let rect = log_timeline_row_rect(context, index);
             if rect.contains(mouse_position().into()) {
                 hovered_history = Some(row);
                 draw_rectangle(
@@ -728,6 +731,16 @@ fn draw_log_context(
                     rect.h,
                     Color::new(0.1, 0.14, 0.15, 0.7),
                 );
+            }
+            if selected_social_history_day == Some(row.day) {
+                draw_rectangle(
+                    rect.x,
+                    rect.y,
+                    rect.w,
+                    rect.h,
+                    Color::new(0.18, 0.22, 0.2, 0.82),
+                );
+                draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, style::ACCENT_GOLD);
             }
             draw_rectangle(rect.x, rect.y, 3.0, rect.h, row.color);
             draw_text(
@@ -755,6 +768,11 @@ fn draw_log_context(
 
         if let Some(row) = hovered_history {
             draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &row.title, &row.detail);
+        }
+        if let Some(entry) =
+            selected_social_history_entry(social_history, selected_social_history_day)
+        {
+            draw_social_report_drilldown(context, entry);
         }
         return;
     }
@@ -795,6 +813,42 @@ fn draw_log_context(
     if let Some(log) = hovered_log {
         draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &log.title, &log.detail);
     }
+}
+
+fn draw_social_report_drilldown(context: Rect, entry: &SocialHistoryEntry) {
+    let rect = Rect::new(
+        context.x + context.w - 330.0,
+        (context.y - 78.0).max(70.0),
+        320.0,
+        68.0,
+    );
+    style::draw_deep_panel(rect);
+    draw_rectangle(rect.x, rect.y, 4.0, rect.h, social_history_color(entry));
+    draw_text(
+        &format!(
+            "DAY {}: {}",
+            entry.day,
+            style::truncate_text(&entry.title, 34)
+        ),
+        rect.x + 12.0,
+        rect.y + 17.0,
+        style::TINY_SIZE,
+        style::TEXT_PRIMARY,
+    );
+    draw_text(
+        &style::truncate_text(&entry.detail, 58),
+        rect.x + 12.0,
+        rect.y + 37.0,
+        style::TINY_SIZE,
+        style::TEXT_BODY,
+    );
+    draw_text(
+        &style::truncate_text(&entry.recommendation, 58),
+        rect.x + 12.0,
+        rect.y + 55.0,
+        style::TINY_SIZE,
+        style::HEADING_BLUE,
+    );
 }
 
 fn draw_log_filter_controls(context: Rect, active_filter: LogFilter) {
@@ -895,6 +949,25 @@ fn social_timeline_rows(
             color: social_history_color(entry),
         })
         .collect()
+}
+
+pub fn social_timeline_day_at(
+    history: &[SocialHistoryEntry],
+    filter: LogFilter,
+    page: usize,
+    row_index: usize,
+) -> Option<u32> {
+    social_timeline_rows(history, filter, page)
+        .get(row_index)
+        .map(|row| row.day)
+}
+
+fn selected_social_history_entry(
+    history: &[SocialHistoryEntry],
+    selected_day: Option<u32>,
+) -> Option<&SocialHistoryEntry> {
+    let day = selected_day?;
+    history.iter().find(|entry| entry.day == day)
 }
 
 fn social_history_matches_filter(entry: &SocialHistoryEntry, filter: LogFilter) -> bool {
@@ -1237,6 +1310,37 @@ mod tests {
         assert_eq!(support.len(), 1);
         assert_eq!(support[0].day, 2);
         assert_eq!(social_history_page_count(&history, LogFilter::Tense), 1);
+    }
+
+    #[test]
+    fn test_social_timeline_day_at_matches_filtered_visible_rows() {
+        let history = (0..5)
+            .map(|day| {
+                SocialHistoryEntry::new(
+                    day,
+                    format!("Day {}", day),
+                    "",
+                    "",
+                    50.0,
+                    if day % 2 == 0 { -8.0 } else { 10.0 },
+                    u32::from(day % 2 == 1),
+                    u32::from(day % 2 == 0),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            social_timeline_day_at(&history, LogFilter::Tense, 0, 0),
+            Some(4)
+        );
+        assert_eq!(
+            social_timeline_day_at(&history, LogFilter::Support, 0, 1),
+            Some(1)
+        );
+        assert_eq!(
+            social_timeline_day_at(&history, LogFilter::Support, 0, 2),
+            None
+        );
     }
 
     #[test]

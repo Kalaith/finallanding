@@ -32,11 +32,12 @@ use crate::ui::{
     assign_batch_action_at, assign_page_action_at, draw_advisor_overlay, draw_bottom_toolbar,
     draw_colonist_inspector, draw_debug_overlay, draw_iso_diamond, draw_iso_diamond_lines,
     draw_iso_prism, draw_right_rail, draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar,
-    log_filter_at, log_page_action_at, restart_button_rect, side_panel_hit_at,
-    social_history_page_count, toolbar_building_at_for_mode, toolbar_buildings_for_mode,
-    toolbar_colonist_index_at, toolbar_context_rect, toolbar_mission_at, toolbar_mode_at,
-    toolbar_priority_at, top_bar_priority_at, top_bar_speed_at, AssignBatchAction, IsoView, Layout,
-    LogFilter, PageAction, PlaceholderArt, SidePanelHit, SpritePose, ToolbarMode,
+    log_filter_at, log_page_action_at, log_timeline_row_at, restart_button_rect, side_panel_hit_at,
+    social_history_page_count, social_timeline_day_at, toolbar_building_at_for_mode,
+    toolbar_buildings_for_mode, toolbar_colonist_index_at, toolbar_context_rect,
+    toolbar_mission_at, toolbar_mode_at, toolbar_priority_at, top_bar_priority_at,
+    top_bar_speed_at, AssignBatchAction, IsoView, Layout, LogFilter, PageAction, PlaceholderArt,
+    SidePanelHit, SpritePose, ToolbarMode,
 };
 use macroquad::prelude::*;
 
@@ -69,6 +70,8 @@ pub struct GameplayState {
     social_history_page: usize,
     /// Active filter in the Log mode social archive.
     social_history_filter: LogFilter,
+    /// Selected daily social report for persistent Log drilldown.
+    selected_social_history_day: Option<u32>,
     /// Placeholder visual assets extracted from the rebuild reference.
     art: PlaceholderArt,
 }
@@ -97,6 +100,7 @@ impl GameplayState {
         let selected_building = initial_selected_building(toolbar_mode);
         let selected_colonist_id = initial_selected_colonist_id(&data, toolbar_mode);
         let capture_preview_position = initial_capture_preview_position();
+        let selected_social_history_day = initial_selected_social_history_day(&data);
 
         Self {
             prev_tick: data.tick,
@@ -113,6 +117,7 @@ impl GameplayState {
             assign_roster_page: 0,
             social_history_page: 0,
             social_history_filter: LogFilter::All,
+            selected_social_history_day,
             art: PlaceholderArt::new(),
         }
     }
@@ -446,10 +451,24 @@ impl GameplayState {
                 if let Some(filter) = log_filter_at(context, mouse_x, mouse_y) {
                     self.social_history_filter = filter;
                     self.social_history_page = 0;
+                    self.selected_social_history_day = None;
                     return true;
                 }
                 if let Some(action) = log_page_action_at(context, mouse_x, mouse_y) {
                     self.update_log_page(action);
+                    self.selected_social_history_day = None;
+                    return true;
+                }
+                if let Some(row) = log_timeline_row_at(context, 3, mouse_x, mouse_y) {
+                    if let Some(day) = social_timeline_day_at(
+                        &self.data.social_history,
+                        self.social_history_filter,
+                        self.social_history_page,
+                        row,
+                    ) {
+                        self.selected_social_history_day =
+                            (self.selected_social_history_day != Some(day)).then_some(day);
+                    }
                 }
             }
         }
@@ -2402,6 +2421,13 @@ fn initial_selected_colonist_id(data: &GameState, toolbar_mode: ToolbarMode) -> 
         })
 }
 
+fn initial_selected_social_history_day(data: &GameState) -> Option<u32> {
+    std::env::var("TFL_START_SOCIAL_HISTORY_DAY")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|day| data.social_history.iter().any(|entry| entry.day == *day))
+}
+
 fn toolbar_mode_from_name(value: &str) -> Option<ToolbarMode> {
     match value.trim().to_ascii_lowercase().as_str() {
         "build" => Some(ToolbarMode::Build),
@@ -3067,6 +3093,7 @@ impl State for GameplayState {
             self.assign_roster_page,
             self.social_history_page,
             self.social_history_filter,
+            self.selected_social_history_day,
             self.data.priority.active,
             &self.data.colonists,
             self.selected_colonist_id,

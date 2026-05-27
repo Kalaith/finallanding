@@ -286,6 +286,15 @@ pub fn log_filter_at(context: Rect, x: f32, y: f32) -> Option<LogFilter> {
         })
 }
 
+pub fn log_timeline_row_rect(context: Rect, index: usize) -> Rect {
+    let y = context.y + 94.0 + index as f32 * 13.0;
+    Rect::new(context.x + 12.0, y - 11.0, context.w - 24.0, 13.0)
+}
+
+pub fn log_timeline_row_at(context: Rect, row_count: usize, x: f32, y: f32) -> Option<usize> {
+    (0..row_count.min(3)).find(|index| contains(log_timeline_row_rect(context, *index), x, y))
+}
+
 pub fn assign_page_previous_rect(context: Rect) -> Rect {
     Rect::new(context.x + context.w - 96.0, context.y + 13.0, 28.0, 17.0)
 }
@@ -605,6 +614,17 @@ mod tests {
             log_filter_at(context, context.x + 18.0, context.y + 82.0),
             None
         );
+    }
+
+    #[test]
+    fn test_log_timeline_hit_zones_match_visible_rows() {
+        let context = Rect::new(380.0, 500.0, 520.0, 126.0);
+        let (first_x, first_y) = center(log_timeline_row_rect(context, 0));
+        let (third_x, third_y) = center(log_timeline_row_rect(context, 2));
+
+        assert_eq!(log_timeline_row_at(context, 3, first_x, first_y), Some(0));
+        assert_eq!(log_timeline_row_at(context, 3, third_x, third_y), Some(2));
+        assert_eq!(log_timeline_row_at(context, 2, third_x, third_y), None);
     }
 
     #[test]
