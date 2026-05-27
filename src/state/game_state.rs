@@ -23,7 +23,7 @@ use crate::systems::time_system::TimeSystem;
 use crate::systems::work_system::WorkSystem;
 use crate::ui::{
     draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
-    draw_side_panel, draw_top_bar, restart_button_rect, side_panel_hit_at, top_bar_priority_at,
+    draw_right_rail, draw_top_bar, restart_button_rect, side_panel_hit_at, top_bar_priority_at,
     top_bar_speed_at, Layout, PlaceholderArt, SidePanelHit,
 };
 use macroquad::prelude::*;
@@ -308,7 +308,7 @@ impl GameplayState {
             && mouse_y >= panel.y
             && mouse_y <= panel.y + panel.h
         {
-            self.update_side_panel_click(mouse_x, mouse_y, panel);
+            return;
         }
     }
 
@@ -997,22 +997,12 @@ impl State for GameplayState {
         );
 
         let colony_summary = SummarySystem::colony_pressure_summary(&self.data);
-        let mission_plans = MissionSystem::mission_plans(&self.data);
-        let _panel_result = draw_side_panel(
+        draw_right_rail(
             &self.layout,
-            self.selected_building,
-            self.data.building_system.building_count(),
-            self.data.colonists.len(),
-            &self.data.resources,
+            &self.data,
             ResourceSystem::storage_capacity(&self.data),
             ResourceSystem::daily_supply_need(&self.data),
-            &objective_line,
-            self.data.scenario.outcome,
-            self.data.missions.active_count(),
-            &mission_plans,
-            &self.data.technology,
             &colony_summary,
-            &self.data.event_log,
         );
         draw_bottom_toolbar(&self.layout, self.selected_building);
 
