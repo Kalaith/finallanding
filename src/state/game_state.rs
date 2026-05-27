@@ -25,11 +25,11 @@ use crate::ui::style;
 use crate::ui::{
     draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
     draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
-    draw_toolbar_context_panel, draw_top_bar, restart_button_rect, side_panel_hit_at,
-    toolbar_building_at_for_mode, toolbar_buildings_for_mode, toolbar_colonist_index_at,
-    toolbar_context_rect, toolbar_mission_at, toolbar_mode_at, toolbar_priority_at,
-    top_bar_priority_at, top_bar_speed_at, IsoView, Layout, PlaceholderArt, SidePanelHit,
-    ToolbarMode,
+    draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar, restart_button_rect,
+    side_panel_hit_at, toolbar_building_at_for_mode, toolbar_buildings_for_mode,
+    toolbar_colonist_index_at, toolbar_context_rect, toolbar_mission_at, toolbar_mode_at,
+    toolbar_priority_at, top_bar_priority_at, top_bar_speed_at, IsoView, Layout, PlaceholderArt,
+    SidePanelHit, ToolbarMode,
 };
 use macroquad::prelude::*;
 
@@ -975,6 +975,25 @@ impl GameplayState {
         }
     }
 
+    fn draw_hover_colonist_card(&self, hovered_colonist_id: Option<u32>) {
+        let Some(colonist) = hovered_colonist_id.and_then(|id| self.colonist_by_id(id)) else {
+            return;
+        };
+
+        let mouse: Vec2 = mouse_position().into();
+        draw_tooltip_at(
+            mouse + vec2(18.0, 18.0),
+            self.layout.game_area(),
+            &colonist.name,
+            &format!(
+                "{} | Mood {:.0} | {}",
+                colonist.job_preference.label(),
+                colonist.mood,
+                colonist_activity_summary(colonist)
+            ),
+        );
+    }
+
     fn colonist_id_at_mouse(&self) -> Option<u32> {
         let game_area = self.layout.game_area();
         let (mouse_x, mouse_y) = mouse_position();
@@ -1185,6 +1204,17 @@ fn job_color(job_preference: crate::data::colonist::JobPreference) -> Color {
     }
 }
 
+fn colonist_activity_summary(colonist: &Colonist) -> &'static str {
+    match colonist.state {
+        ColonistState::Idle => "Idle",
+        ColonistState::Moving { .. } => "Moving",
+        ColonistState::Working => "Working",
+        ColonistState::Eating => "Eating",
+        ColonistState::Sleeping => "Resting",
+        ColonistState::OnMission { .. } => "On mission",
+    }
+}
+
 impl State for GameplayState {
     fn update(&mut self) -> StateTransition {
         // Debug toggle
@@ -1255,6 +1285,7 @@ impl State for GameplayState {
         self.draw_buildings();
         self.draw_ghost_preview();
         self.draw_colonists_with_offset(hovered_colonist_id);
+        self.draw_hover_colonist_card(hovered_colonist_id);
         let advisor_plan = AdvisorSystem::plan(&self.data);
         let objectives = ObjectiveSystem::active_cards(&self.data);
         draw_advisor_overlay(&self.layout, &objectives, &advisor_plan);

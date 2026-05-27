@@ -14,6 +14,7 @@ pub mod right_rail;
 pub mod side_panel;
 pub mod style;
 pub mod toolbar_panel;
+pub mod tooltip;
 pub mod top_bar;
 
 pub use advisor_overlay::*;
@@ -26,4 +27,5 @@ pub use isometric::*;
 pub use layout::*;
 pub use right_rail::*;
 pub use toolbar_panel::*;
+pub use tooltip::*;
 pub use top_bar::*;

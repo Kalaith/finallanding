@@ -11,6 +11,7 @@ use crate::ui::hit_zones::{
     toolbar_list_item_rect, ToolbarMode,
 };
 use crate::ui::style;
+use crate::ui::tooltip::draw_tooltip_near_mouse;
 use macroquad::prelude::*;
 
 pub fn draw_toolbar_context_panel(
@@ -53,11 +54,16 @@ fn draw_build_context(
     selected_building: Option<BuildingType>,
     resources: &ResourceState,
 ) {
+    let mut hovered_building = None;
     for (index, building_type) in toolbar_buildings_for_mode(mode).iter().enumerate() {
         let rect = toolbar_context_item_rect(context, index);
         let can_afford = resources.salvage >= building_type.salvage_cost();
         let selected = selected_building == Some(*building_type);
-        style::draw_button(rect, selected, rect.contains(mouse_position().into()));
+        let hovered = rect.contains(mouse_position().into());
+        if hovered {
+            hovered_building = Some(*building_type);
+        }
+        style::draw_button(rect, selected, hovered);
         let (r, g, b) = building_type.color();
         draw_rectangle(
             rect.x + 9.0,
@@ -102,16 +108,29 @@ fn draw_build_context(
         style::TINY_SIZE,
         style::TEXT_MUTED,
     );
+
+    if let Some(building_type) = hovered_building {
+        draw_tooltip_near_mouse(
+            toolbar_tooltip_bounds(context),
+            building_type.name(),
+            &format!(
+                "{} Cost: {} salvage.",
+                building_type.placement_impact(),
+                building_type.salvage_cost()
+            ),
+        );
+    }
 }
 
 fn draw_colony_context(context: Rect, active_priority: ColonyPriority) {
+    let mut hovered_priority = None;
     for (index, priority) in ColonyPriority::all().iter().enumerate() {
         let rect = toolbar_context_item_rect(context, index);
-        style::draw_button(
-            rect,
-            *priority == active_priority,
-            rect.contains(mouse_position().into()),
-        );
+        let hovered = rect.contains(mouse_position().into());
+        if hovered {
+            hovered_priority = Some(*priority);
+        }
+        style::draw_button(rect, *priority == active_priority, hovered);
         draw_text(
             priority.short_label(),
             rect.x + 10.0,
@@ -127,6 +146,14 @@ fn draw_colony_context(context: Rect, active_priority: ColonyPriority) {
             style::TEXT_BODY,
         );
     }
+
+    if let Some(priority) = hovered_priority {
+        draw_tooltip_near_mouse(
+            toolbar_tooltip_bounds(context),
+            priority.label(),
+            priority.description(),
+        );
+    }
 }
 
 fn draw_research_context(
@@ -135,13 +162,14 @@ fn draw_research_context(
     technology: &TechnologyState,
     active_mission_count: usize,
 ) {
+    let mut hovered_plan = None;
     for (index, plan) in mission_plans.iter().enumerate() {
         let rect = toolbar_context_item_rect(context, index);
-        style::draw_button(
-            rect,
-            plan.recommended,
-            rect.contains(mouse_position().into()),
-        );
+        let hovered = rect.contains(mouse_position().into());
+        if hovered {
+            hovered_plan = Some(plan);
+        }
+        style::draw_button(rect, plan.recommended, hovered);
         draw_text(
             plan.definition.short_name,
             rect.x + 10.0,
@@ -178,13 +206,29 @@ fn draw_research_context(
         style::TINY_SIZE,
         style::TEXT_MUTED,
     );
+
+    if let Some(plan) = hovered_plan {
+        draw_tooltip_near_mouse(
+            toolbar_tooltip_bounds(context),
+            plan.definition.name,
+            &format!(
+                "{} {}",
+                plan.definition.description, plan.definition.reward_profile
+            ),
+        );
+    }
 }
 
 fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_id: Option<u32>) {
+    let mut hovered_colonist = None;
     for (index, colonist) in colonists.iter().take(5).enumerate() {
         let rect = toolbar_list_item_rect(context, index);
         let selected = selected_colonist_id == Some(colonist.id);
-        style::draw_button(rect, selected, rect.contains(mouse_position().into()));
+        let hovered = rect.contains(mouse_position().into());
+        if hovered {
+            hovered_colonist = Some(colonist);
+        }
+        style::draw_button(rect, selected, hovered);
         draw_text(
             &style::truncate_text(&colonist.name, 11),
             rect.x + 10.0,
@@ -208,11 +252,35 @@ fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_
         style::TINY_SIZE,
         style::TEXT_MUTED,
     );
+
+    if let Some(colonist) = hovered_colonist {
+        draw_tooltip_near_mouse(
+            toolbar_tooltip_bounds(context),
+            &colonist.name,
+            &format!(
+                "{} role. Mood {:.0}. Next click cycles role.",
+                colonist.job_preference.label(),
+                colonist.mood
+            ),
+        );
+    }
 }
 
 fn draw_log_context(context: Rect, logs: &[ColonyLogEntry]) {
+    let mut hovered_log = None;
     for (index, log) in logs.iter().rev().take(3).enumerate() {
         let y = context.y + 54.0 + index as f32 * 22.0;
+        let row = Rect::new(context.x + 12.0, y - 14.0, context.w - 24.0, 18.0);
+        if row.contains(mouse_position().into()) {
+            hovered_log = Some(log);
+            draw_rectangle(
+                row.x,
+                row.y,
+                row.w,
+                row.h,
+                Color::new(0.1, 0.14, 0.15, 0.65),
+            );
+        }
         draw_text(
             category_prefix(log.category),
             context.x + 18.0,
@@ -231,6 +299,19 @@ fn draw_log_context(context: Rect, logs: &[ColonyLogEntry]) {
             style::TEXT_BODY,
         );
     }
+
+    if let Some(log) = hovered_log {
+        draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &log.title, &log.detail);
+    }
+}
+
+fn toolbar_tooltip_bounds(context: Rect) -> Rect {
+    Rect::new(
+        context.x,
+        (context.y - 58.0).max(0.0),
+        context.w,
+        context.h + 58.0,
+    )
 }
 
 fn category_prefix(category: LogCategory) -> &'static str {

@@ -79,6 +79,18 @@ impl ToolbarMode {
         }
     }
 
+    pub fn tooltip(self) -> &'static str {
+        match self {
+            ToolbarMode::Build => "All construction plans.",
+            ToolbarMode::Rooms => "Living, meal, and storage rooms.",
+            ToolbarMode::Objects => "Work structures for salvage and survey.",
+            ToolbarMode::Colony => "Settlement-wide work priority.",
+            ToolbarMode::Research => "Field missions and technology recovery.",
+            ToolbarMode::Assign => "Retask survivor work roles.",
+            ToolbarMode::Log => "Recent colony events.",
+        }
+    }
+
     pub fn uses_building_choices(self) -> bool {
         matches!(
             self,
