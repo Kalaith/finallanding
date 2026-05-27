@@ -24,6 +24,10 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     ui::font::init_ui_font();
+    if export_playthrough_report_if_requested() {
+        return;
+    }
+
     let mut game: Game = Game::new().await;
     let capture_path = env_string("TFL_CAPTURE_PATH");
     let capture_after_frames = env_u32("TFL_CAPTURE_FRAMES", 8).max(1);
@@ -44,6 +48,29 @@ async fn main() {
         }
 
         next_frame().await
+    }
+}
+
+fn export_playthrough_report_if_requested() -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let Some(path) = env_string("TFL_PLAYTHROUGH_REPORT_PATH") else {
+            return false;
+        };
+
+        let reports = systems::playtest_system::PlaytestSystem::capture_report_set();
+        let markdown =
+            systems::playtest_system::PlaytestSystem::playthrough_report_markdown(&reports);
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            std::fs::create_dir_all(parent).expect("failed to create playthrough report directory");
+        }
+        std::fs::write(&path, markdown).expect("failed to write playthrough report");
+        true
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        false
     }
 }
 

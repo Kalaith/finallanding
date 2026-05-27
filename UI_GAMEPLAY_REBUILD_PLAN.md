@@ -340,6 +340,7 @@ Validation currently passing:
 - `git diff --check`
 - Native launch smoke test
 - Screenshot smoke capture at 1280x720, 1920x1080, Assign mode, Log mode, placement-preview, and pose-variant setup
+- Playthrough report capture at `docs/verification/playthrough_report.md`
 
 ## Remaining Rebuild Backlog
 
@@ -361,4 +362,3 @@ Highest-value remaining items:
 4. Improve screenshot verification depth.
    - Keep captured PNGs updated when major UI layout changes land.
    - Extend the manual playtest checklist when new relationship decisions are added.
-   - Add playthrough captures once scripted world setup exists.

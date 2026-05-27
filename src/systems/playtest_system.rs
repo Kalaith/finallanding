@@ -84,11 +84,47 @@ pub enum PlaytestStrategyKind {
     NoMissions,
 }
 
+impl PlaytestStrategyKind {
+    pub fn report_set() -> &'static [PlaytestStrategyKind] {
+        &[
+            PlaytestStrategyKind::Reference,
+            PlaytestStrategyKind::Conservative,
+            PlaytestStrategyKind::SurveyHeavy,
+            PlaytestStrategyKind::RecoveryHeavy,
+            PlaytestStrategyKind::NoFood,
+            PlaytestStrategyKind::NoHabitats,
+            PlaytestStrategyKind::NoMissions,
+        ]
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            PlaytestStrategyKind::Reference => "Reference",
+            PlaytestStrategyKind::Conservative => "Conservative",
+            PlaytestStrategyKind::SurveyHeavy => "Survey heavy",
+            PlaytestStrategyKind::RecoveryHeavy => "Recovery heavy",
+            PlaytestStrategyKind::NoFood => "No food",
+            PlaytestStrategyKind::NoHabitats => "No habitats",
+            PlaytestStrategyKind::NoMissions => "No missions",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlaytestOutcomeBand {
     Win,
     Limp,
     Fail,
+}
+
+impl PlaytestOutcomeBand {
+    pub fn label(self) -> &'static str {
+        match self {
+            PlaytestOutcomeBand::Win => "Win",
+            PlaytestOutcomeBand::Limp => "Limp",
+            PlaytestOutcomeBand::Fail => "Fail",
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -179,6 +215,44 @@ impl PlaytestSystem {
             buildings_placed: state.building_system.building_count(),
             incidents_triggered: state.incidents.triggered.len(),
         }
+    }
+
+    pub fn capture_report_set() -> Vec<PlaytestReport> {
+        PlaytestStrategyKind::report_set()
+            .iter()
+            .map(|kind| Self::run_strategy_playthrough(*kind))
+            .collect()
+    }
+
+    pub fn playthrough_report_markdown(reports: &[PlaytestReport]) -> String {
+        let mut output = String::from("# The Final Landing Playthrough Capture\n\n");
+        output.push_str(
+            "Headless strategy runs from the live simulation. Minutes are estimated at normal speed.\n\n",
+        );
+        output.push_str("| Strategy | Band | Outcome | Condition | Minutes | Mood | Supplies | Tech | Missions | Buildings | Incidents |\n");
+        output.push_str(
+            "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n",
+        );
+
+        for report in reports {
+            output.push_str(&format!(
+                "| {} | {} | {:?} | {:?} | {:.1} | {:.0} | {} | {}/{} | {} | {} | {} |\n",
+                report.strategy.label(),
+                report.outcome_band().label(),
+                report.outcome,
+                report.condition,
+                report.estimated_normal_minutes,
+                report.average_mood,
+                report.supplies,
+                report.technologies_unlocked,
+                report.required_technologies,
+                report.missions_completed,
+                report.buildings_placed,
+                report.incidents_triggered
+            ));
+        }
+
+        output
     }
 
     fn update_priority(state: &mut GameState, kind: PlaytestStrategyKind) {
@@ -496,5 +570,21 @@ mod tests {
                 "{kind:?} should fail: {report:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_playthrough_report_markdown_includes_strategy_matrix() {
+        let reports = vec![
+            PlaytestSystem::run_strategy_playthrough(PlaytestStrategyKind::Reference),
+            PlaytestSystem::run_strategy_playthrough(PlaytestStrategyKind::NoMissions),
+        ];
+
+        let markdown = PlaytestSystem::playthrough_report_markdown(&reports);
+
+        assert!(markdown.contains("# The Final Landing Playthrough Capture"));
+        assert!(markdown.contains("| Reference | Win | Victory |"));
+        assert!(markdown.contains("| No missions | Fail |"));
+        assert!(markdown.contains("Tech"));
+        assert!(markdown.contains("Incidents"));
     }
 }
