@@ -316,6 +316,7 @@ Completed in the active rebuild:
 - The map and right rail now expose relationship pressure/support through compact social badges and Friendly/Tense value chips.
 - Assign mode now supports player-authored pair and space directives between selected survivors, and those directives influence future workplace and habitat choices.
 - Assign mode now supports direct map-based room pins: selected survivors can be assigned to a recovery Habitat and a compatible work space, and those pins steer sleep/work routing.
+- Assign mode now warns when pinned rooms are over capacity or place tense survivors in the same Habitat/work space.
 - Log mode now includes a compact social brief that highlights mood, close/tense pair counts, and the strongest relationship signal before recent events.
 - End-of-day social reports are now preserved as social history entries, and Log mode shows a compact latest-three-day social timeline with mood, relationship, and strain metrics.
 - The colony surface now has deterministic crash-site dressing with wreckage, cables, tracks, and richer room-specific cutaway details on placed buildings.
@@ -345,7 +346,7 @@ Highest-value remaining items:
    - Stronger selected/hover outlines.
 
 3. Expand relationship-manager gameplay.
-   - Expand room pins into a fuller team roster view with capacity/conflict warnings when the colony has many duplicate spaces.
+   - Expand room pins into a fuller team roster view with batch reassignment controls when the colony has many duplicate spaces.
    - Add a scrollable or paged social archive once more than three daily reports need to be reviewed in-session.
    - Add relationship-reactive body language and transition animations so social tension is visible before opening panels.
 

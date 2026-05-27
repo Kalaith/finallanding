@@ -1931,6 +1931,9 @@ fn seed_assign_spaces_for_capture(data: &mut GameState) {
         colonist.assigned_habitat = habitat_id;
         colonist.assigned_workplace = workshop_id;
     }
+    if let Some(colonist) = data.colonists.iter_mut().find(|colonist| colonist.id == 0) {
+        colonist.assigned_habitat = habitat_id;
+    }
 }
 
 fn seed_social_history_for_capture(data: &mut GameState) {

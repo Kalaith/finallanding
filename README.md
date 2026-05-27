@@ -26,7 +26,7 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 - Top bar buttons: adjust time speed.
 - Z: undo placement.
 - Esc: cancel current tool.
-- Assign mode: hover a survivor card to preview social pressure, click a survivor card to cycle their work role, then click a compatible map building to pin or clear their recovery/work space.
+- Assign mode: hover a survivor card to preview social pressure, click a survivor card to cycle their work role, then click a compatible map building to pin or clear their recovery/work space; warnings flag over-capacity or tense pins.
 - Log mode: review the live social brief and the latest three daily relationship reports.
 - Research mode: click a mission card to launch a field mission when the colony has an Exploration Gate.
 
@@ -48,7 +48,7 @@ The left rail surfaces current objectives and alerts while the right rail tracks
 - Use Build, Rooms, and Objects modes to place at least one Habitat, Mess Hall, Workshop, Storage, and Exploration Gate.
 - Hover toolbar buttons and context cards; confirm tooltips stay inside the playable view.
 - Change priorities from Colony mode after an incident and confirm the advisor responds.
-- Use Assign mode to retask one survivor, then pin a compatible Habitat or work space from the map and confirm the HOME/WORK marker appears.
+- Use Assign mode to retask one survivor, then pin a compatible Habitat or work space from the map and confirm the HOME/WORK marker and any conflict warning appears.
 - Open Log mode after a day summary and confirm the social timeline preserves recent relationship recommendations.
 - Launch at least two different mission types from Research mode and compare risk/reward.
 - Hover and inspect one colonist, then identify their strongest or weakest relationship.

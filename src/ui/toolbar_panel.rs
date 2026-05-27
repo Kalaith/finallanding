@@ -1,6 +1,6 @@
 use super::Layout;
 use crate::data::building::BuildingType;
-use crate::data::colonist::Colonist;
+use crate::data::colonist::{relationship_label, Colonist};
 use crate::data::event_log::{ColonyLogEntry, LogCategory, SocialHistoryEntry};
 use crate::data::priority::ColonyPriority;
 use crate::data::resources::ResourceState;
@@ -49,7 +49,9 @@ pub fn draw_toolbar_context_panel(
         ToolbarMode::Research => {
             draw_research_context(context, mission_plans, technology, active_mission_count)
         }
-        ToolbarMode::Assign => draw_assign_context(context, colonists, selected_colonist_id),
+        ToolbarMode::Assign => {
+            draw_assign_context(context, colonists, selected_colonist_id, technology)
+        }
         ToolbarMode::Log => draw_log_context(context, logs, social_history, colony_summary),
     }
 }
@@ -225,7 +227,12 @@ fn draw_research_context(
     }
 }
 
-fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_id: Option<u32>) {
+fn draw_assign_context(
+    context: Rect,
+    colonists: &[Colonist],
+    selected_colonist_id: Option<u32>,
+    technology: &TechnologyState,
+) {
     let mut hovered_forecast = None;
     let mut hovered_name = None;
     let mut hovered_directive = None;
@@ -239,6 +246,7 @@ fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_
         let pair_action = selected_colonist_id
             .filter(|selected_id| *selected_id != colonist.id)
             .and_then(|selected_id| assign_pair_action(colonists, selected_id, colonist.id));
+        let pin_warning = assignment_pin_warning(colonist, colonists, technology);
 
         style::draw_button(rect, selected, hovered);
         draw_rectangle(
@@ -246,9 +254,15 @@ fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_
             rect.y,
             3.0,
             rect.h,
-            pair_action
+            pin_warning
                 .as_ref()
-                .map(|action| directive_color(action.directive))
+                .filter(|_| selected)
+                .map(|_| style::ALERT_RED)
+                .or_else(|| {
+                    pair_action
+                        .as_ref()
+                        .map(|action| directive_color(action.directive))
+                })
                 .unwrap_or_else(|| {
                     let next_role = colonist.job_preference.next_assignable();
                     let forecast =
@@ -266,15 +280,24 @@ fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_
 
         if selected {
             if hovered {
-                hovered_directive = Some(selected_assignment_detail(colonist));
+                hovered_directive =
+                    Some(selected_assignment_detail(colonist, colonists, technology));
                 hovered_name = Some(colonist.name.clone());
             }
+            let label = pin_warning
+                .as_ref()
+                .map(|warning| format!("{} {}", warning.label, selected_assignment_label(colonist)))
+                .unwrap_or_else(|| selected_assignment_label(colonist));
             draw_text(
-                &style::truncate_text(&selected_assignment_label(colonist), 17),
+                &style::truncate_text(&label, 17),
                 rect.x + 10.0,
                 rect.y + 34.0,
                 style::TINY_SIZE,
-                style::TEXT_BODY,
+                if pin_warning.is_some() {
+                    style::ALERT_RED
+                } else {
+                    style::TEXT_BODY
+                },
             );
         } else if let Some(action) = pair_action {
             if hovered {
@@ -313,18 +336,29 @@ fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_
         }
     }
 
-    let footer = selected_colonist_id
-        .and_then(|id| colonists.iter().find(|colonist| colonist.id == id))
+    let selected_colonist =
+        selected_colonist_id.and_then(|id| colonists.iter().find(|colonist| colonist.id == id));
+    let selected_warning = selected_colonist
+        .and_then(|colonist| assignment_pin_warning(colonist, colonists, technology));
+    let footer = selected_colonist
         .map(|colonist| format!("Selected {} | click map spaces to pin rooms", colonist.name))
         .unwrap_or_else(|| {
             "Roles, pair directives, and space directives shape work blocks.".to_string()
         });
+    let footer = selected_warning
+        .as_ref()
+        .map(|warning| warning.detail.clone())
+        .unwrap_or(footer);
     draw_text(
         &style::truncate_text(&footer, 76),
         context.x + 18.0,
         context.y + 111.0,
         style::TINY_SIZE,
-        style::TEXT_MUTED,
+        if selected_warning.is_some() {
+            style::ALERT_RED
+        } else {
+            style::TEXT_MUTED
+        },
     );
 
     if let (Some(name), Some(detail)) = (hovered_name.clone(), hovered_directive) {
@@ -404,11 +438,115 @@ fn selected_assignment_label(colonist: &Colonist) -> String {
     format!("{} {}", home, work)
 }
 
-fn selected_assignment_detail(colonist: &Colonist) -> String {
-    format!(
+fn selected_assignment_detail(
+    colonist: &Colonist,
+    colonists: &[Colonist],
+    technology: &TechnologyState,
+) -> String {
+    let base = format!(
         "Click this card to cycle role. Click a compatible map building to pin or clear recovery/work space. Current pins: {}.",
         selected_assignment_label(colonist)
-    )
+    );
+    assignment_pin_warning(colonist, colonists, technology)
+        .map(|warning| format!("{} {}", base, warning.detail))
+        .unwrap_or(base)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct AssignmentPinWarning {
+    label: String,
+    detail: String,
+}
+
+fn assignment_pin_warning(
+    colonist: &Colonist,
+    colonists: &[Colonist],
+    technology: &TechnologyState,
+) -> Option<AssignmentPinWarning> {
+    if let Some(habitat_id) = colonist.assigned_habitat {
+        let count = colonists
+            .iter()
+            .filter(|candidate| candidate.assigned_habitat == Some(habitat_id))
+            .count() as u32;
+        let capacity = 2 + technology.habitat_capacity_bonus();
+        if count > capacity {
+            return Some(AssignmentPinWarning {
+                label: "CAP".to_string(),
+                detail: format!(
+                    "Habitat #{} over capacity: {}/{} pinned survivors.",
+                    habitat_id, count, capacity
+                ),
+            });
+        }
+
+        if let Some((name, value)) = first_assignment_conflict(
+            colonist,
+            colonists,
+            AssignmentPinLocation::Habitat(habitat_id),
+        ) {
+            return Some(AssignmentPinWarning {
+                label: "TENSE".to_string(),
+                detail: format!(
+                    "{}: {} {:+} in H#{}. Pin another room or use Apart.",
+                    name,
+                    relationship_label(value),
+                    value,
+                    habitat_id
+                ),
+            });
+        }
+    }
+
+    if let Some(workplace_id) = colonist.assigned_workplace {
+        if let Some((name, value)) = first_assignment_conflict(
+            colonist,
+            colonists,
+            AssignmentPinLocation::Work(workplace_id),
+        ) {
+            return Some(AssignmentPinWarning {
+                label: "TENSE".to_string(),
+                detail: format!(
+                    "{}: {} {:+} at W#{}. Pin another space or use Apart.",
+                    name,
+                    relationship_label(value),
+                    value,
+                    workplace_id
+                ),
+            });
+        }
+    }
+
+    None
+}
+
+#[derive(Clone, Copy)]
+enum AssignmentPinLocation {
+    Habitat(u32),
+    Work(u32),
+}
+
+fn first_assignment_conflict(
+    colonist: &Colonist,
+    colonists: &[Colonist],
+    location: AssignmentPinLocation,
+) -> Option<(String, i32)> {
+    colonists
+        .iter()
+        .filter(|candidate| candidate.id != colonist.id)
+        .filter(|candidate| match location {
+            AssignmentPinLocation::Habitat(id) => candidate.assigned_habitat == Some(id),
+            AssignmentPinLocation::Work(id) => candidate.assigned_workplace == Some(id),
+        })
+        .filter_map(|candidate| {
+            let value = RelationshipDirectiveSystem::average_relationship(
+                colonists,
+                colonist.id,
+                candidate.id,
+            )
+            .unwrap_or(0);
+            (value <= -10).then(|| (candidate.name.clone(), value))
+        })
+        .min_by_key(|(_, value)| *value)
 }
 
 fn draw_log_context(
@@ -698,7 +836,42 @@ mod tests {
         colonist.assigned_workplace = Some(8);
 
         assert_eq!(selected_assignment_label(&colonist), "H#3 W#8");
-        assert!(selected_assignment_detail(&colonist).contains("H#3 W#8"));
+        assert!(selected_assignment_detail(
+            &colonist,
+            &[colonist.clone()],
+            &TechnologyState::default()
+        )
+        .contains("H#3 W#8"));
+    }
+
+    #[test]
+    fn test_assignment_pin_warning_flags_over_capacity_habitat() {
+        let mut colonists = vec![test_colonist(1), test_colonist(2), test_colonist(3)];
+        for colonist in &mut colonists {
+            colonist.assigned_habitat = Some(7);
+        }
+
+        let warning =
+            assignment_pin_warning(&colonists[0], &colonists, &TechnologyState::default()).unwrap();
+
+        assert_eq!(warning.label, "CAP");
+        assert!(warning.detail.contains("3/2"));
+    }
+
+    #[test]
+    fn test_assignment_pin_warning_flags_tense_shared_workplace() {
+        let mut colonists = vec![test_colonist(1), test_colonist(2)];
+        colonists[0].assigned_workplace = Some(9);
+        colonists[1].assigned_workplace = Some(9);
+        colonists[0].relationships.insert(2, -24);
+        colonists[1].relationships.insert(1, -20);
+
+        let warning =
+            assignment_pin_warning(&colonists[0], &colonists, &TechnologyState::default()).unwrap();
+
+        assert_eq!(warning.label, "TENSE");
+        assert!(warning.detail.contains("Colonist 2"));
+        assert!(warning.detail.contains("W#9"));
     }
 
     #[test]
