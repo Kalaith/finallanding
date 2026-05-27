@@ -1,0 +1,275 @@
+{
+  "title_text_off_white": {
+    "display_box": [
+      32,
+      28,
+      246,
+      58
+    ],
+    "source_box": [
+      26,
+      23,
+      201,
+      48
+    ],
+    "pixels": 746,
+    "rgb": [
+      237,
+      236,
+      232
+    ],
+    "hex": "#EDECE8"
+  },
+  "body_text_off_white": {
+    "display_box": [
+      58,
+      165,
+      220,
+      290
+    ],
+    "source_box": [
+      47,
+      136,
+      180,
+      240
+    ],
+    "pixels": 1296,
+    "rgb": [
+      161,
+      163,
+      160
+    ],
+    "hex": "#A1A3A0"
+  },
+  "small_muted_text": {
+    "display_box": [
+      1780,
+      430,
+      1998,
+      612
+    ],
+    "source_box": [
+      1453,
+      356,
+      1631,
+      506
+    ],
+    "pixels": 499,
+    "rgb": [
+      140,
+      141,
+      138
+    ],
+    "hex": "#8C8D8A"
+  },
+  "section_heading_blue": {
+    "display_box": [
+      34,
+      119,
+      134,
+      140
+    ],
+    "source_box": [
+      28,
+      98,
+      109,
+      116
+    ],
+    "pixels": 345,
+    "rgb": [
+      146,
+      176,
+      182
+    ],
+    "hex": "#92B0B6"
+  },
+  "day_gold_text": {
+    "display_box": [
+      563,
+      32,
+      630,
+      58
+    ],
+    "source_box": [
+      460,
+      26,
+      514,
+      48
+    ],
+    "pixels": 35,
+    "rgb": [
+      154,
+      123,
+      72
+    ],
+    "hex": "#9A7B48"
+  },
+  "play_blue_icon": {
+    "display_box": [
+      398,
+      31,
+      425,
+      58
+    ],
+    "source_box": [
+      325,
+      26,
+      347,
+      48
+    ],
+    "pixels": 27,
+    "rgb": [
+      85,
+      117,
+      126
+    ],
+    "hex": "#55757E"
+  },
+  "success_green": {
+    "display_box": [
+      33,
+      230,
+      205,
+      254
+    ],
+    "source_box": [
+      27,
+      190,
+      167,
+      210
+    ],
+    "pixels": 111,
+    "rgb": [
+      115,
+      117,
+      112
+    ],
+    "hex": "#737570"
+  },
+  "alert_red": {
+    "display_box": [
+      20,
+      545,
+      280,
+      580
+    ],
+    "source_box": [
+      16,
+      451,
+      229,
+      480
+    ],
+    "pixels": 119,
+    "rgb": [
+      170,
+      69,
+      56
+    ],
+    "hex": "#AA4538"
+  },
+  "research_blue": {
+    "display_box": [
+      20,
+      635,
+      280,
+      675
+    ],
+    "source_box": [
+      16,
+      525,
+      229,
+      558
+    ],
+    "pixels": 146,
+    "rgb": [
+      78,
+      113,
+      142
+    ],
+    "hex": "#4E718E"
+  },
+  "mood_bar_green": {
+    "display_box": [
+      124,
+      900,
+      344,
+      916
+    ],
+    "source_box": [
+      101,
+      744,
+      281,
+      757
+    ],
+    "pixels": 1313,
+    "rgb": [
+      89,
+      143,
+      66
+    ],
+    "hex": "#598F42"
+  },
+  "energy_bar_gold": {
+    "display_box": [
+      124,
+      928,
+      230,
+      946
+    ],
+    "source_box": [
+      101,
+      767,
+      188,
+      782
+    ],
+    "pixels": 553,
+    "rgb": [
+      173,
+      135,
+      60
+    ],
+    "hex": "#AD873C"
+  },
+  "hunger_bar_red": {
+    "display_box": [
+      124,
+      956,
+      260,
+      974
+    ],
+    "source_box": [
+      101,
+      791,
+      212,
+      805
+    ],
+    "pixels": 520,
+    "rgb": [
+      156,
+      54,
+      46
+    ],
+    "hex": "#9C362E"
+  },
+  "health_bar_cyan": {
+    "display_box": [
+      124,
+      986,
+      286,
+      1000
+    ],
+    "source_box": [
+      101,
+      815,
+      233,
+      827
+    ],
+    "pixels": 390,
+    "rgb": [
+      64,
+      137,
+      171
+    ],
+    "hex": "#4089AB"
+  }
+}

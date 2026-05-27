@@ -1,0 +1,617 @@
+{
+  "source": "D:\\WebHatchery\\RustGames\\finallanding\\tfl_guide_mvp.png",
+  "dimensions": {
+    "width": 1672,
+    "height": 941
+  },
+  "coordinate_scale_from_preview": {
+    "x": 0.81640625,
+    "y": 0.8268892794376098
+  },
+  "crops": {
+    "portrait_mara_kovac.png": {
+      "display_box": [
+        38,
+        768,
+        151,
+        891
+      ],
+      "source_box": [
+        31,
+        635,
+        123,
+        737
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\portrait_mara_kovac.png"
+    },
+    "rel_portrait_male_beard.png": {
+      "display_box": [
+        34,
+        1054,
+        73,
+        1096
+      ],
+      "source_box": [
+        28,
+        872,
+        60,
+        906
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\rel_portrait_male_beard.png"
+    },
+    "rel_portrait_mara.png": {
+      "display_box": [
+        101,
+        1054,
+        141,
+        1096
+      ],
+      "source_box": [
+        82,
+        872,
+        115,
+        906
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\rel_portrait_mara.png"
+    },
+    "rel_portrait_dark_hair.png": {
+      "display_box": [
+        170,
+        1054,
+        210,
+        1096
+      ],
+      "source_box": [
+        139,
+        872,
+        171,
+        906
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\rel_portrait_dark_hair.png"
+    },
+    "rel_portrait_blond.png": {
+      "display_box": [
+        238,
+        1054,
+        278,
+        1096
+      ],
+      "source_box": [
+        194,
+        872,
+        227,
+        906
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\rel_portrait_blond.png"
+    },
+    "rel_portrait_pale.png": {
+      "display_box": [
+        305,
+        1054,
+        345,
+        1096
+      ],
+      "source_box": [
+        249,
+        872,
+        282,
+        906
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\rel_portrait_pale.png"
+    },
+    "sprite_charlie_world.png": {
+      "display_box": [
+        858,
+        256,
+        900,
+        350
+      ],
+      "source_box": [
+        700,
+        212,
+        735,
+        289
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\sprite_charlie_world.png"
+    },
+    "sprite_ilya_world.png": {
+      "display_box": [
+        968,
+        403,
+        1012,
+        500
+      ],
+      "source_box": [
+        790,
+        333,
+        826,
+        413
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\sprite_ilya_world.png"
+    },
+    "sprite_eva_world.png": {
+      "display_box": [
+        1473,
+        196,
+        1519,
+        293
+      ],
+      "source_box": [
+        1203,
+        162,
+        1240,
+        242
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\sprite_eva_world.png"
+    },
+    "sprite_gate_worker_world.png": {
+      "display_box": [
+        1123,
+        793,
+        1174,
+        887
+      ],
+      "source_box": [
+        917,
+        656,
+        958,
+        733
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\sprite_gate_worker_world.png"
+    },
+    "sprite_habitat_eva_world.png": {
+      "display_box": [
+        516,
+        680,
+        555,
+        760
+      ],
+      "source_box": [
+        421,
+        562,
+        453,
+        628
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\sprite_habitat_eva_world.png"
+    },
+    "sprite_mess_eli_world.png": {
+      "display_box": [
+        994,
+        608,
+        1030,
+        695
+      ],
+      "source_box": [
+        812,
+        503,
+        841,
+        575
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\sprite_mess_eli_world.png"
+    },
+    "sprite_workshop_worker_world.png": {
+      "display_box": [
+        1477,
+        464,
+        1515,
+        544
+      ],
+      "source_box": [
+        1206,
+        384,
+        1237,
+        450
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\sprite_workshop_worker_world.png"
+    },
+    "ui_top_bar_sample.png": {
+      "display_box": [
+        15,
+        16,
+        846,
+        77
+      ],
+      "source_box": [
+        12,
+        13,
+        691,
+        64
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\ui_top_bar_sample.png"
+    },
+    "ui_left_panel_sample.png": {
+      "display_box": [
+        14,
+        97,
+        299,
+        372
+      ],
+      "source_box": [
+        11,
+        80,
+        244,
+        308
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\ui_left_panel_sample.png"
+    },
+    "ui_resource_panel_sample.png": {
+      "display_box": [
+        1734,
+        347,
+        2035,
+        631
+      ],
+      "source_box": [
+        1416,
+        287,
+        1661,
+        522
+      ],
+      "path": "D:\\WebHatchery\\RustGames\\finallanding\\docs\\reference\\tfl_guide_mvp\\ui_resource_panel_sample.png"
+    }
+  },
+  "sampled_colors": {
+    "panel_background": {
+      "display_point": [
+        40,
+        126
+      ],
+      "source_point": [
+        33,
+        104
+      ],
+      "rgba": [
+        11,
+        17,
+        17,
+        255
+      ],
+      "hex": "#0B1111"
+    },
+    "panel_background_deep": {
+      "display_point": [
+        35,
+        735
+      ],
+      "source_point": [
+        29,
+        608
+      ],
+      "rgba": [
+        16,
+        19,
+        21,
+        255
+      ],
+      "hex": "#101315"
+    },
+    "panel_border": {
+      "display_point": [
+        15,
+        17
+      ],
+      "source_point": [
+        12,
+        14
+      ],
+      "rgba": [
+        13,
+        13,
+        11,
+        255
+      ],
+      "hex": "#0D0D0B"
+    },
+    "primary_text": {
+      "display_point": [
+        38,
+        43
+      ],
+      "source_point": [
+        31,
+        36
+      ],
+      "rgba": [
+        23,
+        28,
+        27,
+        255
+      ],
+      "hex": "#171C1B"
+    },
+    "body_text": {
+      "display_point": [
+        59,
+        176
+      ],
+      "source_point": [
+        48,
+        146
+      ],
+      "rgba": [
+        11,
+        16,
+        17,
+        255
+      ],
+      "hex": "#0B1011"
+    },
+    "muted_text": {
+      "display_point": [
+        1760,
+        461
+      ],
+      "source_point": [
+        1437,
+        381
+      ],
+      "rgba": [
+        16,
+        20,
+        18,
+        255
+      ],
+      "hex": "#101412"
+    },
+    "accent_blue": {
+      "display_point": [
+        620,
+        44
+      ],
+      "source_point": [
+        506,
+        36
+      ],
+      "rgba": [
+        17,
+        14,
+        11,
+        255
+      ],
+      "hex": "#110E0B"
+    },
+    "accent_gold": {
+      "display_point": [
+        565,
+        44
+      ],
+      "source_point": [
+        461,
+        36
+      ],
+      "rgba": [
+        0,
+        4,
+        7,
+        255
+      ],
+      "hex": "#000407"
+    },
+    "accent_green": {
+      "display_point": [
+        128,
+        241
+      ],
+      "source_point": [
+        104,
+        199
+      ],
+      "rgba": [
+        41,
+        44,
+        43,
+        255
+      ],
+      "hex": "#292C2B"
+    },
+    "warning_red": {
+      "display_point": [
+        29,
+        560
+      ],
+      "source_point": [
+        24,
+        463
+      ],
+      "rgba": [
+        29,
+        18,
+        16,
+        255
+      ],
+      "hex": "#1D1210"
+    },
+    "research_blue": {
+      "display_point": [
+        34,
+        648
+      ],
+      "source_point": [
+        28,
+        536
+      ],
+      "rgba": [
+        9,
+        20,
+        29,
+        255
+      ],
+      "hex": "#09141D"
+    },
+    "health_blue": {
+      "display_point": [
+        153,
+        993
+      ],
+      "source_point": [
+        125,
+        821
+      ],
+      "rgba": [
+        15,
+        21,
+        22,
+        255
+      ],
+      "hex": "#0F1516"
+    },
+    "bar_green": {
+      "display_point": [
+        128,
+        908
+      ],
+      "source_point": [
+        104,
+        751
+      ],
+      "rgba": [
+        108,
+        166,
+        78,
+        255
+      ],
+      "hex": "#6CA64E"
+    },
+    "bar_yellow": {
+      "display_point": [
+        130,
+        938
+      ],
+      "source_point": [
+        106,
+        776
+      ],
+      "rgba": [
+        20,
+        25,
+        25,
+        255
+      ],
+      "hex": "#141919"
+    },
+    "bar_red": {
+      "display_point": [
+        130,
+        965
+      ],
+      "source_point": [
+        106,
+        798
+      ],
+      "rgba": [
+        14,
+        21,
+        21,
+        255
+      ],
+      "hex": "#0E1515"
+    }
+  },
+  "region_average_colors": {
+    "top_bar": {
+      "display_box": [
+        15,
+        16,
+        846,
+        77
+      ],
+      "source_box": [
+        12,
+        13,
+        691,
+        64
+      ],
+      "average_rgb": [
+        25,
+        28,
+        28
+      ],
+      "average_hex": "#191C1C"
+    },
+    "objectives_panel": {
+      "display_box": [
+        14,
+        97,
+        299,
+        372
+      ],
+      "source_box": [
+        11,
+        80,
+        244,
+        308
+      ],
+      "average_rgb": [
+        25,
+        29,
+        30
+      ],
+      "average_hex": "#191D1E"
+    },
+    "character_panel": {
+      "display_box": [
+        14,
+        713,
+        369,
+        1130
+      ],
+      "source_box": [
+        11,
+        590,
+        301,
+        934
+      ],
+      "average_rgb": [
+        30,
+        31,
+        29
+      ],
+      "average_hex": "#1E1F1D"
+    },
+    "right_resource_panel": {
+      "display_box": [
+        1734,
+        347,
+        2035,
+        631
+      ],
+      "source_box": [
+        1416,
+        287,
+        1661,
+        522
+      ],
+      "average_rgb": [
+        23,
+        26,
+        26
+      ],
+      "average_hex": "#171A1A"
+    },
+    "bottom_toolbar": {
+      "display_box": [
+        565,
+        1045,
+        1388,
+        1131
+      ],
+      "source_box": [
+        461,
+        864,
+        1133,
+        935
+      ],
+      "average_rgb": [
+        25,
+        29,
+        31
+      ],
+      "average_hex": "#191D1F"
+    }
+  },
+  "font_read": {
+    "title_heading": "Closest practical match: Rajdhani SemiBold/Bold or Exo 2 SemiBold, all-caps tracking 0.04em.",
+    "body_ui": "Closest practical match: Rajdhani Medium or Roboto Condensed, 14-16px, off-white.",
+    "numeric_label": "Use same condensed family, medium weight; gold for day/resource highlights."
+  }
+}
