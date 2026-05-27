@@ -313,6 +313,7 @@ Completed in the active rebuild:
 - Initial survivors now start with a small social backstory so relationship management is visible from the first playable frame.
 - Colonists prefer available workplaces and habitat assignments with supportive partners over hostile pairings when the colony has a choice.
 - The map and right rail now expose relationship pressure/support through compact social badges and Friendly/Tense value chips.
+- The colony surface now has deterministic crash-site dressing with wreckage, cables, tracks, and richer room-specific cutaway details on placed buildings.
 - `scripts/capture_ui_smoke.ps1` captures and verifies 1280x720 and 1920x1080 gameplay screenshots under `docs/verification/`.
 
 Validation currently passing:
@@ -334,8 +335,8 @@ Highest-value remaining items:
    - Keep screenshot crops as visual reference only.
 
 2. Add richer isometric terrain and building assets.
-   - Dirt, wreckage, scrap, paths, and work-zone tile variation.
-   - Building interiors or roof-cutaway sprites for each room/object.
+   - Replace procedural crash-site dressing with a fuller tile set if dedicated art becomes available.
+   - Add authored building sprites or higher-fidelity cutaway art for each room/object.
    - Stronger selected/hover outlines.
 
 3. Expand relationship-manager gameplay.

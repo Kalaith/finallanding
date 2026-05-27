@@ -1190,8 +1190,32 @@ fn building_shell_colors(building_type: BuildingType) -> (Color, Color, Color) {
 }
 
 fn draw_building_shell_detail(building_type: BuildingType, center: Vec2, width: f32, height: f32) {
+    draw_iso_diamond(
+        center + vec2(0.0, height * 0.08),
+        width * 0.66,
+        height * 0.5,
+        Color::new(0.05, 0.06, 0.055, 0.52),
+    );
+
     match building_type {
         BuildingType::Habitat => {
+            for index in 0..2 {
+                let bed_x = center.x - width * 0.2 + index as f32 * width * 0.2;
+                draw_rectangle(
+                    bed_x,
+                    center.y + height * 0.28,
+                    12.0,
+                    7.0,
+                    Color::new(0.56, 0.64, 0.68, 1.0),
+                );
+                draw_rectangle(
+                    bed_x + 1.5,
+                    center.y + height * 0.29,
+                    4.0,
+                    5.0,
+                    Color::new(0.18, 0.24, 0.27, 1.0),
+                );
+            }
             draw_rectangle(
                 center.x - width * 0.14,
                 center.y + height * 0.56,
@@ -1208,6 +1232,22 @@ fn draw_building_shell_detail(building_type: BuildingType, center: Vec2, width: 
             );
         }
         BuildingType::MessHall => {
+            draw_rectangle(
+                center.x - width * 0.17,
+                center.y + height * 0.31,
+                width * 0.34,
+                7.0,
+                Color::new(0.17, 0.12, 0.07, 1.0),
+            );
+            for index in 0..4 {
+                let place_x = center.x - width * 0.14 + index as f32 * width * 0.09;
+                draw_circle(
+                    place_x,
+                    center.y + height * 0.34,
+                    2.2,
+                    Color::new(0.76, 0.68, 0.48, 1.0),
+                );
+            }
             draw_line(
                 center.x - width * 0.22,
                 center.y + height * 0.48,
@@ -1219,6 +1259,27 @@ fn draw_building_shell_detail(building_type: BuildingType, center: Vec2, width: 
             draw_circle(center.x, center.y + height * 0.48, 3.0, style::BAR_GOLD);
         }
         BuildingType::Workshop => {
+            draw_rectangle(
+                center.x - width * 0.18,
+                center.y + height * 0.3,
+                width * 0.36,
+                8.0,
+                Color::new(0.13, 0.1, 0.08, 1.0),
+            );
+            draw_line(
+                center.x - width * 0.13,
+                center.y + height * 0.32,
+                center.x + width * 0.1,
+                center.y + height * 0.32,
+                1.0,
+                style::ACCENT_GOLD,
+            );
+            draw_circle(
+                center.x + width * 0.14,
+                center.y + height * 0.27,
+                2.2,
+                Color::new(0.9, 0.58, 0.23, 0.9),
+            );
             draw_rectangle(
                 center.x - 6.0,
                 center.y + height * 0.38,
@@ -1236,6 +1297,12 @@ fn draw_building_shell_detail(building_type: BuildingType, center: Vec2, width: 
             );
         }
         BuildingType::Storage => {
+            draw_iso_diamond(
+                center + vec2(0.0, height * 0.32),
+                width * 0.44,
+                height * 0.2,
+                Color::new(0.19, 0.2, 0.18, 1.0),
+            );
             for index in 0..3 {
                 draw_rectangle(
                     center.x - 18.0 + index as f32 * 12.0,
@@ -1247,6 +1314,22 @@ fn draw_building_shell_detail(building_type: BuildingType, center: Vec2, width: 
             }
         }
         BuildingType::ExplorationGate => {
+            draw_line(
+                center.x,
+                center.y + height * 0.18,
+                center.x,
+                center.y - height * 0.4,
+                2.0,
+                style::TEXT_BODY,
+            );
+            draw_circle_lines(
+                center.x,
+                center.y - height * 0.45,
+                8.0,
+                1.0,
+                style::HEADING_BLUE,
+            );
+            draw_circle(center.x, center.y - height * 0.45, 2.4, style::ACCENT_GOLD);
             let arch_y = center.y + height * 0.36;
             draw_line(
                 center.x - width * 0.18,
@@ -1282,6 +1365,9 @@ enum TerrainDetail {
     Scrap,
     Brush,
     Scorch,
+    Wreckage,
+    Cable,
+    Track,
 }
 
 fn terrain_color(cell_type: Option<CellType>, x: i32, y: i32) -> Color {
@@ -1301,6 +1387,10 @@ fn terrain_detail(cell_type: Option<CellType>, x: i32, y: i32) -> TerrainDetail 
         return TerrainDetail::None;
     }
 
+    if let Some(detail) = crash_site_detail(x, y) {
+        return detail;
+    }
+
     let seed = terrain_seed(x, y);
     if seed % 23 == 0 {
         TerrainDetail::Scrap
@@ -1311,6 +1401,22 @@ fn terrain_detail(cell_type: Option<CellType>, x: i32, y: i32) -> TerrainDetail 
     } else {
         TerrainDetail::None
     }
+}
+
+fn crash_site_detail(x: i32, y: i32) -> Option<TerrainDetail> {
+    if (6..=13).contains(&x) && (7..=9).contains(&y) && (x + y) % 3 == 0 {
+        return Some(TerrainDetail::Wreckage);
+    }
+
+    if (4..=15).contains(&x) && (x - y).abs() <= 1 && (x + y) % 4 == 0 {
+        return Some(TerrainDetail::Track);
+    }
+
+    if (7..=15).contains(&x) && (5..=11).contains(&y) && (x * 2 + y) % 11 == 0 {
+        return Some(TerrainDetail::Cable);
+    }
+
+    None
 }
 
 fn draw_terrain_detail(center: Vec2, tile_w: f32, tile_h: f32, detail: TerrainDetail) {
@@ -1356,6 +1462,54 @@ fn draw_terrain_detail(center: Vec2, tile_w: f32, tile_h: f32, detail: TerrainDe
                 tile_w * 0.48,
                 tile_h * 0.48,
                 Color::new(0.05, 0.045, 0.035, 0.35),
+            );
+        }
+        TerrainDetail::Wreckage => {
+            draw_iso_diamond(
+                center + vec2(tile_w * 0.04, tile_h * 0.35),
+                tile_w * 0.32,
+                tile_h * 0.18,
+                Color::new(0.36, 0.35, 0.31, 0.8),
+            );
+            draw_line(
+                center.x - tile_w * 0.12,
+                center.y + tile_h * 0.42,
+                center.x + tile_w * 0.18,
+                center.y + tile_h * 0.34,
+                1.2,
+                Color::new(0.62, 0.52, 0.34, 0.78),
+            );
+            draw_circle(
+                center.x + tile_w * 0.16,
+                center.y + tile_h * 0.34,
+                1.8,
+                style::ACCENT_GOLD,
+            );
+        }
+        TerrainDetail::Cable => {
+            draw_line(
+                center.x - tile_w * 0.2,
+                center.y + tile_h * 0.5,
+                center.x - tile_w * 0.04,
+                center.y + tile_h * 0.43,
+                1.3,
+                Color::new(0.05, 0.055, 0.055, 0.82),
+            );
+            draw_line(
+                center.x - tile_w * 0.04,
+                center.y + tile_h * 0.43,
+                center.x + tile_w * 0.18,
+                center.y + tile_h * 0.54,
+                1.3,
+                Color::new(0.05, 0.055, 0.055, 0.82),
+            );
+        }
+        TerrainDetail::Track => {
+            draw_iso_diamond(
+                center + vec2(0.0, tile_h * 0.2),
+                tile_w * 0.72,
+                tile_h * 0.34,
+                Color::new(0.08, 0.07, 0.045, 0.28),
             );
         }
     }
@@ -1487,6 +1641,14 @@ mod tests {
             terrain_detail(Some(CellType::Empty), 7, 11)
         );
         assert_eq!(terrain_detail(None, 7, 11), TerrainDetail::None);
+    }
+
+    #[test]
+    fn test_crash_site_detail_adds_deterministic_map_dressing() {
+        assert_eq!(crash_site_detail(8, 7), Some(TerrainDetail::Wreckage));
+        assert_eq!(crash_site_detail(4, 4), Some(TerrainDetail::Track));
+        assert_eq!(crash_site_detail(8, 6), Some(TerrainDetail::Cable));
+        assert_eq!(crash_site_detail(0, 0), None);
     }
 
     #[test]
