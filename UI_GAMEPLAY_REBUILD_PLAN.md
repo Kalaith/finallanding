@@ -330,6 +330,7 @@ Completed in the active rebuild:
 - Log mode now supports persistent click-to-open drilldowns for daily social reports, including the report detail and recommendation.
 - Log mode now exports the full social archive to `docs/exports/social_archive.md` for out-of-game relationship review.
 - The colony surface now has deterministic crash-site dressing with wreckage, cables, tracks, and richer room-specific cutaway details on placed buildings.
+- Crash-site dressing now includes authored supply crates, hull panels, signal beacons, fuel drums, and denser room interiors for each building type.
 - Colony-map hover/selection states now use stronger survivor rings plus building footprint and roof outlines for hovered or selected room-assignment spaces.
 - `scripts/capture_ui_smoke.ps1` captures 1280x720, 1920x1080, Assign-mode, Log-mode, placement-preview, and pose-variant gameplay screenshots under `docs/verification/` and checks important map, rail, active-toolbar, and placement-preview regions for visible pixels.
 
@@ -353,8 +354,8 @@ Highest-value remaining items:
    - Keep screenshot crops as visual reference only.
 
 2. Add richer isometric terrain and building assets.
-   - Replace procedural crash-site dressing with a fuller tile set if dedicated art becomes available.
-   - Add authored building sprites or higher-fidelity cutaway art for each room/object.
+   - Replace the procedural crash-site dressing with a fuller tile set if dedicated art becomes available.
+   - Replace procedural room interiors with authored building sprites or higher-fidelity cutaway art for each room/object.
 
 3. Expand relationship-manager gameplay.
    - Upgrade relationship-reactive body language from procedural pose swaps to richer animation frames when production art is available.
