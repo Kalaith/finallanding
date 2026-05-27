@@ -1,4 +1,4 @@
-use crate::data::building::BuildingType;
+use crate::data::building::{Building, BuildingType};
 use crate::data::colonist::{ActivityLocation, Colonist, ColonistState};
 use crate::data::event_log::{LogCategory, SocialHistoryEntry};
 use crate::data::game_state::GameState;
@@ -80,6 +80,7 @@ impl GameplayState {
                 data.scenario.required_tech_unlocks
             ),
         );
+        seed_assign_spaces_for_capture(&mut data);
         seed_activity_poses_for_capture(&mut data);
         seed_social_history_for_capture(&mut data);
 
@@ -166,6 +167,16 @@ impl GameplayState {
             .building_system
             .undo_last_placement(&mut self.data.grid)
         {
+            let cleared_assignments = self.clear_building_assignments(building_id);
+            let assignment_note = if cleared_assignments.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    " Cleared room pins for {}.",
+                    truncate_text(&cleared_assignments.join(", "), 46)
+                )
+            };
+
             if let Some((refund_id, building_type, salvage_cost)) = refund {
                 if refund_id == building_id {
                     self.data.resources.refund_salvage(salvage_cost);
@@ -173,10 +184,11 @@ impl GameplayState {
                         LogCategory::System,
                         "Building plan undone",
                         format!(
-                            "Removed {} #{} and refunded {} salvage.",
+                            "Removed {} #{} and refunded {} salvage.{}",
                             building_type.name(),
                             building_id,
-                            salvage_cost
+                            salvage_cost,
+                            assignment_note
                         ),
                     );
                     return;
@@ -187,8 +199,8 @@ impl GameplayState {
                 LogCategory::System,
                 "Building plan undone",
                 format!(
-                    "Removed building #{} from the settlement plan.",
-                    building_id
+                    "Removed building #{} from the settlement plan.{}",
+                    building_id, assignment_note
                 ),
             );
         }
@@ -497,6 +509,7 @@ impl GameplayState {
         };
 
         colonist.job_preference = next;
+        let cleared_workplace = colonist.assigned_workplace.take();
         if matches!(
             colonist.state,
             ColonistState::Working | ColonistState::Moving { .. }
@@ -510,12 +523,133 @@ impl GameplayState {
             LogCategory::System,
             format!("Role assigned: {}", name),
             format!(
-                "{} -> {}. {}",
+                "{} -> {}. {}{}",
                 previous.label(),
                 next.label(),
-                forecast.detail
+                forecast.detail,
+                if cleared_workplace.is_some() {
+                    " Work space pin cleared for the new role."
+                } else {
+                    ""
+                }
             ),
         );
+    }
+
+    fn update_assign_space_click(&mut self) {
+        let Some(building) = self.building_at_mouse().cloned() else {
+            return;
+        };
+
+        let Some(colonist_id) = self.selected_colonist_id else {
+            return;
+        };
+
+        self.assign_selected_colonist_to_building(colonist_id, &building);
+    }
+
+    fn assign_selected_colonist_to_building(&mut self, colonist_id: u32, building: &Building) {
+        let Some(colonist_index) = self
+            .data
+            .colonists
+            .iter()
+            .position(|colonist| colonist.id == colonist_id)
+        else {
+            return;
+        };
+
+        let name = self.data.colonists[colonist_index].name.clone();
+        let job = self.data.colonists[colonist_index].job_preference;
+        let Some(kind) = space_assignment_kind(job, building.building_type) else {
+            self.data.push_log(
+                LogCategory::Social,
+                "Room assignment blocked",
+                format!(
+                    "{} cannot pin {} #{} while assigned {}. Retask first or choose a compatible space.",
+                    name,
+                    building.building_type.name(),
+                    building.id,
+                    job.label()
+                ),
+            );
+            return;
+        };
+
+        let colonist = &mut self.data.colonists[colonist_index];
+        let (title, detail) = match kind {
+            SpaceAssignmentKind::Recovery => {
+                if colonist.assigned_habitat == Some(building.id) {
+                    colonist.assigned_habitat = None;
+                    (
+                        "Recovery room pin cleared".to_string(),
+                        format!("{} can choose any available Habitat again.", name),
+                    )
+                } else {
+                    colonist.assigned_habitat = Some(building.id);
+                    (
+                        "Recovery room pinned".to_string(),
+                        format!(
+                            "{} will prefer Habitat #{} for sleep and recovery.",
+                            name, building.id
+                        ),
+                    )
+                }
+            }
+            SpaceAssignmentKind::Work => {
+                if colonist.assigned_workplace == Some(building.id) {
+                    colonist.assigned_workplace = None;
+                    (
+                        "Work space pin cleared".to_string(),
+                        format!(
+                            "{} can choose any compatible {} space again.",
+                            name,
+                            job.label()
+                        ),
+                    )
+                } else {
+                    colonist.assigned_workplace = Some(building.id);
+                    if matches!(
+                        colonist.state,
+                        ColonistState::Working | ColonistState::Moving { .. }
+                    ) {
+                        colonist.state = ColonistState::Idle;
+                        colonist.activity_location = ActivityLocation::None;
+                    }
+                    (
+                        "Work space pinned".to_string(),
+                        format!(
+                            "{} will prefer {} #{} while assigned {}.",
+                            name,
+                            building.building_type.name(),
+                            building.id,
+                            job.label()
+                        ),
+                    )
+                }
+            }
+        };
+
+        self.data.push_log(LogCategory::Social, title, detail);
+    }
+
+    fn clear_building_assignments(&mut self, building_id: u32) -> Vec<String> {
+        let mut cleared = Vec::new();
+        for colonist in &mut self.data.colonists {
+            let mut changed = false;
+            if colonist.assigned_habitat == Some(building_id) {
+                colonist.assigned_habitat = None;
+                changed = true;
+            }
+            if colonist.assigned_workplace == Some(building_id) {
+                colonist.assigned_workplace = None;
+                changed = true;
+            }
+            if changed {
+                cleared.push(colonist.name.clone());
+            }
+        }
+
+        cleared
     }
 
     fn update_colonist_selection(&mut self) {
@@ -544,7 +678,17 @@ impl GameplayState {
             return;
         }
 
-        self.selected_colonist_id = self.colonist_id_at_mouse();
+        if let Some(colonist_id) = self.colonist_id_at_mouse() {
+            self.selected_colonist_id = Some(colonist_id);
+            return;
+        }
+
+        if self.toolbar_mode == ToolbarMode::Assign {
+            self.update_assign_space_click();
+            return;
+        }
+
+        self.selected_colonist_id = None;
     }
 
     fn update_top_bar_click(&mut self, mouse_x: f32, mouse_y: f32) {
@@ -766,6 +910,33 @@ impl GameplayState {
                 building.position.x + width as i32 / 2,
                 building.position.y + height as i32 / 2,
             ));
+            if let Some((assignment_label, assignment_color)) =
+                self.assignment_marker_for_building(building.id)
+            {
+                let marker_width = measure_text(assignment_label, None, 10, 1.0).width + 10.0;
+                draw_rectangle(
+                    label_pos.x - marker_width * 0.5,
+                    label_pos.y - 29.0,
+                    marker_width,
+                    14.0,
+                    Color::new(0.03, 0.04, 0.04, 0.82),
+                );
+                draw_rectangle_lines(
+                    label_pos.x - marker_width * 0.5,
+                    label_pos.y - 29.0,
+                    marker_width,
+                    14.0,
+                    1.0,
+                    assignment_color,
+                );
+                draw_text(
+                    assignment_label,
+                    label_pos.x - marker_width * 0.5 + 5.0,
+                    label_pos.y - 18.0,
+                    10.0,
+                    assignment_color,
+                );
+            }
             let label_width = measure_text(name, None, 12, 1.0).width;
             draw_text(
                 name,
@@ -774,6 +945,24 @@ impl GameplayState {
                 12.0,
                 WHITE,
             );
+        }
+    }
+
+    fn assignment_marker_for_building(&self, building_id: u32) -> Option<(&'static str, Color)> {
+        if self.toolbar_mode != ToolbarMode::Assign {
+            return None;
+        }
+
+        let colonist = self
+            .selected_colonist_id
+            .and_then(|id| self.colonist_by_id(id))?;
+
+        if colonist.assigned_habitat == Some(building_id) {
+            Some(("HOME", style::BAR_GREEN))
+        } else if colonist.assigned_workplace == Some(building_id) {
+            Some(("WORK", style::HEADING_BLUE))
+        } else {
+            None
         }
     }
 
@@ -1217,6 +1406,17 @@ impl GameplayState {
             })
             .min_by(|(_, left), (_, right)| left.total_cmp(right))
             .map(|(id, _)| id)
+    }
+
+    fn building_at_mouse(&self) -> Option<&Building> {
+        let game_area = self.layout.game_area();
+        let (mouse_x, mouse_y) = mouse_position();
+        if !game_area.contains(vec2(mouse_x, mouse_y)) {
+            return None;
+        }
+
+        let grid_pos = self.iso_view().screen_to_grid(vec2(mouse_x, mouse_y));
+        self.data.building_system.get_building_at(grid_pos)
     }
 
     fn colonist_by_id(&self, id: u32) -> Option<&Colonist> {
@@ -1663,6 +1863,23 @@ fn sprite_pose_for_state(state: ColonistState) -> SpritePose {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SpaceAssignmentKind {
+    Recovery,
+    Work,
+}
+
+fn space_assignment_kind(
+    job_preference: crate::data::colonist::JobPreference,
+    building_type: BuildingType,
+) -> Option<SpaceAssignmentKind> {
+    if building_type == BuildingType::Habitat {
+        return Some(SpaceAssignmentKind::Recovery);
+    }
+
+    (building_type == job_preference.work_building_type()).then_some(SpaceAssignmentKind::Work)
+}
+
 fn directive_log_detail(directive: PairDirective, first_name: &str, second_name: &str) -> String {
     match directive {
         PairDirective::Pair => format!(
@@ -1681,6 +1898,39 @@ fn initial_toolbar_mode() -> ToolbarMode {
         .ok()
         .and_then(|value| toolbar_mode_from_name(&value))
         .unwrap_or(ToolbarMode::Build)
+}
+
+fn seed_assign_spaces_for_capture(data: &mut GameState) {
+    if !std::env::var("TFL_SEED_ASSIGN_SPACES").is_ok_and(|value| value != "0") {
+        return;
+    }
+
+    let placements = [
+        (BuildingType::Habitat, Position::new(3, 4)),
+        (BuildingType::Habitat, Position::new(8, 4)),
+        (BuildingType::Workshop, Position::new(6, 8)),
+        (BuildingType::Storage, Position::new(12, 8)),
+    ];
+
+    let mut habitat_id = None;
+    let mut workshop_id = None;
+    for (building_type, position) in placements {
+        if let PlacementResult::Success(building_id) =
+            data.building_system
+                .try_place_building(&mut data.grid, building_type, position)
+        {
+            if building_type == BuildingType::Habitat && habitat_id.is_none() {
+                habitat_id = Some(building_id);
+            } else if building_type == BuildingType::Workshop {
+                workshop_id = Some(building_id);
+            }
+        }
+    }
+
+    if let Some(colonist) = data.colonists.iter_mut().find(|colonist| colonist.id == 5) {
+        colonist.assigned_habitat = habitat_id;
+        colonist.assigned_workplace = workshop_id;
+    }
 }
 
 fn seed_social_history_for_capture(data: &mut GameState) {
@@ -1927,6 +2177,26 @@ mod tests {
 
         assert_eq!(average_relationship_between(&first, &second), 28);
         assert_eq!(strongest_relationship_value(&first), Some(26));
+    }
+
+    #[test]
+    fn test_space_assignment_kind_matches_role_and_room() {
+        assert_eq!(
+            space_assignment_kind(JobPreference::Builder, BuildingType::Habitat),
+            Some(SpaceAssignmentKind::Recovery)
+        );
+        assert_eq!(
+            space_assignment_kind(JobPreference::Builder, BuildingType::Workshop),
+            Some(SpaceAssignmentKind::Work)
+        );
+        assert_eq!(
+            space_assignment_kind(JobPreference::Builder, BuildingType::MessHall),
+            None
+        );
+        assert_eq!(
+            space_assignment_kind(JobPreference::Cook, BuildingType::MessHall),
+            Some(SpaceAssignmentKind::Work)
+        );
     }
 
     #[test]

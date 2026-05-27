@@ -264,7 +264,19 @@ fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_
             style::TEXT_PRIMARY,
         );
 
-        if let Some(action) = pair_action {
+        if selected {
+            if hovered {
+                hovered_directive = Some(selected_assignment_detail(colonist));
+                hovered_name = Some(colonist.name.clone());
+            }
+            draw_text(
+                &style::truncate_text(&selected_assignment_label(colonist), 17),
+                rect.x + 10.0,
+                rect.y + 34.0,
+                style::TINY_SIZE,
+                style::TEXT_BODY,
+            );
+        } else if let Some(action) = pair_action {
             if hovered {
                 hovered_directive = Some(action.detail);
                 hovered_name = Some(colonist.name.clone());
@@ -303,7 +315,7 @@ fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_
 
     let footer = selected_colonist_id
         .and_then(|id| colonists.iter().find(|colonist| colonist.id == id))
-        .map(|colonist| format!("Selected {} | role and social directives", colonist.name))
+        .map(|colonist| format!("Selected {} | click map spaces to pin rooms", colonist.name))
         .unwrap_or_else(|| {
             "Roles, pair directives, and space directives shape work blocks.".to_string()
         });
@@ -378,6 +390,25 @@ fn assign_pair_action(
         detail,
         directive,
     })
+}
+
+fn selected_assignment_label(colonist: &Colonist) -> String {
+    let home = colonist
+        .assigned_habitat
+        .map(|id| format!("H#{}", id))
+        .unwrap_or_else(|| "H--".to_string());
+    let work = colonist
+        .assigned_workplace
+        .map(|id| format!("W#{}", id))
+        .unwrap_or_else(|| "W--".to_string());
+    format!("{} {}", home, work)
+}
+
+fn selected_assignment_detail(colonist: &Colonist) -> String {
+    format!(
+        "Click this card to cycle role. Click a compatible map building to pin or clear recovery/work space. Current pins: {}.",
+        selected_assignment_label(colonist)
+    )
 }
 
 fn draw_log_context(
@@ -656,6 +687,18 @@ mod tests {
 
         assert_eq!(action.directive, PairDirective::Separate);
         assert_eq!(action.label, "Apart set -22");
+    }
+
+    #[test]
+    fn test_selected_assignment_label_reports_room_pins() {
+        let mut colonist = test_colonist(1);
+        assert_eq!(selected_assignment_label(&colonist), "H-- W--");
+
+        colonist.assigned_habitat = Some(3);
+        colonist.assigned_workplace = Some(8);
+
+        assert_eq!(selected_assignment_label(&colonist), "H#3 W#8");
+        assert!(selected_assignment_detail(&colonist).contains("H#3 W#8"));
     }
 
     #[test]

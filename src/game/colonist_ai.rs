@@ -136,7 +136,7 @@ fn update_colonist_ai(
                         log_work_refusal(colonist, refusal_chance, current_tick, pending_logs);
                         None
                     } else {
-                        Some(work_building_for_job(colonist.job_preference))
+                        Some(colonist.job_preference.work_building_type())
                     }
                 }
                 ActivityType::Eat => Some(BuildingType::MessHall),
@@ -144,11 +144,12 @@ fn update_colonist_ai(
             };
 
             if let Some(building_type) = target_building_type {
-                let specific_target = if building_type == BuildingType::Habitat {
-                    colonist.assigned_habitat
-                } else {
-                    None
-                };
+                let specific_target = specific_target_for_activity(
+                    colonist,
+                    scheduled_activity,
+                    building_type,
+                    buildings,
+                );
 
                 if let Some(target) = find_building_entrance(
                     colonist.position,
@@ -194,15 +195,15 @@ fn update_colonist_ai(
             colonist.position = next_pos;
 
             if colonist.position == target {
-                let specific_target = if matches!(scheduled_activity, ActivityType::Sleep) {
-                    colonist.assigned_habitat
-                } else {
-                    None
-                };
-
                 if let Some(building_type) =
                     building_type_for_activity(scheduled_activity, colonist.job_preference)
                 {
+                    let specific_target = specific_target_for_activity(
+                        colonist,
+                        scheduled_activity,
+                        building_type,
+                        buildings,
+                    );
                     if let Some((building_id, building_type)) = find_adjacent_building(
                         colonist.position,
                         building_type,
@@ -250,7 +251,7 @@ fn find_or_assign_habitat(
     current_tick: u64,
 ) -> Option<BuildingType> {
     if let Some(bid) = colonist.assigned_habitat {
-        if buildings.iter().any(|(id, _, _, _)| *id == bid) {
+        if building_matches_type(buildings, bid, BuildingType::Habitat) {
             return Some(BuildingType::Habitat);
         }
 
@@ -324,26 +325,43 @@ fn log_work_refusal(
     ));
 }
 
-fn work_building_for_job(job_preference: JobPreference) -> BuildingType {
-    match job_preference {
-        JobPreference::Explorer => BuildingType::ExplorationGate,
-        JobPreference::Builder => BuildingType::Workshop,
-        JobPreference::Cook => BuildingType::MessHall,
-        JobPreference::Hauler => BuildingType::Storage,
-        JobPreference::None => BuildingType::Workshop,
-    }
-}
-
 fn building_type_for_activity(
     activity: &ActivityType,
     job_preference: JobPreference,
 ) -> Option<BuildingType> {
     match activity {
         ActivityType::Sleep => Some(BuildingType::Habitat),
-        ActivityType::Work => Some(work_building_for_job(job_preference)),
+        ActivityType::Work => Some(job_preference.work_building_type()),
         ActivityType::Eat => Some(BuildingType::MessHall),
         ActivityType::Relax => None,
     }
+}
+
+fn specific_target_for_activity(
+    colonist: &Colonist,
+    activity: &ActivityType,
+    building_type: BuildingType,
+    buildings: &[(u32, BuildingType, Position, (u32, u32))],
+) -> Option<u32> {
+    match activity {
+        ActivityType::Sleep => colonist.assigned_habitat.filter(|building_id| {
+            building_matches_type(buildings, *building_id, BuildingType::Habitat)
+        }),
+        ActivityType::Work => colonist
+            .assigned_workplace
+            .filter(|building_id| building_matches_type(buildings, *building_id, building_type)),
+        ActivityType::Eat | ActivityType::Relax => None,
+    }
+}
+
+fn building_matches_type(
+    buildings: &[(u32, BuildingType, Position, (u32, u32))],
+    building_id: u32,
+    building_type: BuildingType,
+) -> bool {
+    buildings
+        .iter()
+        .any(|(id, candidate_type, _, _)| *id == building_id && *candidate_type == building_type)
 }
 
 fn set_activity_at_building(
@@ -812,6 +830,63 @@ mod tests {
         .expect("workshop target should be found");
 
         assert_eq!(target.building_id, 20);
+    }
+
+    #[test]
+    fn test_work_target_honors_manual_workplace_assignment() {
+        let mut colonist = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::FastWalker,
+            JobPreference::Builder,
+        );
+        colonist.assigned_workplace = Some(20);
+
+        let buildings = vec![
+            (10, BuildingType::Workshop, Position::new(1, 1), (2, 2)),
+            (20, BuildingType::Workshop, Position::new(12, 12), (2, 2)),
+        ];
+        let target = find_building_entrance(
+            colonist.position,
+            BuildingType::Workshop,
+            &buildings,
+            specific_target_for_activity(
+                &colonist,
+                &ActivityType::Work,
+                BuildingType::Workshop,
+                &buildings,
+            ),
+            &colonist,
+            &[],
+        )
+        .expect("assigned workshop target should be found");
+
+        assert_eq!(target.building_id, 20);
+    }
+
+    #[test]
+    fn test_workplace_assignment_ignores_wrong_building_type() {
+        let mut colonist = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::FastWalker,
+            JobPreference::Builder,
+        );
+        colonist.assigned_workplace = Some(20);
+
+        let buildings = vec![(20, BuildingType::MessHall, Position::new(12, 12), (3, 2))];
+
+        assert_eq!(
+            specific_target_for_activity(
+                &colonist,
+                &ActivityType::Work,
+                BuildingType::Workshop,
+                &buildings,
+            ),
+            None
+        );
     }
 
     #[test]

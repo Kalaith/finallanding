@@ -25,6 +25,9 @@ pub struct Colonist {
     pub relationships: HashMap<u32, i32>,
     /// Assigned Habitat Building ID
     pub assigned_habitat: Option<u32>,
+    /// Assigned work building ID for the current role.
+    #[serde(default)]
+    pub assigned_workplace: Option<u32>,
     // Mood system (0.0 to 100.0)
     pub mood: f32,
     pub mood_modifiers: Vec<MoodModifier>,
@@ -137,6 +140,16 @@ impl JobPreference {
             .unwrap_or(0);
         jobs[next_index]
     }
+
+    pub fn work_building_type(self) -> BuildingType {
+        match self {
+            JobPreference::Explorer => BuildingType::ExplorationGate,
+            JobPreference::Builder => BuildingType::Workshop,
+            JobPreference::Cook => BuildingType::MessHall,
+            JobPreference::Hauler => BuildingType::Storage,
+            JobPreference::None => BuildingType::Workshop,
+        }
+    }
 }
 
 impl Colonist {
@@ -162,6 +175,7 @@ impl Colonist {
             schedule: Schedule::default(),
             relationships: HashMap::new(),
             assigned_habitat: None,
+            assigned_workplace: None,
             mood: 50.0,
             mood_modifiers: Vec::new(),
             last_refusal_tick: 0,
@@ -250,6 +264,26 @@ mod tests {
         assert_eq!(
             JobPreference::None.next_assignable(),
             JobPreference::Explorer
+        );
+    }
+
+    #[test]
+    fn test_job_preferences_map_to_work_buildings() {
+        assert_eq!(
+            JobPreference::Explorer.work_building_type(),
+            BuildingType::ExplorationGate
+        );
+        assert_eq!(
+            JobPreference::Builder.work_building_type(),
+            BuildingType::Workshop
+        );
+        assert_eq!(
+            JobPreference::Cook.work_building_type(),
+            BuildingType::MessHall
+        );
+        assert_eq!(
+            JobPreference::Hauler.work_building_type(),
+            BuildingType::Storage
         );
     }
 }
