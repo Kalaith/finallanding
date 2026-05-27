@@ -310,6 +310,9 @@ Completed in the active rebuild:
 - Rajdhani SemiBold is bundled under `assets/fonts/` and used through shared UI text helpers.
 - Toolbar buttons, context cards, logs, and colonist hover now expose bounded tooltip details.
 - Assign mode previews social pressure before retasking survivors and logs the expected same-role relationship impact.
+- Initial survivors now start with a small social backstory so relationship management is visible from the first playable frame.
+- Colonists prefer available workplaces and habitat assignments with supportive partners over hostile pairings when the colony has a choice.
+- The map and right rail now expose relationship pressure/support through compact social badges and Friendly/Tense value chips.
 - `scripts/capture_ui_smoke.ps1` captures and verifies 1280x720 and 1920x1080 gameplay screenshots under `docs/verification/`.
 
 Validation currently passing:
@@ -336,9 +339,9 @@ Highest-value remaining items:
    - Stronger selected/hover outlines.
 
 3. Expand relationship-manager gameplay.
-   - Add relationship-aware work grouping and recovery decisions.
-   - Promote daily social stories into player-readable log summaries.
-   - Add stronger on-map affordances for strained or supportive pairs during shared work.
+   - Expand relationship-aware work grouping beyond target selection into player-authored team/room assignments.
+   - Promote daily social stories into a richer player-readable summary panel.
+   - Add clearer on-map body-language variants when idle/work/eat/sleep sprite variants exist.
 
 4. Improve screenshot verification depth.
    - Add pixel checks for nonblank map, visible panels, and active toolbar.

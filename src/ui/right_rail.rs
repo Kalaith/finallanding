@@ -1,6 +1,6 @@
 use super::Layout;
 use crate::data::building::BuildingType;
-use crate::data::colonist::Colonist;
+use crate::data::colonist::{relationship_label, Colonist};
 use crate::data::game_state::GameState;
 use crate::data::resources::ResourceState;
 use crate::systems::summary_system::ColonyPressureSummary;
@@ -286,6 +286,17 @@ fn draw_colonist_list(
             style::SMALL_SIZE,
             style::TEXT_PRIMARY,
         );
+        if let Some(value) = strongest_relationship_value(colonist) {
+            let chip = format!("{} {:+}", relationship_label(value), value);
+            let chip_width = measure_text(&chip, None, style::TINY_SIZE as u16, 1.0).width;
+            draw_text(
+                &chip,
+                rect.x + rect.w - chip_width - 42.0,
+                y,
+                style::TINY_SIZE,
+                relationship_color(value),
+            );
+        }
         let mood = mood_face(colonist.mood);
         let mood_width = measure_text(mood, None, style::BODY_SIZE as u16, 1.0).width;
         draw_text(
@@ -343,9 +354,29 @@ fn mood_color(mood: f32) -> Color {
     }
 }
 
+fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
+    colonist
+        .relationships
+        .values()
+        .max_by_key(|value| value.abs())
+        .copied()
+}
+
+fn relationship_color(value: i32) -> Color {
+    if value >= 10 {
+        style::BAR_GREEN
+    } else if value <= -10 {
+        style::ALERT_RED
+    } else {
+        style::TEXT_MUTED
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::colonist::{JobPreference, Trait};
+    use crate::data::types::Position;
 
     #[test]
     fn test_resource_rows_use_real_gameplay_tracks() {
@@ -366,5 +397,21 @@ mod tests {
         assert_eq!(rows[0].detail, "1.2 days");
         assert!(rows[0].alert);
         assert_eq!(rows[2].detail, "-2 need");
+    }
+
+    #[test]
+    fn test_strongest_relationship_value_uses_absolute_pressure() {
+        let mut colonist = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        );
+        colonist.relationships.insert(2, 18);
+        colonist.relationships.insert(3, -31);
+
+        assert_eq!(strongest_relationship_value(&colonist), Some(-31));
+        assert_eq!(relationship_color(-31), style::ALERT_RED);
     }
 }

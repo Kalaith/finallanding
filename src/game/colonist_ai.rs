@@ -16,6 +16,7 @@ const REFUSAL_LOG_COOLDOWN_TICKS: u64 = 60;
 const SOCIAL_STRAIN_LOG_COOLDOWN_TICKS: u64 = 120;
 
 type PendingLog = (LogCategory, String, String);
+type SocialLocation = (u32, ActivityLocation);
 
 #[derive(Clone, Copy, Debug)]
 struct BuildingTarget {
@@ -44,6 +45,11 @@ pub fn update_colonists(state: &mut GameState, elapsed_ticks: u64) {
         .colonists
         .iter()
         .map(|colonist| (colonist.id, colonist.name.clone()))
+        .collect();
+    let social_locations: Vec<SocialLocation> = state
+        .colonists
+        .iter()
+        .map(|colonist| (colonist.id, colonist.activity_location.clone()))
         .collect();
 
     let mut building_occupancy: HashMap<u32, u32> = HashMap::new();
@@ -76,6 +82,7 @@ pub fn update_colonists(state: &mut GameState, elapsed_ticks: u64) {
             &scheduled_activity,
             &occupied,
             &colonist_names,
+            &social_locations,
             &buildings,
             &mut building_occupancy,
             habitat_capacity,
@@ -97,6 +104,7 @@ fn update_colonist_ai(
     scheduled_activity: &ActivityType,
     occupied: &HashMap<Position, u32>,
     colonist_names: &HashMap<u32, String>,
+    social_locations: &[SocialLocation],
     buildings: &[(u32, BuildingType, Position, (u32, u32))],
     building_occupancy: &mut HashMap<u32, u32>,
     habitat_capacity: u32,
@@ -117,6 +125,7 @@ fn update_colonist_ai(
                     buildings,
                     building_occupancy,
                     habitat_capacity,
+                    social_locations,
                     pending_logs,
                     current_tick,
                 ),
@@ -146,6 +155,8 @@ fn update_colonist_ai(
                     building_type,
                     buildings,
                     specific_target,
+                    colonist,
+                    social_locations,
                 ) {
                     if is_adjacent_to_building(
                         colonist.position,
@@ -234,6 +245,7 @@ fn find_or_assign_habitat(
     buildings: &[(u32, BuildingType, Position, (u32, u32))],
     building_occupancy: &mut HashMap<u32, u32>,
     habitat_capacity: u32,
+    social_locations: &[SocialLocation],
     pending_logs: &mut Vec<PendingLog>,
     current_tick: u64,
 ) -> Option<BuildingType> {
@@ -245,15 +257,31 @@ fn find_or_assign_habitat(
         colonist.assigned_habitat = None;
     }
 
+    let mut best_habitat: Option<(u32, i32, u32)> = None;
     for (id, b_type, _, _) in buildings {
-        if *b_type == BuildingType::Habitat {
-            let count = building_occupancy.get(id).unwrap_or(&0);
-            if *count < habitat_capacity {
-                colonist.assigned_habitat = Some(*id);
-                *building_occupancy.entry(*id).or_default() += 1;
-                return Some(BuildingType::Habitat);
-            }
+        if *b_type != BuildingType::Habitat {
+            continue;
         }
+
+        let count = *building_occupancy.get(id).unwrap_or(&0);
+        if count >= habitat_capacity {
+            continue;
+        }
+
+        let social_score = social_score_for_building(colonist, *id, social_locations);
+        let candidate = (*id, social_score, count);
+        if best_habitat
+            .map(|best| better_habitat_candidate(candidate, best))
+            .unwrap_or(true)
+        {
+            best_habitat = Some(candidate);
+        }
+    }
+
+    if let Some((building_id, _, _)) = best_habitat {
+        colonist.assigned_habitat = Some(building_id);
+        *building_occupancy.entry(building_id).or_default() += 1;
+        return Some(BuildingType::Habitat);
     }
 
     colonist.state = ColonistState::Sleeping;
@@ -360,32 +388,52 @@ fn find_building_entrance(
     building_type: BuildingType,
     buildings: &[(u32, BuildingType, Position, (u32, u32))],
     specific_target: Option<u32>,
+    colonist: &Colonist,
+    social_locations: &[SocialLocation],
 ) -> Option<BuildingTarget> {
-    let mut candidates: Vec<usize> = Vec::new();
+    let mut best_target: Option<(BuildingTarget, i32, i32)> = None;
 
-    for (i, (id, bt, _, _)) in buildings.iter().enumerate() {
-        if *bt == building_type {
-            if let Some(target_id) = specific_target {
-                if *id == target_id {
-                    candidates.push(i);
-                }
-            } else {
-                candidates.push(i);
+    for (id, bt, pos, (width, height)) in buildings.iter() {
+        if *bt != building_type {
+            continue;
+        }
+
+        if let Some(target_id) = specific_target {
+            if *id != target_id {
+                continue;
             }
+        }
+
+        let Some((entrance, distance)) = best_building_entrance(from, *pos, *width, *height) else {
+            continue;
+        };
+
+        let target = BuildingTarget {
+            building_id: *id,
+            building_type: *bt,
+            entrance,
+        };
+        let social_score = social_score_for_building(colonist, *id, social_locations);
+        let candidate = (target, social_score, distance);
+
+        if best_target
+            .as_ref()
+            .map(|best| better_target_candidate(&candidate, best))
+            .unwrap_or(true)
+        {
+            best_target = Some(candidate);
         }
     }
 
-    if candidates.is_empty() {
-        return None;
-    }
+    best_target.map(|(target, _, _)| target)
+}
 
-    let idx = if candidates.len() > 1 {
-        gen_range(0, candidates.len())
-    } else {
-        0
-    };
-
-    let (building_id, building_type, pos, (width, height)) = buildings[candidates[idx]];
+fn best_building_entrance(
+    from: Position,
+    pos: Position,
+    width: u32,
+    height: u32,
+) -> Option<(Position, i32)> {
     let mut best_target: Option<Position> = None;
     let mut best_distance = i32::MAX;
 
@@ -412,11 +460,46 @@ fn find_building_entrance(
         }
     }
 
-    best_target.map(|entrance| BuildingTarget {
-        building_id,
-        building_type,
-        entrance,
-    })
+    best_target.map(|entrance| (entrance, best_distance))
+}
+
+fn social_score_for_building(
+    colonist: &Colonist,
+    building_id: u32,
+    social_locations: &[SocialLocation],
+) -> i32 {
+    social_locations
+        .iter()
+        .filter(|(other_id, location)| {
+            *other_id != colonist.id && location.building_id() == Some(building_id)
+        })
+        .map(|(other_id, _)| colonist.relationships.get(other_id).copied().unwrap_or(0))
+        .sum()
+}
+
+fn better_habitat_candidate(candidate: (u32, i32, u32), best: (u32, i32, u32)) -> bool {
+    let (candidate_id, candidate_score, candidate_count) = candidate;
+    let (best_id, best_score, best_count) = best;
+
+    candidate_score > best_score
+        || (candidate_score == best_score && candidate_count < best_count)
+        || (candidate_score == best_score
+            && candidate_count == best_count
+            && candidate_id < best_id)
+}
+
+fn better_target_candidate(
+    candidate: &(BuildingTarget, i32, i32),
+    best: &(BuildingTarget, i32, i32),
+) -> bool {
+    let (candidate_target, candidate_score, candidate_distance) = candidate;
+    let (best_target, best_score, best_distance) = best;
+
+    candidate_score > best_score
+        || (candidate_score == best_score && candidate_distance < best_distance)
+        || (candidate_score == best_score
+            && candidate_distance == best_distance
+            && candidate_target.building_id < best_target.building_id)
 }
 
 fn find_adjacent_building(
@@ -635,5 +718,100 @@ mod tests {
         assert_eq!(log.title, "Alice avoided Bob");
         assert!(log.detail.contains("strained relationship"));
         assert!(log.detail.contains("Mood dropped"));
+    }
+
+    #[test]
+    fn test_work_target_prefers_supportive_occupied_building() {
+        let mut colonist = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::FastWalker,
+            JobPreference::Builder,
+        );
+        colonist.relationships.insert(2, -35);
+        colonist.relationships.insert(3, 30);
+
+        let buildings = vec![
+            (10, BuildingType::Workshop, Position::new(1, 1), (2, 2)),
+            (20, BuildingType::Workshop, Position::new(12, 12), (2, 2)),
+        ];
+        let social_locations = vec![
+            (
+                2,
+                ActivityLocation::Building {
+                    building_id: 10,
+                    building_type: BuildingType::Workshop,
+                },
+            ),
+            (
+                3,
+                ActivityLocation::Building {
+                    building_id: 20,
+                    building_type: BuildingType::Workshop,
+                },
+            ),
+        ];
+
+        let target = find_building_entrance(
+            colonist.position,
+            BuildingType::Workshop,
+            &buildings,
+            None,
+            &colonist,
+            &social_locations,
+        )
+        .expect("workshop target should be found");
+
+        assert_eq!(target.building_id, 20);
+    }
+
+    #[test]
+    fn test_habitat_assignment_prefers_supportive_roommate() {
+        let mut colonist = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::FastWalker,
+            JobPreference::Builder,
+        );
+        colonist.relationships.insert(2, -26);
+        colonist.relationships.insert(3, 22);
+
+        let buildings = vec![
+            (10, BuildingType::Habitat, Position::new(1, 1), (2, 2)),
+            (20, BuildingType::Habitat, Position::new(10, 10), (2, 2)),
+        ];
+        let social_locations = vec![
+            (
+                2,
+                ActivityLocation::Building {
+                    building_id: 10,
+                    building_type: BuildingType::Habitat,
+                },
+            ),
+            (
+                3,
+                ActivityLocation::Building {
+                    building_id: 20,
+                    building_type: BuildingType::Habitat,
+                },
+            ),
+        ];
+        let mut building_occupancy = HashMap::new();
+        let mut pending_logs = Vec::new();
+
+        let target = find_or_assign_habitat(
+            &mut colonist,
+            &buildings,
+            &mut building_occupancy,
+            2,
+            &social_locations,
+            &mut pending_logs,
+            420,
+        );
+
+        assert_eq!(target, Some(BuildingType::Habitat));
+        assert_eq!(colonist.assigned_habitat, Some(20));
     }
 }

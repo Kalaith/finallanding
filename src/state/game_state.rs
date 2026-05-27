@@ -1,5 +1,5 @@
 use crate::data::building::BuildingType;
-use crate::data::colonist::{Colonist, ColonistState};
+use crate::data::colonist::{ActivityLocation, Colonist, ColonistState};
 use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
 use crate::data::game_state::TimeSpeed;
@@ -890,6 +890,8 @@ impl GameplayState {
     fn draw_colonists_with_offset(&self, hovered_colonist_id: Option<u32>) {
         let iso = self.iso_view();
 
+        self.draw_social_links(hovered_colonist_id);
+
         for colonist in &self.data.colonists {
             if colonist.is_on_mission() {
                 continue;
@@ -965,6 +967,20 @@ impl GameplayState {
                 3.0,
                 job_color(colonist.job_preference),
             );
+            if let Some(value) = strongest_relationship_value(colonist) {
+                if value.abs() >= 20 {
+                    let color = social_color(value, 0.95);
+                    draw_circle(center_x - 10.0, center_y - 22.0, 5.0, color);
+                    draw_circle_lines(center_x - 10.0, center_y - 22.0, 5.0, 1.0, BLACK);
+                    draw_text(
+                        if value > 0 { "+" } else { "-" },
+                        center_x - 13.0,
+                        center_y - 18.0,
+                        9.0,
+                        style::TEXT_PRIMARY,
+                    );
+                }
+            }
             if Some(colonist.id) == hovered_colonist_id
                 || Some(colonist.id) == self.selected_colonist_id
             {
@@ -988,6 +1004,77 @@ impl GameplayState {
                     12.0,
                     WHITE,
                 );
+            }
+        }
+    }
+
+    fn draw_social_links(&self, hovered_colonist_id: Option<u32>) {
+        let focus_id = hovered_colonist_id.or(self.selected_colonist_id);
+        let iso = self.iso_view();
+
+        for first_index in 0..self.data.colonists.len() {
+            let first = &self.data.colonists[first_index];
+            if first.is_on_mission() {
+                continue;
+            }
+
+            for second in self.data.colonists.iter().skip(first_index + 1) {
+                if second.is_on_mission() {
+                    continue;
+                }
+
+                let value = average_relationship_between(first, second);
+                let focused_pair = focus_id.is_some_and(|id| id == first.id || id == second.id);
+                let shared_location = shared_social_location(first, second);
+                let strong_pair = value.abs() >= 25;
+
+                if !(strong_pair || shared_location || focused_pair) || value.abs() < 10 {
+                    continue;
+                }
+
+                let first_anchor = iso.grid_to_screen(first.position) + vec2(0.0, -28.0);
+                let second_anchor = iso.grid_to_screen(second.position) + vec2(0.0, -28.0);
+                let color = social_color(
+                    value,
+                    if focused_pair || shared_location {
+                        0.72
+                    } else {
+                        0.34
+                    },
+                );
+
+                draw_line(
+                    first_anchor.x,
+                    first_anchor.y,
+                    second_anchor.x,
+                    second_anchor.y,
+                    if focused_pair || shared_location {
+                        2.0
+                    } else {
+                        1.0
+                    },
+                    color,
+                );
+
+                if focused_pair || (shared_location && value.abs() >= 20) {
+                    let mid = (first_anchor + second_anchor) * 0.5;
+                    let label = format!("{:+}", value);
+                    let width = measure_text(&label, None, 10, 1.0).width;
+                    draw_rectangle(
+                        mid.x - width * 0.5 - 4.0,
+                        mid.y - 11.0,
+                        width + 8.0,
+                        14.0,
+                        Color::new(0.03, 0.04, 0.04, 0.78),
+                    );
+                    draw_text(
+                        &label,
+                        mid.x - width * 0.5,
+                        mid.y,
+                        10.0,
+                        social_color(value, 1.0),
+                    );
+                }
             }
         }
     }
@@ -1323,9 +1410,75 @@ fn colonist_activity_summary(colonist: &Colonist) -> &'static str {
     }
 }
 
+fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
+    colonist
+        .relationships
+        .values()
+        .max_by_key(|value| value.abs())
+        .copied()
+}
+
+fn average_relationship_between(first: &Colonist, second: &Colonist) -> i32 {
+    let first_value = first.relationships.get(&second.id).copied().unwrap_or(0);
+    let second_value = second.relationships.get(&first.id).copied().unwrap_or(0);
+
+    if first_value == 0 {
+        second_value
+    } else if second_value == 0 {
+        first_value
+    } else {
+        (first_value + second_value) / 2
+    }
+}
+
+fn shared_social_location(first: &Colonist, second: &Colonist) -> bool {
+    match (&first.activity_location, &second.activity_location) {
+        (
+            ActivityLocation::Building {
+                building_id: first_id,
+                ..
+            },
+            ActivityLocation::Building {
+                building_id: second_id,
+                ..
+            },
+        ) => first_id == second_id,
+        (ActivityLocation::Ground(first_pos), ActivityLocation::Ground(second_pos)) => {
+            first_pos == second_pos
+        }
+        _ => false,
+    }
+}
+
+fn social_color(value: i32, alpha: f32) -> Color {
+    if value >= 10 {
+        Color::new(
+            style::BAR_GREEN.r,
+            style::BAR_GREEN.g,
+            style::BAR_GREEN.b,
+            alpha,
+        )
+    } else if value <= -10 {
+        Color::new(
+            style::ALERT_RED.r,
+            style::ALERT_RED.g,
+            style::ALERT_RED.b,
+            alpha,
+        )
+    } else {
+        Color::new(
+            style::TEXT_MUTED.r,
+            style::TEXT_MUTED.g,
+            style::TEXT_MUTED.b,
+            alpha,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::colonist::{JobPreference, Trait};
 
     #[test]
     fn test_terrain_detail_is_deterministic_and_skips_missing_cells() {
@@ -1344,6 +1497,62 @@ mod tests {
         assert_ne!(first, second);
         assert!((0.14..=0.22).contains(&first.r));
         assert!((0.08..=0.14).contains(&first.b));
+    }
+
+    #[test]
+    fn test_average_relationship_uses_bidirectional_values() {
+        let mut first = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        );
+        let mut second = Colonist::new(
+            2,
+            "Bob".to_string(),
+            Position::new(1, 0),
+            Trait::FastWalker,
+            JobPreference::Explorer,
+        );
+
+        first.relationships.insert(2, 26);
+        second.relationships.insert(1, 30);
+
+        assert_eq!(average_relationship_between(&first, &second), 28);
+        assert_eq!(strongest_relationship_value(&first), Some(26));
+    }
+
+    #[test]
+    fn test_shared_social_location_requires_same_building_or_ground_cell() {
+        let mut first = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        );
+        let mut second = Colonist::new(
+            2,
+            "Bob".to_string(),
+            Position::new(1, 0),
+            Trait::FastWalker,
+            JobPreference::Explorer,
+        );
+
+        first.activity_location = ActivityLocation::Building {
+            building_id: 7,
+            building_type: BuildingType::Workshop,
+        };
+        second.activity_location = ActivityLocation::Building {
+            building_id: 7,
+            building_type: BuildingType::Workshop,
+        };
+
+        assert!(shared_social_location(&first, &second));
+
+        second.activity_location = ActivityLocation::Ground(Position::new(2, 2));
+        assert!(!shared_social_location(&first, &second));
     }
 }
 
