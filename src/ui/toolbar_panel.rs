@@ -11,10 +11,11 @@ use crate::systems::relationship_directive_system::{PairDirective, RelationshipD
 use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
 use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
-    assign_batch_rect, assign_page_next_rect, assign_page_previous_rect, log_filter_rect,
-    log_page_next_rect, log_page_previous_rect, log_timeline_row_rect, toolbar_buildings_for_mode,
-    toolbar_context_item_rect, toolbar_context_rect, toolbar_list_item_rect, AssignBatchAction,
-    LogFilter, ToolbarMode,
+    assign_batch_rect, assign_filter_rect, assign_page_next_rect, assign_page_previous_rect,
+    assign_sort_rect, log_filter_rect, log_page_next_rect, log_page_previous_rect,
+    log_timeline_row_rect, toolbar_buildings_for_mode, toolbar_context_item_rect,
+    toolbar_context_rect, toolbar_list_item_rect, AssignBatchAction, AssignRosterFilter,
+    AssignRosterSort, LogFilter, ToolbarMode,
 };
 use crate::ui::style;
 use crate::ui::tooltip::draw_tooltip_near_mouse;
@@ -34,6 +35,8 @@ pub fn draw_toolbar_context_panel(
     logs: &[ColonyLogEntry],
     social_history: &[SocialHistoryEntry],
     assign_roster_page: usize,
+    assign_roster_filter: AssignRosterFilter,
+    assign_roster_sort: AssignRosterSort,
     social_history_page: usize,
     social_history_filter: LogFilter,
     selected_social_history_day: Option<u32>,
@@ -63,6 +66,8 @@ pub fn draw_toolbar_context_panel(
             colonists,
             selected_colonist_id,
             assign_roster_page,
+            assign_roster_filter,
+            assign_roster_sort,
             technology,
         ),
         ToolbarMode::Log => draw_log_context(
@@ -253,20 +258,37 @@ fn draw_assign_context(
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
     assign_roster_page: usize,
+    active_filter: AssignRosterFilter,
+    active_sort: AssignRosterSort,
     technology: &TechnologyState,
 ) {
     let mut hovered_forecast = None;
     let mut hovered_name = None;
     let mut hovered_directive = None;
-    let page_count = assign_roster_page_count(colonists, selected_colonist_id);
+    let mut hovered_filter = None;
+    let mut hovered_sort = None;
+    draw_assign_roster_controls(
+        context,
+        active_filter,
+        active_sort,
+        &mut hovered_filter,
+        &mut hovered_sort,
+    );
+    let page_count = assign_roster_page_count(colonists, selected_colonist_id, active_filter);
     let current_page = assign_roster_page.min(page_count.saturating_sub(1));
     if page_count > 1 {
         draw_assign_page_controls(context, current_page, page_count);
     }
 
-    for (slot, colonist) in assign_visible_colonists(colonists, selected_colonist_id, current_page)
-        .into_iter()
-        .enumerate()
+    for (slot, colonist) in assign_visible_colonists(
+        colonists,
+        selected_colonist_id,
+        current_page,
+        active_filter,
+        active_sort,
+    )
+    .into_iter()
+    .enumerate()
     {
         let rect = toolbar_list_item_rect(context, slot);
         let selected = selected_colonist_id == Some(colonist.id);
@@ -392,10 +414,72 @@ fn draw_assign_context(
         },
     );
 
-    if let (Some(name), Some(detail)) = (hovered_name.clone(), hovered_directive) {
+    if let Some(filter) = hovered_filter {
+        draw_tooltip_near_mouse(
+            toolbar_tooltip_bounds(context),
+            filter.tooltip_title(),
+            filter.tooltip_body(),
+        );
+    } else if let Some(sort) = hovered_sort {
+        draw_tooltip_near_mouse(
+            toolbar_tooltip_bounds(context),
+            sort.tooltip_title(),
+            sort.tooltip_body(),
+        );
+    } else if let (Some(name), Some(detail)) = (hovered_name.clone(), hovered_directive) {
         draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &name, &detail);
     } else if let (Some(name), Some(forecast)) = (hovered_name, hovered_forecast) {
         draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &name, &forecast.detail);
+    }
+}
+
+fn draw_assign_roster_controls(
+    context: Rect,
+    active_filter: AssignRosterFilter,
+    active_sort: AssignRosterSort,
+    hovered_filter: &mut Option<AssignRosterFilter>,
+    hovered_sort: &mut Option<AssignRosterSort>,
+) {
+    let mouse = mouse_position().into();
+
+    for (index, filter) in AssignRosterFilter::all().iter().enumerate() {
+        let rect = assign_filter_rect(context, index);
+        let hovered = rect.contains(mouse);
+        if hovered {
+            *hovered_filter = Some(*filter);
+        }
+        style::draw_button(rect, *filter == active_filter, hovered);
+        draw_text(
+            filter.label(),
+            rect.x + 5.0,
+            rect.y + 12.0,
+            style::TINY_SIZE,
+            if *filter == active_filter {
+                style::TEXT_PRIMARY
+            } else {
+                style::TEXT_MUTED
+            },
+        );
+    }
+
+    for (index, sort) in AssignRosterSort::all().iter().enumerate() {
+        let rect = assign_sort_rect(context, index);
+        let hovered = rect.contains(mouse);
+        if hovered {
+            *hovered_sort = Some(*sort);
+        }
+        style::draw_button(rect, *sort == active_sort, hovered);
+        draw_text(
+            sort.label(),
+            rect.x + 5.0,
+            rect.y + 12.0,
+            style::TINY_SIZE,
+            if *sort == active_sort {
+                style::TEXT_PRIMARY
+            } else {
+                style::TEXT_MUTED
+            },
+        );
     }
 }
 
@@ -485,11 +569,19 @@ struct AssignPairAction {
     directive: PairDirective,
 }
 
-fn assign_roster_page_count(colonists: &[Colonist], selected_colonist_id: Option<u32>) -> usize {
+fn assign_roster_page_count(
+    colonists: &[Colonist],
+    selected_colonist_id: Option<u32>,
+    active_filter: AssignRosterFilter,
+) -> usize {
     let selected_exists = selected_colonist_id
         .and_then(|id| colonists.iter().position(|colonist| colonist.id == id))
         .is_some();
-    let other_count = colonists.len().saturating_sub(usize::from(selected_exists));
+    let other_count = colonists
+        .iter()
+        .filter(|colonist| Some(colonist.id) != selected_colonist_id)
+        .filter(|colonist| assign_roster_filter_matches(colonist, active_filter))
+        .count();
     let page_size = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(usize::from(selected_exists));
 
     ((other_count + page_size - 1) / page_size).max(1)
@@ -499,6 +591,8 @@ fn assign_visible_colonists<'a>(
     colonists: &'a [Colonist],
     selected_colonist_id: Option<u32>,
     page: usize,
+    active_filter: AssignRosterFilter,
+    active_sort: AssignRosterSort,
 ) -> Vec<&'a Colonist> {
     let mut visible = Vec::new();
 
@@ -511,17 +605,63 @@ fn assign_visible_colonists<'a>(
     }
 
     let open_slots = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(visible.len());
-    let page = page.min(assign_roster_page_count(colonists, selected_colonist_id) - 1);
+    let page =
+        page.min(assign_roster_page_count(colonists, selected_colonist_id, active_filter) - 1);
 
-    visible.extend(
-        colonists
-            .iter()
-            .filter(|colonist| Some(colonist.id) != selected_id)
-            .skip(page * open_slots)
-            .take(open_slots),
-    );
+    let roster = assign_sorted_roster(colonists, selected_id, active_filter, active_sort);
+    visible.extend(roster.into_iter().skip(page * open_slots).take(open_slots));
 
     visible
+}
+
+fn assign_sorted_roster<'a>(
+    colonists: &'a [Colonist],
+    selected_id: Option<u32>,
+    active_filter: AssignRosterFilter,
+    active_sort: AssignRosterSort,
+) -> Vec<&'a Colonist> {
+    let mut roster = colonists
+        .iter()
+        .filter(|colonist| Some(colonist.id) != selected_id)
+        .filter(|colonist| assign_roster_filter_matches(colonist, active_filter))
+        .collect::<Vec<_>>();
+
+    match active_sort {
+        AssignRosterSort::Roster => {}
+        AssignRosterSort::Mood => roster.sort_by(|left, right| {
+            left.mood
+                .partial_cmp(&right.mood)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| left.id.cmp(&right.id))
+        }),
+        AssignRosterSort::Bond => roster.sort_by(|left, right| {
+            relationship_pressure_score(right)
+                .cmp(&relationship_pressure_score(left))
+                .then_with(|| left.id.cmp(&right.id))
+        }),
+    }
+
+    roster
+}
+
+fn assign_roster_filter_matches(colonist: &Colonist, active_filter: AssignRosterFilter) -> bool {
+    match active_filter {
+        AssignRosterFilter::All => true,
+        AssignRosterFilter::Risk => colonist.relationships.values().any(|value| *value <= -10),
+        AssignRosterFilter::Support => colonist.relationships.values().any(|value| *value >= 10),
+        AssignRosterFilter::Pinned => {
+            colonist.assigned_habitat.is_some() || colonist.assigned_workplace.is_some()
+        }
+    }
+}
+
+fn relationship_pressure_score(colonist: &Colonist) -> i32 {
+    colonist
+        .relationships
+        .values()
+        .map(|value| value.abs())
+        .max()
+        .unwrap_or(0)
 }
 
 fn assign_pair_action(
@@ -1101,10 +1241,16 @@ mod tests {
     #[test]
     fn test_assign_visible_colonists_pin_selected_first() {
         let colonists = (0..6).map(test_colonist).collect::<Vec<_>>();
-        let visible = assign_visible_colonists(&colonists, Some(5), 0)
-            .into_iter()
-            .map(|colonist| colonist.id)
-            .collect::<Vec<_>>();
+        let visible = assign_visible_colonists(
+            &colonists,
+            Some(5),
+            0,
+            AssignRosterFilter::All,
+            AssignRosterSort::Roster,
+        )
+        .into_iter()
+        .map(|colonist| colonist.id)
+        .collect::<Vec<_>>();
 
         assert_eq!(visible, vec![5, 0, 1, 2, 3]);
     }
@@ -1112,13 +1258,44 @@ mod tests {
     #[test]
     fn test_assign_visible_colonists_page_through_roster() {
         let colonists = (0..8).map(test_colonist).collect::<Vec<_>>();
-        let page = assign_visible_colonists(&colonists, Some(5), 1)
-            .into_iter()
-            .map(|colonist| colonist.id)
-            .collect::<Vec<_>>();
+        let page = assign_visible_colonists(
+            &colonists,
+            Some(5),
+            1,
+            AssignRosterFilter::All,
+            AssignRosterSort::Roster,
+        )
+        .into_iter()
+        .map(|colonist| colonist.id)
+        .collect::<Vec<_>>();
 
-        assert_eq!(assign_roster_page_count(&colonists, Some(5)), 2);
+        assert_eq!(
+            assign_roster_page_count(&colonists, Some(5), AssignRosterFilter::All),
+            2
+        );
         assert_eq!(page, vec![5, 4, 6, 7]);
+    }
+
+    #[test]
+    fn test_assign_visible_colonists_filter_pinned_and_sort_mood() {
+        let mut colonists = (0..6).map(test_colonist).collect::<Vec<_>>();
+        colonists[1].assigned_habitat = Some(3);
+        colonists[1].mood = 42.0;
+        colonists[4].assigned_workplace = Some(8);
+        colonists[4].mood = 21.0;
+
+        let visible = assign_visible_colonists(
+            &colonists,
+            Some(5),
+            0,
+            AssignRosterFilter::Pinned,
+            AssignRosterSort::Mood,
+        )
+        .into_iter()
+        .map(|colonist| colonist.id)
+        .collect::<Vec<_>>();
+
+        assert_eq!(visible, vec![5, 4, 1]);
     }
 
     #[test]

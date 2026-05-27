@@ -26,7 +26,7 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 - Top bar buttons: adjust time speed.
 - Z: undo placement.
 - Esc: cancel current tool.
-- Assign mode: page through survivor cards, hover to preview social pressure, click a survivor card to cycle their work role, click a compatible map building to pin or clear their recovery/work space, then use P-H/P-W to copy pins across the visible page or ALL-H/ALL-W to copy compatible pins across the full colony; warnings flag over-capacity or tense pins.
+- Assign mode: filter the roster by all, relationship risk, support, or pinned spaces; sort by roster order, low mood, or strongest bond pressure; hover survivor cards to preview social pressure, click a card to cycle work role, click a compatible map building to pin or clear recovery/work space, then use P-H/P-W to copy pins across the visible page or ALL-H/ALL-W across the full colony.
 - Log mode: review the live social brief, page/filter daily relationship reports by all, tense, or supportive days, and click a report for its recommendation drilldown.
 - Research mode: click a mission card to launch a field mission when the colony has an Exploration Gate.
 
@@ -49,7 +49,7 @@ Strong social ties can now surface directly on the colony map through survivor p
 - Use Build, Rooms, and Objects modes to place at least one Habitat, Mess Hall, Workshop, Storage, and Exploration Gate.
 - Hover toolbar buttons and context cards; confirm tooltips stay inside the playable view.
 - Change priorities from Colony mode after an incident and confirm the advisor responds.
-- Use Assign mode to page through the roster, retask one survivor, pin a compatible Habitat or work space from the map, then copy HOME/WORK pins to the visible page and across the full colony, confirming any conflict warning appears.
+- Use Assign mode to filter and sort the roster, retask one survivor, pin a compatible Habitat or work space from the map, then copy HOME/WORK pins to the visible page and across the full colony, confirming any conflict warning appears.
 - Confirm tense/supportive survivors show visible body-language markers on the colony map before opening the inspector.
 - Open Log mode after several day summaries and confirm the social archive pages, filters, and drilldowns into older relationship recommendations.
 - Launch at least two different mission types from Research mode and compare risk/reward.

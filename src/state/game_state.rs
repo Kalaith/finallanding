@@ -29,14 +29,15 @@ use crate::systems::work_system::WorkSystem;
 use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use crate::ui::{
-    assign_batch_action_at, assign_page_action_at, draw_advisor_overlay, draw_bottom_toolbar,
-    draw_colonist_inspector, draw_debug_overlay, draw_iso_diamond, draw_iso_diamond_lines,
-    draw_iso_prism, draw_right_rail, draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar,
-    log_filter_at, log_page_action_at, log_timeline_row_at, restart_button_rect, side_panel_hit_at,
-    social_history_page_count, social_timeline_day_at, toolbar_building_at_for_mode,
-    toolbar_buildings_for_mode, toolbar_colonist_index_at, toolbar_context_rect,
-    toolbar_mission_at, toolbar_mode_at, toolbar_priority_at, top_bar_priority_at,
-    top_bar_speed_at, AssignBatchAction, IsoView, Layout, LogFilter, PageAction, PlaceholderArt,
+    assign_batch_action_at, assign_filter_at, assign_page_action_at, assign_sort_at,
+    draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
+    draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
+    draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar, log_filter_at, log_page_action_at,
+    log_timeline_row_at, restart_button_rect, side_panel_hit_at, social_history_page_count,
+    social_timeline_day_at, toolbar_building_at_for_mode, toolbar_buildings_for_mode,
+    toolbar_colonist_index_at, toolbar_context_rect, toolbar_mission_at, toolbar_mode_at,
+    toolbar_priority_at, top_bar_priority_at, top_bar_speed_at, AssignBatchAction,
+    AssignRosterFilter, AssignRosterSort, IsoView, Layout, LogFilter, PageAction, PlaceholderArt,
     SidePanelHit, SpritePose, ToolbarMode,
 };
 use macroquad::prelude::*;
@@ -66,6 +67,10 @@ pub struct GameplayState {
     toolbar_mode: ToolbarMode,
     /// Current page in the Assign mode roster.
     assign_roster_page: usize,
+    /// Active filter in the Assign mode roster.
+    assign_roster_filter: AssignRosterFilter,
+    /// Active sort in the Assign mode roster.
+    assign_roster_sort: AssignRosterSort,
     /// Current page in the Log mode social archive.
     social_history_page: usize,
     /// Active filter in the Log mode social archive.
@@ -115,6 +120,8 @@ impl GameplayState {
             debug_mode: false,
             toolbar_mode,
             assign_roster_page: 0,
+            assign_roster_filter: AssignRosterFilter::All,
+            assign_roster_sort: AssignRosterSort::Roster,
             social_history_page: 0,
             social_history_filter: LogFilter::All,
             selected_social_history_day,
@@ -423,6 +430,18 @@ impl GameplayState {
                 }
             }
             ToolbarMode::Assign => {
+                if let Some(filter) = assign_filter_at(context, mouse_x, mouse_y) {
+                    self.assign_roster_filter = filter;
+                    self.assign_roster_page = 0;
+                    return true;
+                }
+
+                if let Some(sort) = assign_sort_at(context, mouse_x, mouse_y) {
+                    self.assign_roster_sort = sort;
+                    self.assign_roster_page = 0;
+                    return true;
+                }
+
                 if let Some(action) = assign_batch_action_at(context, mouse_x, mouse_y) {
                     self.apply_assign_batch_action(action);
                     return true;
@@ -437,6 +456,8 @@ impl GameplayState {
                     &self.data.colonists,
                     self.selected_colonist_id,
                     self.assign_roster_page,
+                    self.assign_roster_filter,
+                    self.assign_roster_sort,
                 )
                 .len();
                 if let Some(slot) =
@@ -477,7 +498,11 @@ impl GameplayState {
     }
 
     fn update_assign_roster_page(&mut self, action: PageAction) {
-        let page_count = assign_roster_page_count(&self.data.colonists, self.selected_colonist_id);
+        let page_count = assign_roster_page_count(
+            &self.data.colonists,
+            self.selected_colonist_id,
+            self.assign_roster_filter,
+        );
         match action {
             PageAction::Previous => {
                 self.assign_roster_page = self.assign_roster_page.saturating_sub(1);
@@ -520,6 +545,8 @@ impl GameplayState {
                 &self.data.colonists,
                 self.selected_colonist_id,
                 self.assign_roster_page,
+                self.assign_roster_filter,
+                self.assign_roster_sort,
             )
         };
         let scope = if action.targets_all() {
@@ -595,7 +622,7 @@ impl GameplayState {
             LogCategory::Social,
             "Batch assignment unavailable",
             format!(
-                "{} needs a pinned {} space before that pin can be copied to the visible roster.",
+                "{} needs a pinned {} space before that pin can be copied.",
                 selected_name, pin_kind
             ),
         );
@@ -606,6 +633,8 @@ impl GameplayState {
             &self.data.colonists,
             self.selected_colonist_id,
             self.assign_roster_page,
+            self.assign_roster_filter,
+            self.assign_roster_sort,
         )
         .get(slot)
         .copied()
@@ -2470,11 +2499,18 @@ fn building_type_from_name(value: &str) -> Option<BuildingType> {
 
 const ASSIGN_ROSTER_SLOT_COUNT: usize = 5;
 
-fn assign_roster_page_count(colonists: &[Colonist], selected_colonist_id: Option<u32>) -> usize {
+fn assign_roster_page_count(
+    colonists: &[Colonist],
+    selected_colonist_id: Option<u32>,
+    active_filter: AssignRosterFilter,
+) -> usize {
     let selected_exists = selected_colonist_id
         .and_then(|id| colonists.iter().position(|colonist| colonist.id == id))
         .is_some();
-    let other_count = colonists.len().saturating_sub(usize::from(selected_exists));
+    let other_count = (0..colonists.len())
+        .filter(|index| Some(colonists[*index].id) != selected_colonist_id)
+        .filter(|index| assign_roster_filter_matches(&colonists[*index], active_filter))
+        .count();
     let page_size = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(usize::from(selected_exists));
 
     ((other_count + page_size - 1) / page_size).max(1)
@@ -2484,6 +2520,8 @@ fn assign_visible_colonist_indices(
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
     page: usize,
+    active_filter: AssignRosterFilter,
+    active_sort: AssignRosterSort,
 ) -> Vec<usize> {
     let mut indices = Vec::new();
 
@@ -2495,16 +2533,64 @@ fn assign_visible_colonist_indices(
     }
 
     let open_slots = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(indices.len());
-    let page = page.min(assign_roster_page_count(colonists, selected_colonist_id) - 1);
+    let page =
+        page.min(assign_roster_page_count(colonists, selected_colonist_id, active_filter) - 1);
 
-    indices.extend(
-        (0..colonists.len())
-            .filter(|index| Some(*index) != selected_index)
-            .skip(page * open_slots)
-            .take(open_slots),
-    );
+    let roster =
+        assign_sorted_roster_indices(colonists, selected_index, active_filter, active_sort);
+    indices.extend(roster.into_iter().skip(page * open_slots).take(open_slots));
 
     indices
+}
+
+fn assign_sorted_roster_indices(
+    colonists: &[Colonist],
+    selected_index: Option<usize>,
+    active_filter: AssignRosterFilter,
+    active_sort: AssignRosterSort,
+) -> Vec<usize> {
+    let mut indices = (0..colonists.len())
+        .filter(|index| Some(*index) != selected_index)
+        .filter(|index| assign_roster_filter_matches(&colonists[*index], active_filter))
+        .collect::<Vec<_>>();
+
+    match active_sort {
+        AssignRosterSort::Roster => {}
+        AssignRosterSort::Mood => indices.sort_by(|left, right| {
+            colonists[*left]
+                .mood
+                .partial_cmp(&colonists[*right].mood)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| colonists[*left].id.cmp(&colonists[*right].id))
+        }),
+        AssignRosterSort::Bond => indices.sort_by(|left, right| {
+            relationship_pressure_score(&colonists[*right])
+                .cmp(&relationship_pressure_score(&colonists[*left]))
+                .then_with(|| colonists[*left].id.cmp(&colonists[*right].id))
+        }),
+    }
+
+    indices
+}
+
+fn assign_roster_filter_matches(colonist: &Colonist, active_filter: AssignRosterFilter) -> bool {
+    match active_filter {
+        AssignRosterFilter::All => true,
+        AssignRosterFilter::Risk => colonist.relationships.values().any(|value| *value <= -10),
+        AssignRosterFilter::Support => colonist.relationships.values().any(|value| *value >= 10),
+        AssignRosterFilter::Pinned => {
+            colonist.assigned_habitat.is_some() || colonist.assigned_workplace.is_some()
+        }
+    }
+}
+
+fn relationship_pressure_score(colonist: &Colonist) -> i32 {
+    colonist
+        .relationships
+        .values()
+        .map(|value| value.abs())
+        .max()
+        .unwrap_or(0)
 }
 
 fn apply_batch_home_pin(
@@ -2830,11 +2916,23 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(
-            assign_visible_colonist_indices(&colonists, Some(5), 0),
+            assign_visible_colonist_indices(
+                &colonists,
+                Some(5),
+                0,
+                AssignRosterFilter::All,
+                AssignRosterSort::Roster,
+            ),
             vec![5, 0, 1, 2, 3]
         );
         assert_eq!(
-            assign_visible_colonist_indices(&colonists, None, 0),
+            assign_visible_colonist_indices(
+                &colonists,
+                None,
+                0,
+                AssignRosterFilter::All,
+                AssignRosterSort::Roster,
+            ),
             vec![0, 1, 2, 3, 4]
         );
     }
@@ -2853,14 +2951,58 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(assign_roster_page_count(&colonists, Some(5)), 2);
         assert_eq!(
-            assign_visible_colonist_indices(&colonists, Some(5), 1),
+            assign_roster_page_count(&colonists, Some(5), AssignRosterFilter::All),
+            2
+        );
+        assert_eq!(
+            assign_visible_colonist_indices(
+                &colonists,
+                Some(5),
+                1,
+                AssignRosterFilter::All,
+                AssignRosterSort::Roster,
+            ),
             vec![5, 4, 6, 7]
         );
         assert_eq!(
-            assign_visible_colonist_indices(&colonists, None, 1),
+            assign_visible_colonist_indices(
+                &colonists,
+                None,
+                1,
+                AssignRosterFilter::All,
+                AssignRosterSort::Roster,
+            ),
             vec![5, 6, 7]
+        );
+    }
+
+    #[test]
+    fn test_assign_visible_indices_filter_and_sort_pressure() {
+        let mut colonists = (0..6)
+            .map(|id| {
+                Colonist::new(
+                    id,
+                    format!("Colonist {}", id),
+                    Position::new(id as i32, 0),
+                    Trait::HardWorker,
+                    JobPreference::Builder,
+                )
+            })
+            .collect::<Vec<_>>();
+        colonists[1].relationships.insert(2, -12);
+        colonists[3].relationships.insert(4, -34);
+        colonists[4].relationships.insert(3, 22);
+
+        assert_eq!(
+            assign_visible_colonist_indices(
+                &colonists,
+                Some(5),
+                0,
+                AssignRosterFilter::Risk,
+                AssignRosterSort::Bond,
+            ),
+            vec![5, 3, 1]
         );
     }
 
@@ -3137,6 +3279,8 @@ impl State for GameplayState {
             &self.data.event_log,
             &self.data.social_history,
             self.assign_roster_page,
+            self.assign_roster_filter,
+            self.assign_roster_sort,
             self.social_history_page,
             self.social_history_filter,
             self.selected_social_history_day,

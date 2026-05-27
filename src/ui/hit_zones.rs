@@ -117,6 +117,97 @@ impl AssignBatchAction {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AssignRosterFilter {
+    All,
+    Risk,
+    Support,
+    Pinned,
+}
+
+impl AssignRosterFilter {
+    pub fn all() -> &'static [AssignRosterFilter] {
+        &[
+            AssignRosterFilter::All,
+            AssignRosterFilter::Risk,
+            AssignRosterFilter::Support,
+            AssignRosterFilter::Pinned,
+        ]
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            AssignRosterFilter::All => "ALL",
+            AssignRosterFilter::Risk => "RISK",
+            AssignRosterFilter::Support => "SUP",
+            AssignRosterFilter::Pinned => "PIN",
+        }
+    }
+
+    pub fn tooltip_title(self) -> &'static str {
+        match self {
+            AssignRosterFilter::All => "All survivors",
+            AssignRosterFilter::Risk => "Relationship risks",
+            AssignRosterFilter::Support => "Support ties",
+            AssignRosterFilter::Pinned => "Pinned spaces",
+        }
+    }
+
+    pub fn tooltip_body(self) -> &'static str {
+        match self {
+            AssignRosterFilter::All => "Show the full roster around the selected survivor.",
+            AssignRosterFilter::Risk => {
+                "Show survivors with tense or hostile relationship pressure."
+            }
+            AssignRosterFilter::Support => "Show survivors with friendly or close support ties.",
+            AssignRosterFilter::Pinned => "Show survivors with manual Habitat or work pins.",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AssignRosterSort {
+    Roster,
+    Mood,
+    Bond,
+}
+
+impl AssignRosterSort {
+    pub fn all() -> &'static [AssignRosterSort] {
+        &[
+            AssignRosterSort::Roster,
+            AssignRosterSort::Mood,
+            AssignRosterSort::Bond,
+        ]
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            AssignRosterSort::Roster => "ORD",
+            AssignRosterSort::Mood => "MOOD",
+            AssignRosterSort::Bond => "BOND",
+        }
+    }
+
+    pub fn tooltip_title(self) -> &'static str {
+        match self {
+            AssignRosterSort::Roster => "Roster order",
+            AssignRosterSort::Mood => "Low mood first",
+            AssignRosterSort::Bond => "Strongest ties first",
+        }
+    }
+
+    pub fn tooltip_body(self) -> &'static str {
+        match self {
+            AssignRosterSort::Roster => "Use the colony's original survivor order.",
+            AssignRosterSort::Mood => "Put survivors with lower mood first.",
+            AssignRosterSort::Bond => {
+                "Put survivors with the strongest relationship pressure or support first."
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LogFilter {
     All,
     Tense,
@@ -374,6 +465,40 @@ pub fn assign_page_action_at(context: Rect, x: f32, y: f32) -> Option<PageAction
     }
 
     None
+}
+
+pub fn assign_filter_rect(context: Rect, index: usize) -> Rect {
+    Rect::new(
+        context.x + 72.0 + index as f32 * 44.0,
+        context.y + 13.0,
+        40.0,
+        17.0,
+    )
+}
+
+pub fn assign_filter_at(context: Rect, x: f32, y: f32) -> Option<AssignRosterFilter> {
+    AssignRosterFilter::all()
+        .iter()
+        .enumerate()
+        .find_map(|(index, filter)| {
+            contains(assign_filter_rect(context, index), x, y).then_some(*filter)
+        })
+}
+
+pub fn assign_sort_rect(context: Rect, index: usize) -> Rect {
+    Rect::new(
+        context.x + 264.0 + index as f32 * 50.0,
+        context.y + 13.0,
+        46.0,
+        17.0,
+    )
+}
+
+pub fn assign_sort_at(context: Rect, x: f32, y: f32) -> Option<AssignRosterSort> {
+    AssignRosterSort::all()
+        .iter()
+        .enumerate()
+        .find_map(|(index, sort)| contains(assign_sort_rect(context, index), x, y).then_some(*sort))
 }
 
 pub fn assign_batch_rect(context: Rect, index: usize) -> Rect {
@@ -704,6 +829,26 @@ mod tests {
         );
         assert_eq!(
             assign_page_action_at(context, context.x + 18.0, context.y + 82.0),
+            None
+        );
+    }
+
+    #[test]
+    fn test_assign_filter_and_sort_hit_zones_match_controls() {
+        let context = Rect::new(380.0, 500.0, 520.0, 126.0);
+        let (risk_x, risk_y) = center(assign_filter_rect(context, 1));
+        let (bond_x, bond_y) = center(assign_sort_rect(context, 2));
+
+        assert_eq!(
+            assign_filter_at(context, risk_x, risk_y),
+            Some(AssignRosterFilter::Risk)
+        );
+        assert_eq!(
+            assign_sort_at(context, bond_x, bond_y),
+            Some(AssignRosterSort::Bond)
+        );
+        assert_eq!(
+            assign_filter_at(context, context.x + context.w - 20.0, context.y + 21.0),
             None
         );
     }
