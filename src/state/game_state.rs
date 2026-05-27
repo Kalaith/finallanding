@@ -933,6 +933,7 @@ impl GameplayState {
     /// Draw buildings on the grid
     fn draw_buildings(&self) {
         let iso = self.iso_view();
+        let hovered_building_id = self.building_at_mouse().map(|building| building.id);
         for building in self.data.building_system.buildings() {
             let (width, height) = building.size();
             let (r, g, b) = building.building_type.color();
@@ -955,22 +956,29 @@ impl GameplayState {
                 );
             }
 
+            let assignment_marker = self.assignment_marker_for_building(building.id);
+            let outline_style = building_outline_style(
+                hovered_building_id == Some(building.id),
+                assignment_marker.map(|(_, color)| color),
+            );
             self.draw_building_shell(
                 building.building_type,
                 building.position,
                 width,
                 height,
                 &iso,
+                outline_style,
             );
+            if let Some((outline_color, thickness)) = outline_style {
+                self.draw_building_footprint_outline(building, &iso, outline_color, thickness);
+            }
 
             let name = building.building_type.name();
             let label_pos = iso.grid_to_screen(Position::new(
                 building.position.x + width as i32 / 2,
                 building.position.y + height as i32 / 2,
             ));
-            if let Some((assignment_label, assignment_color)) =
-                self.assignment_marker_for_building(building.id)
-            {
+            if let Some((assignment_label, assignment_color)) = assignment_marker {
                 let marker_width = measure_text(assignment_label, None, 10, 1.0).width + 10.0;
                 draw_rectangle(
                     label_pos.x - marker_width * 0.5,
@@ -1006,6 +1014,19 @@ impl GameplayState {
         }
     }
 
+    fn draw_building_footprint_outline(
+        &self,
+        building: &Building,
+        iso: &IsoView,
+        color: Color,
+        thickness: f32,
+    ) {
+        for cell in building.occupied_cells() {
+            let center = iso.grid_to_screen(cell);
+            draw_iso_diamond_lines(center, iso.tile_w, iso.tile_h, thickness, color);
+        }
+    }
+
     fn assignment_marker_for_building(&self, building_id: u32) -> Option<(&'static str, Color)> {
         if self.toolbar_mode != ToolbarMode::Assign {
             return None;
@@ -1031,6 +1052,7 @@ impl GameplayState {
         width: u32,
         height: u32,
         iso: &IsoView,
+        outline_style: Option<(Color, f32)>,
     ) {
         let center = iso.grid_to_screen(Position::new(
             position.x + width as i32 / 2,
@@ -1052,6 +1074,15 @@ impl GameplayState {
             side,
         );
         draw_building_shell_detail(building_type, roof_center, shell_width, shell_height);
+        if let Some((outline_color, thickness)) = outline_style {
+            draw_iso_diamond_lines(
+                roof_center,
+                shell_width + 4.0,
+                shell_height + 4.0,
+                thickness,
+                outline_color,
+            );
+        }
     }
 
     /// Draw ghost preview of building at cursor
@@ -1337,22 +1368,31 @@ impl GameplayState {
                     signal.color(1.0),
                 );
             }
-            if Some(colonist.id) == hovered_colonist_id
-                || Some(colonist.id) == self.selected_colonist_id
-            {
+            let selected = Some(colonist.id) == self.selected_colonist_id;
+            let hovered = Some(colonist.id) == hovered_colonist_id;
+            if selected || hovered {
+                let outline_color = if selected {
+                    style::ACCENT_GOLD
+                } else {
+                    Color::new(1.0, 1.0, 1.0, 0.86)
+                };
+                draw_circle_lines(center_x, center_y, size / 2.0 + 6.0, 3.0, outline_color);
                 draw_circle_lines(
                     center_x,
                     center_y,
-                    size / 2.0 + 4.0,
-                    2.0,
-                    Color::new(1.0, 1.0, 1.0, 0.8),
+                    size / 2.0 + 10.0,
+                    1.0,
+                    Color::new(0.0, 0.0, 0.0, 0.62),
                 );
-            }
 
-            if Some(colonist.id) == hovered_colonist_id
-                || Some(colonist.id) == self.selected_colonist_id
-            {
                 let name_width = measure_text(&colonist.name, None, 12, 1.0).width;
+                draw_rectangle(
+                    center_x - name_width * 0.5 - 5.0,
+                    y + 28.0,
+                    name_width + 10.0,
+                    16.0,
+                    Color::new(0.03, 0.04, 0.04, 0.76),
+                );
                 draw_text(
                     &colonist.name,
                     center_x - name_width / 2.0,
@@ -1568,6 +1608,14 @@ fn building_wall_height(building_type: BuildingType, tile_h: f32) -> f32 {
         BuildingType::ExplorationGate => 1.25,
     };
     tile_h * multiplier
+}
+
+fn building_outline_style(hovered: bool, assignment_color: Option<Color>) -> Option<(Color, f32)> {
+    if hovered {
+        Some((Color::new(0.92, 0.8, 0.45, 0.96), 3.0))
+    } else {
+        assignment_color.map(|color| (Color::new(color.r, color.g, color.b, 0.9), 2.0))
+    }
 }
 
 fn building_shell_colors(building_type: BuildingType) -> (Color, Color, Color) {
@@ -2577,6 +2625,17 @@ mod tests {
         assert!(shared_assignment_pin(&first, &second));
         second.assigned_workplace = Some(10);
         assert!(!shared_assignment_pin(&first, &second));
+    }
+
+    #[test]
+    fn test_building_outline_style_prioritizes_hover_over_assignment() {
+        let hovered = building_outline_style(true, Some(style::BAR_GREEN)).unwrap();
+        let assigned = building_outline_style(false, Some(style::BAR_GREEN)).unwrap();
+
+        assert_eq!(hovered.1, 3.0);
+        assert_eq!(assigned.1, 2.0);
+        assert!(hovered.0.r > assigned.0.r);
+        assert!(building_outline_style(false, None).is_none());
     }
 }
 
