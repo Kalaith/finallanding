@@ -307,6 +307,10 @@ Completed in the active rebuild:
   - `Assign` cycles colonist work roles, which changes future work targets and mission eligibility.
   - `Log` shows recent colony events.
 - Buildings render as raised isometric shell placeholders instead of flat colored cells.
+- Rajdhani SemiBold is bundled under `assets/fonts/` and used through shared UI text helpers.
+- Toolbar buttons, context cards, logs, and colonist hover now expose bounded tooltip details.
+- Assign mode previews social pressure before retasking survivors and logs the expected same-role relationship impact.
+- `scripts/capture_ui_smoke.ps1` captures and verifies 1280x720 and 1920x1080 gameplay screenshots under `docs/verification/`.
 
 Validation currently passing:
 
@@ -315,37 +319,28 @@ Validation currently passing:
 - `cargo build`
 - `git diff --check`
 - Native launch smoke test
+- Screenshot smoke capture at 1280x720 and 1920x1080
 
 ## Remaining Rebuild Backlog
 
 Highest-value remaining items:
 
-1. Add licensed UI font loading.
-   - Preferred: Rajdhani SemiBold/Bold.
-   - Keep default font fallback if the font asset fails to load.
-   - Apply it through shared text helpers instead of one-off calls.
-
-2. Replace screenshot-cropped placeholder art with production-safe art.
+1. Replace screenshot-cropped placeholder art with production-safe art.
    - Generate or commission six portraits.
    - Generate or commission six standing sprites.
    - Replace screenshot crops once approved art exists.
 
-3. Add richer isometric terrain and building assets.
+2. Add richer isometric terrain and building assets.
    - Dirt, wreckage, scrap, paths, and work-zone tile variation.
    - Building interiors or roof-cutaway sprites for each room/object.
    - Stronger selected/hover outlines.
 
-4. Add tooltip and hover polish.
-   - Toolbar icon tooltips.
-   - Context card hover states with compact consequences.
-   - Colonist/world hover cards that do not overlap core panels.
-
-5. Expand relationship-manager gameplay.
-   - Assigning roles should expose social consequences, not just production targets.
+3. Expand relationship-manager gameplay.
    - Add relationship-aware work grouping and recovery decisions.
    - Promote daily social stories into player-readable log summaries.
+   - Add stronger on-map affordances for strained or supportive pairs during shared work.
 
-6. Add screenshot-based visual verification.
-   - Capture 1280x720 and 1920x1080 smoke screenshots.
-   - Check that panels do not overlap, the map is nonblank, and text stays inside key containers.
-   - Add a manual playtest checklist to `README.md`.
+4. Improve screenshot verification depth.
+   - Add pixel checks for nonblank map, visible panels, and active toolbar.
+   - Keep captured PNGs updated when major UI layout changes land.
+   - Extend the manual playtest checklist when new relationship decisions are added.

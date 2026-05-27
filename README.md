@@ -39,6 +39,7 @@ The left rail surfaces current objectives and alerts while the right rail tracks
 - `cargo test`: runs unit coverage plus a headless reference playthrough.
 - The reference playthrough starts at Day 1 07:00, advances through the live mission, work, resource, relationship, technology, and scenario systems, and asserts a Day 7 victory inside the 30-40 minute normal-speed window.
 - UI hit-zone tests verify the visible menu, speed, priority, building, undo, and mission controls resolve to the intended gameplay actions.
+- `.\scripts\capture_ui_smoke.ps1`: builds the native game, captures gameplay screenshots at 1280x720 and 1920x1080, and verifies that both PNGs are nonempty.
 
 ## Playtest Checklist
 

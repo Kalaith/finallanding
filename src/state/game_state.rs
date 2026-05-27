@@ -973,15 +973,18 @@ impl GameplayState {
                 );
             }
 
-            // Name label
-            let name_width = measure_text(&colonist.name, None, 12, 1.0).width;
-            draw_text(
-                &colonist.name,
-                center_x - name_width / 2.0,
-                y + 40.0,
-                12.0,
-                WHITE,
-            );
+            if Some(colonist.id) == hovered_colonist_id
+                || Some(colonist.id) == self.selected_colonist_id
+            {
+                let name_width = measure_text(&colonist.name, None, 12, 1.0).width;
+                draw_text(
+                    &colonist.name,
+                    center_x - name_width / 2.0,
+                    y + 40.0,
+                    12.0,
+                    WHITE,
+                );
+            }
         }
     }
 

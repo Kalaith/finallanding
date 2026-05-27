@@ -19,9 +19,13 @@ pub struct Game {
 
 impl Game {
     pub async fn new() -> Self {
-        Self {
-            state: GameStateEnum::Menu(MenuState::new()),
-        }
+        let state = if should_start_gameplay() {
+            GameStateEnum::Gameplay(GameplayState::new())
+        } else {
+            GameStateEnum::Menu(MenuState::new())
+        };
+
+        Self { state }
     }
 
     pub fn update(&mut self) {
@@ -54,5 +58,17 @@ impl Game {
             GameStateEnum::Gameplay(state) => state.draw(),
             GameStateEnum::Menu(state) => state.draw_ui(),
         }
+    }
+}
+
+fn should_start_gameplay() -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::env::var("TFL_START_GAMEPLAY").is_ok_and(|value| value != "0")
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        false
     }
 }
