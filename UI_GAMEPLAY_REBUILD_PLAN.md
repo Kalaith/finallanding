@@ -296,6 +296,7 @@ Completed in the active rebuild:
 - Screenshot-style color tokens, panel treatment, left rail, right rail, top bar, and bottom toolbar are implemented.
 - The central playfield now uses isometric projection for terrain, placement previews, buildings, and colonist positions.
 - Production-safe generated portraits and world sprites are wired into the inspector, relationship row, right rail colonist list, and colony view.
+- Generated survivor sprites now include idle, moving, working, eating, and sleeping body-language variants, and the colony renderer selects poses from each colonist's current state.
 - Objective cards are generated from current game state: survival day, shelter capacity, food buffer, core rooms, and field technology.
 - The right rail now reports real gameplay tracks: food days, salvage, prepared meals, survey, repair, and hauling progress.
 - Bottom toolbar modes now affect gameplay:
@@ -326,7 +327,7 @@ Validation currently passing:
 - `cargo build`
 - `git diff --check`
 - Native launch smoke test
-- Screenshot smoke capture at 1280x720 and 1920x1080
+- Screenshot smoke capture at 1280x720, 1920x1080, Assign mode, Log mode, and pose-variant setup
 
 ## Remaining Rebuild Backlog
 
@@ -334,7 +335,7 @@ Highest-value remaining items:
 
 1. Upgrade generated survivor art to higher-fidelity production assets.
    - Commission or generate larger portrait masters if the current procedural 64px set is not expressive enough.
-   - Add idle/work/eat/sleep sprite variants after relationship gameplay needs clearer body language.
+   - Improve the current idle/work/eat/sleep pose set with higher-resolution originals or animation frames when production art becomes available.
    - Keep screenshot crops as visual reference only.
 
 2. Add richer isometric terrain and building assets.
@@ -345,7 +346,7 @@ Highest-value remaining items:
 3. Expand relationship-manager gameplay.
    - Expand relationship directives into persistent team/room assignment panels once the colony has more than one candidate room per type.
    - Expand social history beyond the latest report into a scrollable multi-day timeline.
-   - Add clearer on-map body-language variants when idle/work/eat/sleep sprite variants exist.
+   - Add relationship-reactive body language and transition animations so social tension is visible before opening panels.
 
 4. Improve screenshot verification depth.
    - Keep captured PNGs updated when major UI layout changes land.

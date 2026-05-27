@@ -35,7 +35,7 @@ use crate::ui::{
     side_panel_hit_at, toolbar_building_at_for_mode, toolbar_buildings_for_mode,
     toolbar_colonist_index_at, toolbar_context_rect, toolbar_mission_at, toolbar_mode_at,
     toolbar_priority_at, top_bar_priority_at, top_bar_speed_at, IsoView, Layout, PlaceholderArt,
-    SidePanelHit, ToolbarMode,
+    SidePanelHit, SpritePose, ToolbarMode,
 };
 use macroquad::prelude::*;
 
@@ -80,6 +80,7 @@ impl GameplayState {
                 data.scenario.required_tech_unlocks
             ),
         );
+        seed_activity_poses_for_capture(&mut data);
         seed_social_history_for_capture(&mut data);
 
         let toolbar_mode = initial_toolbar_mode();
@@ -1006,7 +1007,10 @@ impl GameplayState {
                 0.0,
                 Color::new(0.0, 0.0, 0.0, 0.25),
             );
-            if let Some(sprite) = self.art.colonist_sprite(colonist.id) {
+            if let Some(sprite) = self
+                .art
+                .colonist_sprite_for_pose(colonist.id, sprite_pose_for_state(colonist.state))
+            {
                 draw_texture_ex(
                     sprite,
                     center_x - 18.0,
@@ -1648,6 +1652,17 @@ fn colonist_activity_summary(colonist: &Colonist) -> &'static str {
     }
 }
 
+fn sprite_pose_for_state(state: ColonistState) -> SpritePose {
+    match state {
+        ColonistState::Idle => SpritePose::Idle,
+        ColonistState::Moving { .. } => SpritePose::Moving,
+        ColonistState::Working => SpritePose::Working,
+        ColonistState::Eating => SpritePose::Eating,
+        ColonistState::Sleeping => SpritePose::Sleeping,
+        ColonistState::OnMission { .. } => SpritePose::Moving,
+    }
+}
+
 fn directive_log_detail(directive: PairDirective, first_name: &str, second_name: &str) -> String {
     match directive {
         PairDirective::Pair => format!(
@@ -1683,6 +1698,36 @@ fn seed_social_history_for_capture(data: &mut GameState) {
         2,
         1,
     ));
+}
+
+fn seed_activity_poses_for_capture(data: &mut GameState) {
+    if !std::env::var("TFL_SEED_ACTIVITY_POSES").is_ok_and(|value| value != "0") {
+        return;
+    }
+
+    data.time.speed = TimeSpeed::Paused;
+    let pose_layout = [
+        (0, Position::new(3, 7), ColonistState::Idle),
+        (
+            1,
+            Position::new(6, 7),
+            ColonistState::Moving {
+                target: Position::new(7, 7),
+            },
+        ),
+        (2, Position::new(9, 7), ColonistState::Working),
+        (3, Position::new(12, 7), ColonistState::Eating),
+        (4, Position::new(15, 7), ColonistState::Sleeping),
+    ];
+
+    for (index, position, state) in pose_layout {
+        if let Some(colonist) = data.colonists.get_mut(index) {
+            colonist.position = position;
+            colonist.visual_x = position.x as f32 * 32.0;
+            colonist.visual_y = position.y as f32 * 32.0;
+            colonist.state = state;
+        }
+    }
 }
 
 fn initial_selected_colonist_id(data: &GameState, toolbar_mode: ToolbarMode) -> Option<u32> {
@@ -1923,6 +1968,29 @@ mod tests {
         assert_eq!(
             assign_visible_colonist_indices(&colonists, None),
             vec![0, 1, 2, 3, 4]
+        );
+    }
+
+    #[test]
+    fn test_sprite_pose_tracks_colonist_state() {
+        assert_eq!(sprite_pose_for_state(ColonistState::Idle), SpritePose::Idle);
+        assert_eq!(
+            sprite_pose_for_state(ColonistState::Moving {
+                target: Position::new(1, 1)
+            }),
+            SpritePose::Moving
+        );
+        assert_eq!(
+            sprite_pose_for_state(ColonistState::Working),
+            SpritePose::Working
+        );
+        assert_eq!(
+            sprite_pose_for_state(ColonistState::Eating),
+            SpritePose::Eating
+        );
+        assert_eq!(
+            sprite_pose_for_state(ColonistState::Sleeping),
+            SpritePose::Sleeping
         );
     }
 }

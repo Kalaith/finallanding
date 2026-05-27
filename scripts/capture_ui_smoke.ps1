@@ -118,10 +118,11 @@ function Assert-ActiveToolbarVisible {
 }
 
 $sizes = @(
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0" },
-    @{ Width = 1920; Height = 1080; Name = "ui_smoke_1920x1080.png"; Fullscreen = "1"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0" },
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_assign_1280x720.png"; Fullscreen = "0"; Mode = "assign"; Selected = "5"; ActiveIndex = 5; History = "0" },
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_log_1280x720.png"; Fullscreen = "0"; Mode = "log"; Selected = ""; ActiveIndex = 6; History = "1" }
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "0" },
+    @{ Width = 1920; Height = 1080; Name = "ui_smoke_1920x1080.png"; Fullscreen = "1"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "0" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_assign_1280x720.png"; Fullscreen = "0"; Mode = "assign"; Selected = "5"; ActiveIndex = 5; History = "0"; Poses = "0" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_log_1280x720.png"; Fullscreen = "0"; Mode = "log"; Selected = ""; ActiveIndex = 6; History = "1"; Poses = "0" },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_poses_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0; History = "0"; Poses = "1" }
 )
 
 foreach ($size in $sizes) {
@@ -138,6 +139,7 @@ foreach ($size in $sizes) {
     $env:TFL_FULLSCREEN = "$($size.Fullscreen)"
     $env:TFL_START_TOOLBAR_MODE = "$($size.Mode)"
     $env:TFL_SEED_SOCIAL_HISTORY = "$($size.History)"
+    $env:TFL_SEED_ACTIVITY_POSES = "$($size.Poses)"
     if ($size.Selected -ne "") {
         $env:TFL_START_SELECTED_COLONIST = "$($size.Selected)"
     } else {
@@ -182,3 +184,4 @@ Remove-Item Env:\TFL_FULLSCREEN -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_START_TOOLBAR_MODE -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_START_SELECTED_COLONIST -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_SEED_SOCIAL_HISTORY -ErrorAction SilentlyContinue
+Remove-Item Env:\TFL_SEED_ACTIVITY_POSES -ErrorAction SilentlyContinue

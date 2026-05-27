@@ -4,6 +4,37 @@ const PORTRAIT_SIZE: u16 = 64;
 const SPRITE_WIDTH: u16 = 32;
 const SPRITE_HEIGHT: u16 = 64;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SpritePose {
+    Idle,
+    Moving,
+    Working,
+    Eating,
+    Sleeping,
+}
+
+impl SpritePose {
+    const fn all() -> &'static [SpritePose] {
+        &[
+            SpritePose::Idle,
+            SpritePose::Moving,
+            SpritePose::Working,
+            SpritePose::Eating,
+            SpritePose::Sleeping,
+        ]
+    }
+
+    const fn index(self) -> usize {
+        match self {
+            SpritePose::Idle => 0,
+            SpritePose::Moving => 1,
+            SpritePose::Working => 2,
+            SpritePose::Eating => 3,
+            SpritePose::Sleeping => 4,
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 struct SurvivorArtProfile {
     skin: Color,
@@ -61,7 +92,11 @@ impl PlaceholderArt {
         let colonist_sprites = SURVIVOR_ART_PROFILES
             .iter()
             .enumerate()
-            .map(|(index, profile)| texture_from_image(generate_sprite(*profile, index)))
+            .flat_map(|(index, profile)| {
+                SpritePose::all()
+                    .iter()
+                    .map(move |pose| texture_from_image(generate_sprite(*profile, index, *pose)))
+            })
             .collect();
 
         let colonist_portraits = SURVIVOR_ART_PROFILES
@@ -77,12 +112,22 @@ impl PlaceholderArt {
     }
 
     pub fn colonist_sprite(&self, colonist_id: u32) -> Option<&Texture2D> {
+        self.colonist_sprite_for_pose(colonist_id, SpritePose::Idle)
+    }
+
+    pub fn colonist_sprite_for_pose(
+        &self,
+        colonist_id: u32,
+        pose: SpritePose,
+    ) -> Option<&Texture2D> {
         if self.colonist_sprites.is_empty() {
             return None;
         }
 
+        let pose_count = SpritePose::all().len();
+        let profile_index = colonist_id as usize % SURVIVOR_ART_PROFILES.len();
         self.colonist_sprites
-            .get(colonist_id as usize % self.colonist_sprites.len())
+            .get(profile_index * pose_count + pose.index())
     }
 
     pub fn colonist_portrait(&self, colonist_id: u32) -> Option<&Texture2D> {
@@ -158,9 +203,39 @@ fn generate_portrait(profile: SurvivorArtProfile, index: usize) -> Image {
     image
 }
 
-fn generate_sprite(profile: SurvivorArtProfile, index: usize) -> Image {
+fn generate_sprite(profile: SurvivorArtProfile, index: usize, pose: SpritePose) -> Image {
     let mut image = Image::gen_image_color(SPRITE_WIDTH, SPRITE_HEIGHT, transparent());
-    fill_ellipse(&mut image, 16, 57, 10, 4, Color::new(0.0, 0.0, 0.0, 0.28));
+
+    if pose == SpritePose::Sleeping {
+        fill_ellipse(&mut image, 16, 55, 12, 4, Color::new(0.0, 0.0, 0.0, 0.28));
+        fill_ellipse(&mut image, 17, 43, 13, 7, profile.suit);
+        fill_rect(
+            &mut image,
+            7,
+            41,
+            20,
+            7,
+            Color::new(profile.accent.r, profile.accent.g, profile.accent.b, 0.8),
+        );
+        fill_circle(&mut image, 10, 37, 6, profile.skin);
+        fill_ellipse(&mut image, 9, 34, 7, 4, profile.hair);
+        fill_rect(&mut image, 18, 44, 8, 3, Color::new(0.12, 0.13, 0.13, 1.0));
+        return image;
+    }
+
+    let moving_offset = if pose == SpritePose::Moving {
+        index as i32 % 3 - 1
+    } else {
+        0
+    };
+    fill_ellipse(
+        &mut image,
+        16,
+        57,
+        if pose == SpritePose::Moving { 12 } else { 10 },
+        4,
+        Color::new(0.0, 0.0, 0.0, 0.28),
+    );
     fill_rect(&mut image, 11, 28, 10, 21, profile.suit);
     fill_rect(
         &mut image,
@@ -174,22 +249,57 @@ fn generate_sprite(profile: SurvivorArtProfile, index: usize) -> Image {
     fill_ellipse(&mut image, 16, 14, 9, 5, profile.hair);
     fill_rect(&mut image, 10, 19, 3, 7, profile.hair);
     fill_rect(&mut image, 20, 19, 3, 7, profile.hair);
-    draw_line_pixels(&mut image, 11, 31, 6 + index as i32 % 2, 42, profile.suit);
-    draw_line_pixels(&mut image, 21, 31, 26 - index as i32 % 2, 42, profile.suit);
+
+    match pose {
+        SpritePose::Idle => {
+            draw_line_pixels(&mut image, 11, 31, 6 + index as i32 % 2, 42, profile.suit);
+            draw_line_pixels(&mut image, 21, 31, 26 - index as i32 % 2, 42, profile.suit);
+        }
+        SpritePose::Moving => {
+            draw_line_pixels(&mut image, 11, 31, 5, 38 + moving_offset, profile.suit);
+            draw_line_pixels(&mut image, 21, 31, 27, 45 - moving_offset, profile.suit);
+        }
+        SpritePose::Working => {
+            draw_line_pixels(&mut image, 11, 31, 7, 39, profile.suit);
+            draw_line_pixels(&mut image, 21, 31, 26, 36, profile.suit);
+            draw_line_pixels(&mut image, 24, 34, 29, 45, Color::new(0.7, 0.6, 0.38, 1.0));
+            fill_rect(&mut image, 27, 44, 4, 3, profile.accent);
+        }
+        SpritePose::Eating => {
+            draw_line_pixels(&mut image, 11, 31, 9, 38, profile.suit);
+            draw_line_pixels(&mut image, 21, 31, 19, 26, profile.suit);
+            fill_circle(&mut image, 20, 25, 2, profile.accent);
+            fill_rect(&mut image, 10, 43, 12, 3, Color::new(0.12, 0.1, 0.07, 1.0));
+        }
+        SpritePose::Sleeping => {}
+    }
+
+    let left_foot = match pose {
+        SpritePose::Moving => (8, 58),
+        SpritePose::Working => (10, 57),
+        SpritePose::Eating => (10, 58),
+        _ => (10, 58),
+    };
+    let right_foot = match pose {
+        SpritePose::Moving => (25, 58),
+        SpritePose::Working => (22, 57),
+        SpritePose::Eating => (22, 58),
+        _ => (22, 58),
+    };
     draw_line_pixels(
         &mut image,
         13,
         49,
-        10,
-        58,
+        left_foot.0,
+        left_foot.1,
         Color::new(0.12, 0.13, 0.13, 1.0),
     );
     draw_line_pixels(
         &mut image,
         19,
         49,
-        22,
-        58,
+        right_foot.0,
+        right_foot.1,
         Color::new(0.12, 0.13, 0.13, 1.0),
     );
     fill_rect(&mut image, 8, 58, 7, 2, Color::new(0.06, 0.065, 0.065, 1.0));
@@ -335,11 +445,22 @@ mod tests {
 
     #[test]
     fn test_sprite_generation_preserves_transparent_edges() {
-        let image = generate_sprite(SURVIVOR_ART_PROFILES[0], 0);
+        let image = generate_sprite(SURVIVOR_ART_PROFILES[0], 0, SpritePose::Idle);
 
         assert_eq!(image.width, SPRITE_WIDTH);
         assert_eq!(image.height, SPRITE_HEIGHT);
         assert_eq!(image.get_pixel(0, 0).a, 0.0);
         assert!(image.get_pixel(16, 36).a >= 0.89);
+    }
+
+    #[test]
+    fn test_sprite_pose_generation_changes_body_language() {
+        let idle = generate_sprite(SURVIVOR_ART_PROFILES[0], 0, SpritePose::Idle);
+        let working = generate_sprite(SURVIVOR_ART_PROFILES[0], 0, SpritePose::Working);
+        let sleeping = generate_sprite(SURVIVOR_ART_PROFILES[0], 0, SpritePose::Sleeping);
+
+        assert_ne!(idle.get_pixel(29, 45), working.get_pixel(29, 45));
+        assert!(sleeping.get_pixel(17, 43).a > 0.7);
+        assert_eq!(sleeping.get_pixel(16, 19).a, 0.0);
     }
 }
