@@ -334,6 +334,7 @@ Completed in the active rebuild:
 - Crash-site dressing now includes authored supply crates, hull panels, signal beacons, fuel drums, and denser room interiors for each building type.
 - Colony-map hover/selection states now use stronger survivor rings plus building footprint and roof outlines for hovered or selected room-assignment spaces.
 - `scripts/capture_ui_smoke.ps1` captures 1280x720, 1920x1080, Assign-mode, Log-mode, placement-preview, and pose-variant gameplay screenshots under `docs/verification/` and checks important map, rail, active-toolbar, and placement-preview regions for visible pixels.
+- `docs/verification/manual_relationship_playtest.md` now defines the focused manual QA pass for relationship decisions, body language, social logs, archive export, and restart behavior.
 
 Validation currently passing:
 
@@ -363,4 +364,4 @@ Highest-value remaining items:
 
 4. Improve screenshot verification depth.
    - Keep captured PNGs updated when major UI layout changes land.
-   - Extend the manual playtest checklist when new relationship decisions are added.
+   - Extend the manual relationship playtest checklist when new relationship decisions are added.

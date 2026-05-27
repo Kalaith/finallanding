@@ -43,10 +43,12 @@ Strong social ties can now surface directly on the colony map through survivor p
 - UI hit-zone tests verify the visible menu, speed, priority, building, undo, and mission controls resolve to the intended gameplay actions.
 - `.\scripts\capture_ui_smoke.ps1`: builds the native game, captures gameplay screenshots at 1280x720, 1920x1080, Assign mode, Log mode, placement preview, and pose setup, then verifies important visible regions.
 - `.\scripts\capture_playthrough_report.ps1`: builds the native game, captures a headless strategy matrix to `docs\verification\playthrough_report.md`, and verifies the expected scenarios are present.
+- `docs\verification\manual_relationship_playtest.md`: focused manual pass for Assign-mode decisions, map body language, Log archive review, and restart leakage.
 
 ## Playtest Checklist
 
 - Start from the main menu without developer guidance.
+- Run the focused relationship checklist in `docs\verification\manual_relationship_playtest.md` after social or Assign-mode changes.
 - Use Build, Rooms, and Objects modes to place at least one Habitat, Mess Hall, Workshop, Storage, and Exploration Gate.
 - Hover toolbar buttons and context cards; confirm tooltips stay inside the playable view.
 - Change priorities from Colony mode after an incident and confirm the advisor responds.
