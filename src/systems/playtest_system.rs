@@ -7,6 +7,7 @@ use crate::data::scenario::ScenarioOutcome;
 use crate::data::schedule::ActivityType;
 use crate::data::types::Position;
 use crate::game::building_system::PlacementResult;
+use crate::systems::incident_system::IncidentSystem;
 use crate::systems::mission_system::MissionSystem;
 use crate::systems::mood_system::update_mood;
 use crate::systems::resource_system::ResourceSystem;
@@ -33,6 +34,7 @@ pub struct PlaytestReport {
     pub required_technologies: usize,
     pub missions_completed: u32,
     pub buildings_placed: usize,
+    pub incidents_triggered: usize,
 }
 
 impl PlaytestReport {
@@ -45,6 +47,7 @@ impl PlaytestReport {
             && self.technologies_unlocked >= self.required_technologies
             && self.missions_completed >= self.required_technologies as u32
             && self.buildings_placed >= 5
+            && self.incidents_triggered >= 1
     }
 }
 
@@ -89,6 +92,7 @@ impl PlaytestSystem {
             }
 
             if state.tick % TimeSystem::TICKS_PER_HOUR == 0 {
+                IncidentSystem::process_hourly_incidents(&mut state);
                 Self::process_hour(&mut state);
                 Self::manage_build_plan(&mut state);
             }
@@ -116,6 +120,7 @@ impl PlaytestSystem {
             required_technologies: state.scenario.required_tech_unlocks,
             missions_completed: strategy.missions_completed,
             buildings_placed: state.building_system.building_count(),
+            incidents_triggered: state.incidents.triggered.len(),
         }
     }
 

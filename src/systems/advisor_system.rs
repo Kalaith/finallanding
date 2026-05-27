@@ -33,6 +33,7 @@ impl AdvisorSystem {
         let mut lines = Vec::new();
         let (day, _, _) = TimeSystem::get_time_of_day(state.tick);
 
+        Self::add_incident_guidance(state, &mut lines);
         Self::add_pressure_warnings(state, &mut lines);
         Self::add_building_guidance(state, &mut lines);
         Self::add_progress_guidance(state, &mut lines);
@@ -100,6 +101,16 @@ impl AdvisorSystem {
                     summary.strained_pairs
                 ),
                 severity: AdvisorSeverity::Action,
+            });
+        }
+    }
+
+    fn add_incident_guidance(state: &GameState, lines: &mut Vec<AdvisorLine>) {
+        if let Some(incident_type) = state.incidents.active_incident(state.tick) {
+            lines.push(AdvisorLine {
+                title: incident_type.advisor_title().to_string(),
+                detail: incident_type.advisor_detail().to_string(),
+                severity: AdvisorSeverity::Warning,
             });
         }
     }
@@ -201,6 +212,7 @@ impl AdvisorSystem {
 mod tests {
     use super::*;
     use crate::data::colonist::{Colonist, JobPreference, Trait};
+    use crate::data::incident::IncidentType;
     use crate::data::mission::MissionItem;
     use crate::data::types::Position;
 
@@ -291,5 +303,18 @@ mod tests {
             .lines
             .iter()
             .any(|line| line.title == "Hold the landing site"));
+    }
+
+    #[test]
+    fn test_active_incident_creates_advisor_priority() {
+        let mut state = GameState::new();
+        state
+            .incidents
+            .activate(IncidentType::ToolBreakage, state.tick, 60);
+
+        let plan = AdvisorSystem::plan(&state);
+
+        assert_eq!(plan.lines[0].title, "Recover repair stock");
+        assert_eq!(plan.lines[0].severity, AdvisorSeverity::Warning);
     }
 }

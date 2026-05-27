@@ -10,6 +10,7 @@ use crate::data::types::Position;
 use crate::game::building_system::PlacementResult;
 use crate::state::{State, StateTransition};
 use crate::systems::advisor_system::AdvisorSystem;
+use crate::systems::incident_system::IncidentSystem;
 use crate::systems::mission_system::MissionSystem;
 use crate::systems::planning_system::{BuildingPlacementFeedback, PlanningSystem};
 use crate::systems::proximity_system::ProximitySystem;
@@ -403,6 +404,7 @@ impl GameplayState {
                     );
                 }
                 crate::systems::time_events::TimeEvent::HourChanged { hour: _ } => {
+                    IncidentSystem::process_hourly_incidents(&mut self.data);
                     WorkSystem::process_hourly_work(&mut self.data);
                     SocialSystem::check_working_together(&mut self.data);
                     SocialSystem::check_eating_together(&mut self.data);
