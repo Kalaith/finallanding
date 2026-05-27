@@ -298,6 +298,7 @@ Completed in the active rebuild:
 - Production-safe generated portraits and world sprites are wired into the inspector, relationship row, right rail colonist list, and colony view.
 - Generated survivor portraits now render from 128px originals with face, suit, accent, and background detail before scaling into UI cards.
 - Generated survivor sprites now include idle, moving, working, eating, and sleeping body-language variants, and the colony renderer selects poses from each colonist's current state.
+- Relationship-reactive survivor sprites now cycle alternate support/tension frames so body language reads as animated social behavior.
 - Objective cards are generated from current game state: survival day, shelter capacity, food buffer, core rooms, and field technology.
 - The right rail now reports real gameplay tracks: food days, salvage, prepared meals, survey, repair, and hauling progress.
 - Bottom toolbar modes now affect gameplay:
@@ -358,7 +359,7 @@ Highest-value remaining items:
    - Replace procedural room interiors with authored building sprites or higher-fidelity cutaway art for each room/object.
 
 3. Expand relationship-manager gameplay.
-   - Upgrade relationship-reactive body language from procedural pose swaps to richer animation frames when production art is available.
+   - Replace the current procedural relationship animation frames with richer production animation when final character art becomes available.
 
 4. Improve screenshot verification depth.
    - Keep captured PNGs updated when major UI layout changes land.

@@ -1616,7 +1616,7 @@ impl GameplayState {
             let social_signal = self.social_body_language_for(colonist);
             if let Some(sprite) = self.art.colonist_sprite_for_pose(
                 colonist.id,
-                sprite_pose_for_colonist(colonist, social_signal),
+                sprite_pose_for_colonist_frame(colonist, social_signal, self.data.tick),
             ) {
                 draw_texture_ex(
                     sprite,
@@ -2633,14 +2633,38 @@ fn sprite_pose_for_colonist(
     colonist: &Colonist,
     social_signal: Option<SocialBodyLanguage>,
 ) -> SpritePose {
+    sprite_pose_for_colonist_frame(colonist, social_signal, 0)
+}
+
+fn sprite_pose_for_colonist_frame(
+    colonist: &Colonist,
+    social_signal: Option<SocialBodyLanguage>,
+    tick: u64,
+) -> SpritePose {
     if let Some(signal) = social_signal {
         return match signal {
-            SocialBodyLanguage::Supported(_) => SpritePose::Supported,
-            SocialBodyLanguage::Tense(_) => SpritePose::Tense,
+            SocialBodyLanguage::Supported(_) => {
+                if social_pose_uses_alternate_frame(tick) {
+                    SpritePose::SupportedReach
+                } else {
+                    SpritePose::Supported
+                }
+            }
+            SocialBodyLanguage::Tense(_) => {
+                if social_pose_uses_alternate_frame(tick) {
+                    SpritePose::TenseGuarded
+                } else {
+                    SpritePose::Tense
+                }
+            }
         };
     }
 
     sprite_pose_for_state(colonist.state)
+}
+
+fn social_pose_uses_alternate_frame(tick: u64) -> bool {
+    (tick / 45) % 2 == 1
 }
 
 fn shared_assignment_pin(first: &Colonist, second: &Colonist) -> bool {
@@ -3707,6 +3731,30 @@ mod tests {
         assert_eq!(
             sprite_pose_for_colonist(&colonist, Some(SocialBodyLanguage::Supported(28))),
             SpritePose::Supported
+        );
+    }
+
+    #[test]
+    fn test_social_body_language_cycles_alternate_pose_frames() {
+        let colonist = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        );
+
+        assert_eq!(
+            sprite_pose_for_colonist_frame(&colonist, Some(SocialBodyLanguage::Supported(28)), 45),
+            SpritePose::SupportedReach
+        );
+        assert_eq!(
+            sprite_pose_for_colonist_frame(&colonist, Some(SocialBodyLanguage::Tense(-24)), 45),
+            SpritePose::TenseGuarded
+        );
+        assert_eq!(
+            sprite_pose_for_colonist_frame(&colonist, Some(SocialBodyLanguage::Tense(-24)), 90),
+            SpritePose::Tense
         );
     }
 
