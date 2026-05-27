@@ -11,6 +11,8 @@ pub enum SpritePose {
     Working,
     Eating,
     Sleeping,
+    Supported,
+    Tense,
 }
 
 impl SpritePose {
@@ -21,6 +23,8 @@ impl SpritePose {
             SpritePose::Working,
             SpritePose::Eating,
             SpritePose::Sleeping,
+            SpritePose::Supported,
+            SpritePose::Tense,
         ]
     }
 
@@ -31,6 +35,8 @@ impl SpritePose {
             SpritePose::Working => 2,
             SpritePose::Eating => 3,
             SpritePose::Sleeping => 4,
+            SpritePose::Supported => 5,
+            SpritePose::Tense => 6,
         }
     }
 }
@@ -236,7 +242,9 @@ fn generate_sprite(profile: SurvivorArtProfile, index: usize, pose: SpritePose) 
         4,
         Color::new(0.0, 0.0, 0.0, 0.28),
     );
-    fill_rect(&mut image, 11, 28, 10, 21, profile.suit);
+    let torso_x = if pose == SpritePose::Tense { 12 } else { 11 };
+    let torso_w = if pose == SpritePose::Tense { 9 } else { 10 };
+    fill_rect(&mut image, torso_x, 28, torso_w, 21, profile.suit);
     fill_rect(
         &mut image,
         12,
@@ -271,6 +279,19 @@ fn generate_sprite(profile: SurvivorArtProfile, index: usize, pose: SpritePose) 
             fill_circle(&mut image, 20, 25, 2, profile.accent);
             fill_rect(&mut image, 10, 43, 12, 3, Color::new(0.12, 0.1, 0.07, 1.0));
         }
+        SpritePose::Supported => {
+            draw_line_pixels(&mut image, 11, 31, 5, 35, profile.suit);
+            draw_line_pixels(&mut image, 21, 31, 27, 35, profile.suit);
+            fill_circle(&mut image, 5, 35, 2, profile.accent);
+            fill_circle(&mut image, 27, 35, 2, profile.accent);
+            draw_line_pixels(&mut image, 12, 25, 20, 25, profile.accent);
+        }
+        SpritePose::Tense => {
+            draw_line_pixels(&mut image, 12, 31, 10, 40, profile.suit);
+            draw_line_pixels(&mut image, 20, 31, 22, 40, profile.suit);
+            fill_rect(&mut image, 10, 25, 12, 2, profile.hair);
+            fill_rect(&mut image, 12, 36, 9, 2, Color::new(0.10, 0.08, 0.08, 1.0));
+        }
         SpritePose::Sleeping => {}
     }
 
@@ -278,12 +299,16 @@ fn generate_sprite(profile: SurvivorArtProfile, index: usize, pose: SpritePose) 
         SpritePose::Moving => (8, 58),
         SpritePose::Working => (10, 57),
         SpritePose::Eating => (10, 58),
+        SpritePose::Supported => (9, 58),
+        SpritePose::Tense => (12, 58),
         _ => (10, 58),
     };
     let right_foot = match pose {
         SpritePose::Moving => (25, 58),
         SpritePose::Working => (22, 57),
         SpritePose::Eating => (22, 58),
+        SpritePose::Supported => (23, 58),
+        SpritePose::Tense => (20, 58),
         _ => (22, 58),
     };
     draw_line_pixels(
@@ -458,9 +483,13 @@ mod tests {
         let idle = generate_sprite(SURVIVOR_ART_PROFILES[0], 0, SpritePose::Idle);
         let working = generate_sprite(SURVIVOR_ART_PROFILES[0], 0, SpritePose::Working);
         let sleeping = generate_sprite(SURVIVOR_ART_PROFILES[0], 0, SpritePose::Sleeping);
+        let supported = generate_sprite(SURVIVOR_ART_PROFILES[0], 0, SpritePose::Supported);
+        let tense = generate_sprite(SURVIVOR_ART_PROFILES[0], 0, SpritePose::Tense);
 
         assert_ne!(idle.get_pixel(29, 45), working.get_pixel(29, 45));
         assert!(sleeping.get_pixel(17, 43).a > 0.7);
         assert_eq!(sleeping.get_pixel(16, 19).a, 0.0);
+        assert_ne!(idle.get_pixel(5, 35), supported.get_pixel(5, 35));
+        assert_ne!(idle.get_pixel(12, 36), tense.get_pixel(12, 36));
     }
 }

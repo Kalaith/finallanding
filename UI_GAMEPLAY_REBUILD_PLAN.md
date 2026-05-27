@@ -314,6 +314,7 @@ Completed in the active rebuild:
 - Initial survivors now start with a small social backstory so relationship management is visible from the first playable frame.
 - Colonists prefer available workplaces and habitat assignments with supportive partners over hostile pairings when the colony has a choice.
 - The map and right rail now expose relationship pressure/support through compact social badges and Friendly/Tense value chips.
+- The colony map now uses relationship-reactive survivor body language and pulsing support/tension markers when strong ties are active through proximity or room/work pins.
 - Assign mode now supports player-authored pair and space directives between selected survivors, and those directives influence future workplace and habitat choices.
 - Assign mode now supports direct map-based room pins: selected survivors can be assigned to a recovery Habitat and a compatible work space, and those pins steer sleep/work routing.
 - Assign mode now warns when pinned rooms are over capacity or place tense survivors in the same Habitat/work space.
@@ -348,7 +349,7 @@ Highest-value remaining items:
 3. Expand relationship-manager gameplay.
    - Expand room pins into a fuller team roster view with batch reassignment controls when the colony has many duplicate spaces.
    - Add a scrollable or paged social archive once more than three daily reports need to be reviewed in-session.
-   - Add relationship-reactive body language and transition animations so social tension is visible before opening panels.
+   - Upgrade relationship-reactive body language from procedural pose swaps to richer animation frames when production art is available.
 
 4. Improve screenshot verification depth.
    - Keep captured PNGs updated when major UI layout changes land.

@@ -1196,10 +1196,11 @@ impl GameplayState {
                 0.0,
                 Color::new(0.0, 0.0, 0.0, 0.25),
             );
-            if let Some(sprite) = self
-                .art
-                .colonist_sprite_for_pose(colonist.id, sprite_pose_for_state(colonist.state))
-            {
+            let social_signal = self.social_body_language_for(colonist);
+            if let Some(sprite) = self.art.colonist_sprite_for_pose(
+                colonist.id,
+                sprite_pose_for_colonist(colonist, social_signal),
+            ) {
                 draw_texture_ex(
                     sprite,
                     center_x - 18.0,
@@ -1257,6 +1258,26 @@ impl GameplayState {
                         style::TEXT_PRIMARY,
                     );
                 }
+            }
+            if let Some(signal) = social_signal {
+                let pulse = ((self.data.tick % 90) as f32 / 90.0 * std::f32::consts::TAU)
+                    .sin()
+                    .abs();
+                let signal_color = signal.color(0.46 + pulse * 0.22);
+                draw_circle_lines(
+                    center_x,
+                    center_y - 12.0,
+                    15.0 + pulse * 3.0,
+                    2.0,
+                    signal_color,
+                );
+                draw_text(
+                    signal.symbol(),
+                    center_x + 8.0,
+                    center_y - 25.0,
+                    12.0,
+                    signal.color(1.0),
+                );
             }
             if Some(colonist.id) == hovered_colonist_id
                 || Some(colonist.id) == self.selected_colonist_id
@@ -1354,6 +1375,50 @@ impl GameplayState {
                 }
             }
         }
+    }
+
+    fn social_body_language_for(&self, colonist: &Colonist) -> Option<SocialBodyLanguage> {
+        if matches!(
+            colonist.state,
+            ColonistState::Moving { .. }
+                | ColonistState::Sleeping
+                | ColonistState::OnMission { .. }
+        ) {
+            return None;
+        }
+
+        let mut best_signal = None;
+        for other in &self.data.colonists {
+            if other.id == colonist.id || other.is_on_mission() {
+                continue;
+            }
+
+            let value = average_relationship_between(colonist, other);
+            if value.abs() < 20 {
+                continue;
+            }
+
+            let active_contact = shared_social_location(colonist, other)
+                || shared_assignment_pin(colonist, other)
+                || adjacent_positions(colonist.position, other.position);
+            if !active_contact {
+                continue;
+            }
+
+            let signal = if value < 0 {
+                SocialBodyLanguage::Tense(value)
+            } else {
+                SocialBodyLanguage::Supported(value)
+            };
+            if best_signal
+                .map(|best: SocialBodyLanguage| signal.intensity() > best.intensity())
+                .unwrap_or(true)
+            {
+                best_signal = Some(signal);
+            }
+        }
+
+        best_signal
     }
 
     fn draw_hover_colonist_card(&self, hovered_colonist_id: Option<u32>) {
@@ -1864,6 +1929,71 @@ fn sprite_pose_for_state(state: ColonistState) -> SpritePose {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SocialBodyLanguage {
+    Supported(i32),
+    Tense(i32),
+}
+
+impl SocialBodyLanguage {
+    fn intensity(self) -> i32 {
+        match self {
+            SocialBodyLanguage::Supported(value) | SocialBodyLanguage::Tense(value) => value.abs(),
+        }
+    }
+
+    fn color(self, alpha: f32) -> Color {
+        match self {
+            SocialBodyLanguage::Supported(_) => Color::new(
+                style::BAR_GREEN.r,
+                style::BAR_GREEN.g,
+                style::BAR_GREEN.b,
+                alpha,
+            ),
+            SocialBodyLanguage::Tense(_) => Color::new(
+                style::ALERT_RED.r,
+                style::ALERT_RED.g,
+                style::ALERT_RED.b,
+                alpha,
+            ),
+        }
+    }
+
+    fn symbol(self) -> &'static str {
+        match self {
+            SocialBodyLanguage::Supported(_) => "+",
+            SocialBodyLanguage::Tense(_) => "!",
+        }
+    }
+}
+
+fn sprite_pose_for_colonist(
+    colonist: &Colonist,
+    social_signal: Option<SocialBodyLanguage>,
+) -> SpritePose {
+    if let Some(signal) = social_signal {
+        return match signal {
+            SocialBodyLanguage::Supported(_) => SpritePose::Supported,
+            SocialBodyLanguage::Tense(_) => SpritePose::Tense,
+        };
+    }
+
+    sprite_pose_for_state(colonist.state)
+}
+
+fn shared_assignment_pin(first: &Colonist, second: &Colonist) -> bool {
+    first
+        .assigned_habitat
+        .is_some_and(|id| second.assigned_habitat == Some(id))
+        || first
+            .assigned_workplace
+            .is_some_and(|id| second.assigned_workplace == Some(id))
+}
+
+fn adjacent_positions(first: Position, second: Position) -> bool {
+    (first.x - second.x).abs() + (first.y - second.y).abs() <= 1
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SpaceAssignmentKind {
     Recovery,
     Work,
@@ -2289,6 +2419,51 @@ mod tests {
             sprite_pose_for_state(ColonistState::Sleeping),
             SpritePose::Sleeping
         );
+    }
+
+    #[test]
+    fn test_social_body_language_overrides_idle_pose() {
+        let colonist = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        );
+
+        assert_eq!(
+            sprite_pose_for_colonist(&colonist, Some(SocialBodyLanguage::Tense(-24))),
+            SpritePose::Tense
+        );
+        assert_eq!(
+            sprite_pose_for_colonist(&colonist, Some(SocialBodyLanguage::Supported(28))),
+            SpritePose::Supported
+        );
+    }
+
+    #[test]
+    fn test_shared_assignment_and_adjacency_drive_social_contact() {
+        let mut first = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(4, 4),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        );
+        let mut second = Colonist::new(
+            2,
+            "Bob".to_string(),
+            Position::new(5, 4),
+            Trait::FastWalker,
+            JobPreference::Builder,
+        );
+
+        assert!(adjacent_positions(first.position, second.position));
+        first.assigned_workplace = Some(9);
+        second.assigned_workplace = Some(9);
+        assert!(shared_assignment_pin(&first, &second));
+        second.assigned_workplace = Some(10);
+        assert!(!shared_assignment_pin(&first, &second));
     }
 }
 

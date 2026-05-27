@@ -34,6 +34,7 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 
 Playable screenshot-style colony-planning loop with isometric placement, room/action toolbar modes, priority control, survivor role assignment, field missions, daily routines, and relationship pressure.
 The left rail surfaces current objectives and alerts while the right rail tracks food days, salvage, work progress, active colonists, and local map state.
+Strong social ties can now surface directly on the colony map through survivor pose changes and pulsing support/tension markers.
 
 ## Verification
 
@@ -49,6 +50,7 @@ The left rail surfaces current objectives and alerts while the right rail tracks
 - Hover toolbar buttons and context cards; confirm tooltips stay inside the playable view.
 - Change priorities from Colony mode after an incident and confirm the advisor responds.
 - Use Assign mode to retask one survivor, then pin a compatible Habitat or work space from the map and confirm the HOME/WORK marker and any conflict warning appears.
+- Confirm tense/supportive survivors show visible body-language markers on the colony map before opening the inspector.
 - Open Log mode after a day summary and confirm the social timeline preserves recent relationship recommendations.
 - Launch at least two different mission types from Research mode and compare risk/reward.
 - Hover and inspect one colonist, then identify their strongest or weakest relationship.
