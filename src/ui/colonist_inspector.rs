@@ -3,6 +3,7 @@ use crate::data::colonist::{
     relationship_label, ActivityLocation, Colonist, ColonistState, JobPreference,
 };
 use crate::data::schedule::ActivityType;
+use crate::ui::style;
 use macroquad::prelude::*;
 
 pub fn draw_colonist_inspector(
@@ -15,69 +16,106 @@ pub fn draw_colonist_inspector(
         return;
     };
 
-    let game_area = layout.game_area();
-    let width = (game_area.w - 28.0).clamp(300.0, 370.0);
-    let height = 126.0;
-    let x = game_area.x + 14.0;
-    let y = game_area.y + 14.0;
+    let rail = layout.left_panel();
+    let width = rail.w;
+    let height = 246.0_f32.min(rail.h * 0.45);
+    let x = rail.x;
+    let y = rail.y + rail.h - height;
     let accent = mood_color(colonist.mood);
 
-    draw_rectangle(x, y, width, height, Color::new(0.035, 0.042, 0.048, 0.92));
+    style::draw_panel(Rect::new(x, y, width, height));
     draw_rectangle(x, y, 4.0, height, accent);
-    draw_rectangle_lines(x, y, width, height, 1.0, Color::new(0.48, 0.54, 0.58, 0.85));
 
     draw_text(
-        &truncate(&colonist.name, 25),
+        &truncate(&colonist.name.to_uppercase(), 25),
         x + 14.0,
-        y + 24.0,
-        17.0,
-        WHITE,
+        y + 31.0,
+        18.0,
+        style::TEXT_PRIMARY,
+    );
+
+    let portrait_rect = Rect::new(x + 18.0, y + 54.0, 76.0, 76.0);
+    draw_rectangle(
+        portrait_rect.x,
+        portrait_rect.y,
+        portrait_rect.w,
+        portrait_rect.h,
+        Color::new(0.09, 0.1, 0.095, 1.0),
+    );
+    draw_circle(
+        portrait_rect.x + portrait_rect.w * 0.5,
+        portrait_rect.y + 30.0,
+        22.0,
+        Color::new(0.74, 0.62, 0.49, 1.0),
+    );
+    draw_rectangle(
+        portrait_rect.x + 21.0,
+        portrait_rect.y + 50.0,
+        34.0,
+        20.0,
+        job_color(colonist.job_preference),
+    );
+    draw_rectangle_lines(
+        portrait_rect.x,
+        portrait_rect.y,
+        portrait_rect.w,
+        portrait_rect.h,
+        1.0,
+        style::PANEL_BORDER,
+    );
+    draw_text(
+        job_label(colonist.job_preference),
+        x + 112.0,
+        y + 74.0,
+        style::BODY_SIZE,
+        style::TEXT_BODY,
     );
     draw_text(
         state_label(colonist.state),
-        x + width - 96.0,
-        y + 24.0,
-        13.0,
-        LIGHTGRAY,
-    );
-
-    draw_line(
-        x + 12.0,
-        y + 33.0,
-        x + width - 12.0,
-        y + 33.0,
-        1.0,
-        Color::new(0.35, 0.39, 0.42, 0.85),
-    );
-
-    draw_text(
-        &format!(
-            "Mood {:.0} | Job {}",
-            colonist.mood,
-            job_label(colonist.job_preference)
-        ),
-        x + 14.0,
-        y + 53.0,
-        13.0,
-        LIGHTGRAY,
+        x + 112.0,
+        y + 96.0,
+        style::SMALL_SIZE,
+        style::BAR_GREEN,
     );
     draw_text(
         &format!(
-            "Activity: {} at {}",
+            "{} at {}",
             activity_label(&colonist.current_activity),
-            truncate(&activity_location_label(&colonist.activity_location), 26)
+            truncate(&activity_location_label(&colonist.activity_location), 17)
         ),
-        x + 14.0,
-        y + 74.0,
-        12.0,
-        Color::new(0.75, 0.78, 0.8, 1.0),
+        x + 112.0,
+        y + 116.0,
+        style::TINY_SIZE,
+        style::TEXT_MUTED,
     );
     draw_text(
         &format!("Injury: {}", injury_label(colonist, current_tick)),
-        x + 14.0,
-        y + 94.0,
-        12.0,
-        Color::new(0.72, 0.75, 0.77, 1.0),
+        x + 112.0,
+        y + 134.0,
+        style::TINY_SIZE,
+        style::TEXT_MUTED,
+    );
+
+    let bars_y = y + 146.0;
+    draw_labeled_bar(
+        x + 18.0,
+        bars_y,
+        "Mood",
+        colonist.mood / 100.0,
+        style::BAR_GREEN,
+    );
+    draw_labeled_bar(x + 18.0, bars_y + 23.0, "Energy", 0.46, style::BAR_GOLD);
+    draw_labeled_bar(x + 18.0, bars_y + 46.0, "Hunger", 0.58, style::BAR_RED);
+    draw_labeled_bar(
+        x + 18.0,
+        bars_y + 69.0,
+        "Health",
+        if colonist.is_hurt(current_tick) {
+            0.45
+        } else {
+            0.82
+        },
+        style::BAR_CYAN,
     );
 
     let relationship = strongest_relationship(colonist, colonists)
@@ -92,12 +130,17 @@ pub fn draw_colonist_inspector(
         .unwrap_or_else(|| "No strong tie yet".to_string());
 
     draw_text(
-        &format!("Strongest relationship: {}", truncate(&relationship, 28)),
-        x + 14.0,
-        y + 114.0,
-        12.0,
-        Color::new(0.8, 0.82, 0.84, 1.0),
+        &format!("RELATIONSHIP  {}", truncate(&relationship, 24)),
+        x + 18.0,
+        y + height - 13.0,
+        style::TINY_SIZE,
+        style::TEXT_BODY,
     );
+}
+
+fn draw_labeled_bar(x: f32, y: f32, label: &str, value: f32, color: Color) {
+    draw_text(label, x, y + 9.0, style::TINY_SIZE, style::TEXT_BODY);
+    style::draw_progress_bar(Rect::new(x + 72.0, y, 150.0, 9.0), value, color);
 }
 
 fn state_label(state: ColonistState) -> &'static str {
@@ -170,6 +213,16 @@ fn mood_color(mood: f32) -> Color {
         YELLOW
     } else {
         ORANGE
+    }
+}
+
+fn job_color(job: JobPreference) -> Color {
+    match job {
+        JobPreference::Explorer => style::ACCENT_BLUE,
+        JobPreference::Builder => style::BAR_GOLD,
+        JobPreference::Cook => style::BAR_GREEN,
+        JobPreference::Hauler => style::TEXT_MUTED,
+        JobPreference::None => style::TEXT_BODY,
     }
 }
 

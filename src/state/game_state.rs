@@ -22,9 +22,9 @@ use crate::systems::time_events::TimeEventCollector;
 use crate::systems::time_system::TimeSystem;
 use crate::systems::work_system::WorkSystem;
 use crate::ui::{
-    draw_advisor_overlay, draw_colonist_inspector, draw_debug_overlay, draw_side_panel,
-    draw_top_bar, restart_button_rect, side_panel_hit_at, top_bar_priority_at, top_bar_speed_at,
-    Layout, SidePanelHit,
+    draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
+    draw_side_panel, draw_top_bar, restart_button_rect, side_panel_hit_at, top_bar_priority_at,
+    top_bar_speed_at, Layout, PlaceholderArt, SidePanelHit,
 };
 use macroquad::prelude::*;
 
@@ -47,6 +47,8 @@ pub struct GameplayState {
     layout: Layout,
     /// Debug overlay visible
     debug_mode: bool,
+    /// Placeholder visual assets extracted from the rebuild reference.
+    art: PlaceholderArt,
 }
 
 impl GameplayState {
@@ -76,6 +78,7 @@ impl GameplayState {
             time_accumulator: 0.0,
             layout: Layout::default(),
             debug_mode: false,
+            art: PlaceholderArt::new(),
         }
     }
 
@@ -235,7 +238,7 @@ impl GameplayState {
         };
 
         if is_mouse_button_pressed(MouseButton::Left) {
-            let pos = Grid::world_to_grid(mouse_x, mouse_y - self.layout.top_bar_height);
+            let pos = Grid::world_to_grid(mouse_x - game_area.x, mouse_y - game_area.y);
             let feedback = PlanningSystem::building_feedback(&self.data, building_type, pos);
             if let Some(reason) = feedback.invalid_reason.as_ref() {
                 self.data.push_log(
@@ -502,16 +505,16 @@ impl GameplayState {
 
     /// Draw buildings on the grid
     fn draw_buildings(&self) {
+        let game_area = self.layout.game_area();
         for building in self.data.building_system.buildings() {
             let (wx, wy) = Grid::grid_to_world(building.position.x, building.position.y);
-            let wy_offset = self.layout.top_bar_height;
             let (width, height) = building.size();
             let (r, g, b) = building.building_type.color();
 
             let color = Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0);
             draw_rectangle(
-                wx,
-                wy + wy_offset,
+                game_area.x + wx,
+                game_area.y + wy,
                 width as f32 * CELL_SIZE,
                 height as f32 * CELL_SIZE,
                 color,
@@ -519,8 +522,8 @@ impl GameplayState {
 
             // Draw border
             draw_rectangle_lines(
-                wx,
-                wy + wy_offset,
+                game_area.x + wx,
+                game_area.y + wy,
                 width as f32 * CELL_SIZE,
                 height as f32 * CELL_SIZE,
                 2.0,
@@ -529,8 +532,9 @@ impl GameplayState {
 
             // Draw building name
             let name = building.building_type.name();
-            let center_x = wx + (width as f32 * CELL_SIZE) / 2.0 - (name.len() as f32 * 3.0);
-            let center_y = wy + wy_offset + (height as f32 * CELL_SIZE) / 2.0 + 5.0;
+            let center_x =
+                game_area.x + wx + (width as f32 * CELL_SIZE) / 2.0 - (name.len() as f32 * 3.0);
+            let center_y = game_area.y + wy + (height as f32 * CELL_SIZE) / 2.0 + 5.0;
             draw_text(name, center_x, center_y, 14.0, WHITE);
         }
     }
@@ -548,9 +552,8 @@ impl GameplayState {
                 return;
             }
 
-            let pos = Grid::world_to_grid(mouse_x, mouse_y - self.layout.top_bar_height);
+            let pos = Grid::world_to_grid(mouse_x - game_area.x, mouse_y - game_area.y);
             let (wx, wy) = Grid::grid_to_world(pos.x, pos.y);
-            let wy_offset = self.layout.top_bar_height;
             let (width, height) = building_type.size();
             let feedback = PlanningSystem::building_feedback(&self.data, building_type, pos);
             let can_place = feedback.can_place();
@@ -563,8 +566,8 @@ impl GameplayState {
             };
 
             draw_rectangle(
-                wx,
-                wy + wy_offset,
+                game_area.x + wx,
+                game_area.y + wy,
                 width as f32 * CELL_SIZE,
                 height as f32 * CELL_SIZE,
                 color,
@@ -573,8 +576,8 @@ impl GameplayState {
             // Draw outline
             let outline_color = if can_place { GREEN } else { RED };
             draw_rectangle_lines(
-                wx,
-                wy + wy_offset,
+                game_area.x + wx,
+                game_area.y + wy,
                 width as f32 * CELL_SIZE,
                 height as f32 * CELL_SIZE,
                 2.0,
@@ -589,8 +592,8 @@ impl GameplayState {
                     height,
                     building_type.salvage_cost()
                 ),
-                wx,
-                wy + wy_offset - 4.0,
+                game_area.x + wx,
+                game_area.y + wy - 4.0,
                 14.0,
                 outline_color,
             );
@@ -673,7 +676,7 @@ impl GameplayState {
 
     /// Draw the grid with offset for top bar
     fn draw_grid_with_offset(&self) {
-        let offset_y = self.layout.top_bar_height;
+        let game_area = self.layout.game_area();
 
         for y in 0..self.data.grid.height {
             for x in 0..self.data.grid.width {
@@ -682,21 +685,27 @@ impl GameplayState {
                 let cell = self.data.grid.get_cell(x as i32, y as i32);
                 let color = match cell {
                     Some(c) => match c.cell_type {
-                        crate::data::grid::CellType::Empty => Color::new(0.1, 0.1, 0.15, 1.0),
-                        crate::data::grid::CellType::Floor => Color::new(0.2, 0.25, 0.2, 1.0),
-                        crate::data::grid::CellType::Wall => Color::new(0.3, 0.3, 0.35, 1.0),
+                        crate::data::grid::CellType::Empty => Color::new(0.19, 0.17, 0.11, 1.0),
+                        crate::data::grid::CellType::Floor => Color::new(0.24, 0.22, 0.15, 1.0),
+                        crate::data::grid::CellType::Wall => Color::new(0.16, 0.18, 0.16, 1.0),
                     },
                     None => BLACK,
                 };
 
-                draw_rectangle(wx, wy + offset_y, CELL_SIZE, CELL_SIZE, color);
+                draw_rectangle(
+                    game_area.x + wx,
+                    game_area.y + wy,
+                    CELL_SIZE,
+                    CELL_SIZE,
+                    color,
+                );
                 draw_rectangle_lines(
-                    wx,
-                    wy + offset_y,
+                    game_area.x + wx,
+                    game_area.y + wy,
                     CELL_SIZE,
                     CELL_SIZE,
                     1.0,
-                    Color::new(0.3, 0.3, 0.3, 0.5),
+                    Color::new(0.12, 0.13, 0.11, 0.45),
                 );
             }
         }
@@ -704,21 +713,28 @@ impl GameplayState {
         // Highlight hovered cell
         if let Some(pos) = self.hovered_cell {
             let (wx, wy) = Grid::grid_to_world(pos.x, pos.y);
-            draw_rectangle_lines(wx, wy + offset_y, CELL_SIZE, CELL_SIZE, 2.0, YELLOW);
+            draw_rectangle_lines(
+                game_area.x + wx,
+                game_area.y + wy,
+                CELL_SIZE,
+                CELL_SIZE,
+                2.0,
+                YELLOW,
+            );
         }
     }
 
     /// Draw colonists with offset for top bar
     fn draw_colonists_with_offset(&self, hovered_colonist_id: Option<u32>) {
-        let offset_y = self.layout.top_bar_height;
+        let game_area = self.layout.game_area();
 
         for colonist in &self.data.colonists {
             if colonist.is_on_mission() {
                 continue;
             }
 
-            let x = colonist.visual_x;
-            let y = colonist.visual_y + offset_y;
+            let x = game_area.x + colonist.visual_x;
+            let y = game_area.y + colonist.visual_y;
             let size = 24.0;
 
             // Colonist color based on state
@@ -741,32 +757,45 @@ impl GameplayState {
                 0.0,
                 Color::new(0.0, 0.0, 0.0, 0.25),
             );
-            draw_rectangle(center_x - 8.0, center_y + 2.0, 16.0, 15.0, color);
-            draw_rectangle_lines(center_x - 8.0, center_y + 2.0, 16.0, 15.0, 1.0, WHITE);
-            draw_circle(
-                center_x,
-                center_y - 5.0,
-                8.0,
-                Color::new(0.78, 0.68, 0.56, 1.0),
-            );
-            draw_circle_lines(center_x, center_y - 5.0, 8.0, 1.0, WHITE);
-            draw_rectangle(center_x - 5.0, center_y - 10.0, 10.0, 3.0, color);
-            draw_line(
-                center_x - 5.0,
-                center_y + 17.0,
-                center_x - 9.0,
-                center_y + 24.0,
-                2.0,
-                LIGHTGRAY,
-            );
-            draw_line(
-                center_x + 5.0,
-                center_y + 17.0,
-                center_x + 9.0,
-                center_y + 24.0,
-                2.0,
-                LIGHTGRAY,
-            );
+            if let Some(sprite) = self.art.colonist_sprite(colonist.id) {
+                draw_texture_ex(
+                    sprite,
+                    center_x - 18.0,
+                    center_y - 37.0,
+                    WHITE,
+                    DrawTextureParams {
+                        dest_size: Some(vec2(36.0, 70.0)),
+                        ..Default::default()
+                    },
+                );
+            } else {
+                draw_rectangle(center_x - 8.0, center_y + 2.0, 16.0, 15.0, color);
+                draw_rectangle_lines(center_x - 8.0, center_y + 2.0, 16.0, 15.0, 1.0, WHITE);
+                draw_circle(
+                    center_x,
+                    center_y - 5.0,
+                    8.0,
+                    Color::new(0.78, 0.68, 0.56, 1.0),
+                );
+                draw_circle_lines(center_x, center_y - 5.0, 8.0, 1.0, WHITE);
+                draw_rectangle(center_x - 5.0, center_y - 10.0, 10.0, 3.0, color);
+                draw_line(
+                    center_x - 5.0,
+                    center_y + 17.0,
+                    center_x - 9.0,
+                    center_y + 24.0,
+                    2.0,
+                    LIGHTGRAY,
+                );
+                draw_line(
+                    center_x + 5.0,
+                    center_y + 17.0,
+                    center_x + 9.0,
+                    center_y + 24.0,
+                    2.0,
+                    LIGHTGRAY,
+                );
+            }
             draw_circle(
                 center_x + 8.0,
                 center_y + 5.0,
@@ -813,8 +842,8 @@ impl GameplayState {
             .iter()
             .filter(|colonist| !colonist.is_on_mission())
             .filter_map(|colonist| {
-                let center_x = colonist.visual_x + 16.0;
-                let center_y = colonist.visual_y + self.layout.top_bar_height + 16.0;
+                let center_x = game_area.x + colonist.visual_x + 16.0;
+                let center_y = game_area.y + colonist.visual_y + 16.0;
                 let dx = mouse_x - center_x;
                 let dy = mouse_y - center_y;
                 let distance_sq = dx * dx + dy * dy;
@@ -923,8 +952,8 @@ impl State for GameplayState {
 
         // Update hovered cell based on mouse position (account for UI offset)
         let (mouse_x, mouse_y) = mouse_position();
-        let adjusted_y = mouse_y - self.layout.top_bar_height;
-        let grid_pos = Grid::world_to_grid(mouse_x, adjusted_y);
+        let game_area = self.layout.game_area();
+        let grid_pos = Grid::world_to_grid(mouse_x - game_area.x, mouse_y - game_area.y);
         if self.data.grid.is_in_bounds(grid_pos.x, grid_pos.y) {
             self.hovered_cell = Some(grid_pos);
         } else {
@@ -947,7 +976,8 @@ impl State for GameplayState {
         self.draw_ghost_preview();
         self.draw_colonists_with_offset(hovered_colonist_id);
         let advisor_plan = AdvisorSystem::plan(&self.data);
-        draw_advisor_overlay(&self.layout, &advisor_plan);
+        let objective_line = ScenarioSystem::objective_line(&self.data);
+        draw_advisor_overlay(&self.layout, &objective_line, &advisor_plan);
         draw_colonist_inspector(
             &self.layout,
             self.inspected_colonist(hovered_colonist_id),
@@ -976,7 +1006,7 @@ impl State for GameplayState {
             &self.data.resources,
             ResourceSystem::storage_capacity(&self.data),
             ResourceSystem::daily_supply_need(&self.data),
-            &ScenarioSystem::objective_line(&self.data),
+            &objective_line,
             self.data.scenario.outcome,
             self.data.missions.active_count(),
             &mission_plans,
@@ -984,6 +1014,7 @@ impl State for GameplayState {
             &colony_summary,
             &self.data.event_log,
         );
+        draw_bottom_toolbar(&self.layout, self.selected_building);
 
         // Debug overlay
         if self.debug_mode {

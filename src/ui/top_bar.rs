@@ -9,9 +9,8 @@ use crate::ui::hit_zones::{
     priority_button_rect, speed_button_rect, top_bar_speed_at, BUTTON_GAP, PRIORITY_BUTTON_START_X,
     PRIORITY_BUTTON_W, PRIORITY_LABEL_X,
 };
+use crate::ui::style;
 use macroquad::prelude::*;
-use macroquad_toolkit::colors::dark;
-use macroquad_toolkit::ui::*;
 
 /// Draw the top bar with time and speed controls
 /// Returns the new TimeSpeed if changed, None otherwise
@@ -26,13 +25,16 @@ pub fn draw_top_bar(
 ) -> Option<TimeSpeed> {
     let rect = layout.top_bar();
 
-    let surface = SurfaceStyle::new(dark::PANEL)
-        .with_header(rect.h, dark::PANEL)
-        .with_header_divider(2.0, dark::PANEL_HEADER);
-    draw_surface(rect, &surface);
+    style::draw_deep_panel(Rect::new(12.0, 12.0, rect.w.min(840.0), rect.h - 16.0));
 
     // Title
-    draw_text("The Final Landing", 15.0, 32.0, 24.0, WHITE);
+    draw_text(
+        "THE FINAL LANDING",
+        30.0,
+        42.0,
+        style::TITLE_SIZE,
+        style::TEXT_PRIMARY,
+    );
 
     // Time display
     let (day, hour, minute) = TimeSystem::get_time_of_day(tick);
@@ -43,37 +45,35 @@ pub fn draw_top_bar(
     } else {
         Color::new(1.0, 0.9, 0.6, 1.0)
     };
-    let time_icon = if is_night { "☾" } else { "☀" };
+    let time_icon = if is_night { "MOON" } else { "SUN" };
 
     draw_text(
-        &format!("{} {}", time_icon, time_str),
-        220.0,
-        32.0,
-        22.0,
+        &format!("{}  {}", time_str, time_icon),
+        565.0,
+        42.0,
+        18.0,
         time_color,
     );
 
     // Speed controls
     let mut new_speed: Option<TimeSpeed> = None;
     let speeds = [
-        (TimeSpeed::Paused, "⏸", "Pause"),
-        (TimeSpeed::Normal, "1x", "Normal"),
-        (TimeSpeed::Fast, "2x", "Fast"),
-        (TimeSpeed::SuperFast, "4x", "Super"),
+        (TimeSpeed::Paused, "II", "Pause"),
+        (TimeSpeed::Normal, ">", "Normal"),
+        (TimeSpeed::Fast, ">>", "Fast"),
+        (TimeSpeed::SuperFast, ">>>", "Super"),
     ];
 
     for (i, (speed, label, _tooltip)) in speeds.iter().enumerate() {
         let button_rect = speed_button_rect(i);
         let is_active = current_speed == *speed;
 
-        let bg_color = if is_active {
-            dark::ACCENT
-        } else {
-            dark::PANEL_HEADER
-        };
-
-        let btn_surface = SurfaceStyle::new(bg_color).with_border(1.0, GRAY);
-        draw_surface(button_rect, &btn_surface);
+        let (mx, my) = mouse_position();
+        style::draw_button(
+            button_rect,
+            is_active,
+            button_rect.contains(Vec2::new(mx, my)),
+        );
 
         let text_w = measure_text(label, None, 16, 1.0).width;
         draw_text(
@@ -81,28 +81,29 @@ pub fn draw_top_bar(
             button_rect.x + (button_rect.w - text_w) / 2.0,
             button_rect.y + 20.0,
             16.0,
-            WHITE,
+            if is_active {
+                style::HEADING_BLUE
+            } else {
+                style::TEXT_BODY
+            },
         );
 
-        let (mx, my) = mouse_position();
         if is_mouse_button_pressed(MouseButton::Left) {
             new_speed = top_bar_speed_at(mx, my);
         }
     }
 
-    draw_text("Priority", PRIORITY_LABEL_X, 30.0, 13.0, GRAY);
+    draw_text("PRIORITY", PRIORITY_LABEL_X, 24.0, 12.0, style::TEXT_MUTED);
 
     for (i, priority) in ColonyPriority::all().iter().enumerate() {
         let button_rect = priority_button_rect(i);
         let is_active = current_priority == *priority;
-        let bg_color = if is_active {
-            Color::new(0.25, 0.42, 0.34, 1.0)
-        } else {
-            dark::PANEL_HEADER
-        };
-
-        let btn_surface = SurfaceStyle::new(bg_color).with_border(1.0, GRAY);
-        draw_surface(button_rect, &btn_surface);
+        let (mx, my) = mouse_position();
+        style::draw_button(
+            button_rect,
+            is_active,
+            button_rect.contains(Vec2::new(mx, my)),
+        );
 
         let label = format!("[{}] {}", priority.shortcut(), priority.short_label());
         let text_w = measure_text(&label, None, 13, 1.0).width;
@@ -111,7 +112,11 @@ pub fn draw_top_bar(
             button_rect.x + (button_rect.w - text_w) / 2.0,
             button_rect.y + 20.0,
             13.0,
-            WHITE,
+            if is_active {
+                style::TEXT_PRIMARY
+            } else {
+                style::TEXT_BODY
+            },
         );
     }
 
@@ -129,7 +134,7 @@ pub fn draw_top_bar(
     let status_x = priority_end + 18.0;
     let status_width = measure_text(&status_label, None, 16, 1.0).width;
     if status_x + status_width <= rect.w - 10.0 {
-        draw_text(&status_label, status_x, 32.0, 16.0, LIGHTGRAY);
+        draw_text(&status_label, status_x, 42.0, 16.0, style::TEXT_BODY);
     } else {
         let compact_status = format!(
             "Mood:{:.0} S:{} {}",
@@ -140,7 +145,7 @@ pub fn draw_top_bar(
         let compact_width = measure_text(&compact_status, None, 14, 1.0).width;
         let compact_x = rect.w - compact_width - 10.0;
         if compact_x > priority_end + 10.0 {
-            draw_text(&compact_status, compact_x, 32.0, 14.0, LIGHTGRAY);
+            draw_text(&compact_status, compact_x, 42.0, 14.0, style::TEXT_BODY);
         }
     }
 

@@ -7,10 +7,10 @@ use macroquad::prelude::Rect;
 pub const TOP_BAR_BUTTON_Y: f32 = 10.0;
 pub const TOP_BAR_BUTTON_H: f32 = 30.0;
 pub const SPEED_BUTTON_W: f32 = 50.0;
-pub const SPEED_BUTTON_START_X: f32 = 420.0;
-pub const PRIORITY_LABEL_X: f32 = 650.0;
+pub const SPEED_BUTTON_START_X: f32 = 300.0;
+pub const PRIORITY_LABEL_X: f32 = 850.0;
 pub const PRIORITY_BUTTON_W: f32 = 68.0;
-pub const PRIORITY_BUTTON_START_X: f32 = 725.0;
+pub const PRIORITY_BUTTON_START_X: f32 = 915.0;
 pub const BUTTON_GAP: f32 = 5.0;
 
 const PANEL_SECTION_OFFSET_Y: f32 = 10.0;

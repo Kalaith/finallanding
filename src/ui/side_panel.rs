@@ -9,9 +9,8 @@ use crate::data::technology::{TechId, TechnologyState};
 use crate::systems::mission_system::MissionPlan;
 use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
 use crate::ui::hit_zones::{build_button_rect, mission_button_rect, undo_button_rect};
+use crate::ui::style;
 use macroquad::prelude::*;
-use macroquad_toolkit::colors::dark;
-use macroquad_toolkit::ui::{draw_surface, SurfaceStyle};
 
 /// Result of drawing the side panel
 pub struct SidePanelResult {
@@ -38,12 +37,11 @@ pub fn draw_side_panel(
 ) -> SidePanelResult {
     let rect = layout.side_panel();
 
-    let surface = SurfaceStyle::new(dark::PANEL).with_left_accent(2.0, dark::PANEL_HEADER);
-    draw_surface(rect, &surface);
+    style::draw_panel(rect);
 
     // Section: Buildings
     let section_y = rect.y + 10.0;
-    draw_text("🏗 Buildings", rect.x + 15.0, section_y + 20.0, 20.0, WHITE);
+    style::draw_section_title("BUILDINGS", rect.x + 15.0, section_y + 20.0);
     draw_line(
         rect.x + 10.0,
         section_y + 30.0,
@@ -73,27 +71,10 @@ pub fn draw_side_panel(
         let (r, g, b) = building_type.color();
         let building_color = Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0);
 
-        // Background
-        let bg_color = if is_selected {
-            Color::new(0.2, 0.4, 0.3, 1.0)
-        } else {
-            dark::PANEL_HEADER
-        };
-
         // Hover effect
         let (mx, my) = mouse_position();
         let is_hovered = button_rect.contains(Vec2::new(mx, my));
-        let bg_color = if is_hovered && !is_selected {
-            Color::new(bg_color.r + 0.1, bg_color.g + 0.1, bg_color.b + 0.1, 1.0)
-        } else {
-            bg_color
-        };
-
-        let mut button_surface = SurfaceStyle::new(bg_color);
-        if is_selected {
-            button_surface = button_surface.with_border(2.0, GREEN);
-        }
-        draw_surface(button_rect, &button_surface);
+        style::draw_button(button_rect, is_selected, is_hovered);
 
         // Color swatch
         draw_rectangle(
@@ -153,11 +134,18 @@ pub fn draw_side_panel(
     let undo_bg = if undo_hovered {
         Color::new(0.4, 0.3, 0.3, 1.0)
     } else {
-        dark::PANEL_HEADER
+        Color::new(0.075, 0.095, 0.105, 0.95)
     };
 
-    let undo_surface = SurfaceStyle::new(undo_bg);
-    draw_surface(undo_rect, &undo_surface);
+    draw_rectangle(undo_rect.x, undo_rect.y, undo_rect.w, undo_rect.h, undo_bg);
+    draw_rectangle_lines(
+        undo_rect.x,
+        undo_rect.y,
+        undo_rect.w,
+        undo_rect.h,
+        1.0,
+        style::PANEL_BORDER,
+    );
     draw_text(
         "↩ [Z] Undo Last",
         undo_rect.x + 10.0,
@@ -172,7 +160,7 @@ pub fn draw_side_panel(
 
     let first_mission_rect = mission_button_rect(rect, 0);
     let mission_y = first_mission_rect.y - 12.0;
-    draw_text("Missions", rect.x + 15.0, mission_y, 18.0, WHITE);
+    style::draw_section_title("MISSIONS", rect.x + 15.0, mission_y);
     let cooldown_remaining = mission_plans
         .first()
         .map(|plan| plan.cooldown_remaining)
@@ -187,13 +175,27 @@ pub fn draw_side_panel(
         } else if mission_hovered {
             Color::new(0.25, 0.3, 0.4, 1.0)
         } else {
-            dark::PANEL_HEADER
+            Color::new(0.075, 0.095, 0.105, 0.95)
         };
-        let mut surface = SurfaceStyle::new(mission_bg);
-        if plan.recommended {
-            surface = surface.with_border(1.0, GREEN);
-        }
-        draw_surface(mission_rect, &surface);
+        draw_rectangle(
+            mission_rect.x,
+            mission_rect.y,
+            mission_rect.w,
+            mission_rect.h,
+            mission_bg,
+        );
+        draw_rectangle_lines(
+            mission_rect.x,
+            mission_rect.y,
+            mission_rect.w,
+            mission_rect.h,
+            if plan.recommended { 2.0 } else { 1.0 },
+            if plan.recommended {
+                style::BAR_GREEN
+            } else {
+                style::PANEL_BORDER
+            },
+        );
 
         let marker = if plan.recommended { "REC" } else { "   " };
         draw_text(
