@@ -1271,10 +1271,16 @@ impl GameplayState {
                 );
             }
 
-            let assignment_marker = self.assignment_marker_for_building(building.id);
-            let outline_style = building_outline_style(
+            let filter_match = self.toolbar_mode == ToolbarMode::Assign
+                && self.assign_building_filter == Some(building.id);
+            let assignment_marker = assignment_marker_with_filter(
+                self.assignment_marker_for_building(building.id),
+                filter_match,
+            );
+            let outline_style = building_outline_style_for_assign_filter(
                 hovered_building_id == Some(building.id),
                 assignment_marker.map(|(_, color)| color),
+                filter_match,
             );
             self.draw_building_shell(
                 building.building_type,
@@ -1937,6 +1943,25 @@ fn building_outline_style(hovered: bool, assignment_color: Option<Color>) -> Opt
         Some((Color::new(0.92, 0.8, 0.45, 0.96), 3.0))
     } else {
         assignment_color.map(|color| (Color::new(color.r, color.g, color.b, 0.9), 2.0))
+    }
+}
+
+fn assignment_marker_with_filter(
+    assignment_marker: Option<(&'static str, Color)>,
+    filter_match: bool,
+) -> Option<(&'static str, Color)> {
+    assignment_marker.or_else(|| filter_match.then_some(("FILTER", style::ACCENT_GOLD)))
+}
+
+fn building_outline_style_for_assign_filter(
+    hovered: bool,
+    assignment_color: Option<Color>,
+    filter_match: bool,
+) -> Option<(Color, f32)> {
+    if filter_match {
+        Some((style::ACCENT_GOLD, 3.0))
+    } else {
+        building_outline_style(hovered, assignment_color)
     }
 }
 
@@ -3505,6 +3530,36 @@ mod tests {
         assert_eq!(assigned.1, 2.0);
         assert!(hovered.0.r > assigned.0.r);
         assert!(building_outline_style(false, None).is_none());
+    }
+
+    #[test]
+    fn test_assignment_marker_with_filter_adds_filter_without_replacing_assignment() {
+        let filtered = assignment_marker_with_filter(None, true).unwrap();
+        assert_eq!(filtered.0, "FILTER");
+        assert_eq!(filtered.1.r, style::ACCENT_GOLD.r);
+        assert_eq!(filtered.1.g, style::ACCENT_GOLD.g);
+        assert_eq!(filtered.1.b, style::ACCENT_GOLD.b);
+
+        let assigned = assignment_marker_with_filter(Some(("HOME", style::BAR_GREEN)), true)
+            .expect("assignment marker should remain visible");
+        assert_eq!(assigned.0, "HOME");
+        assert_eq!(assigned.1.r, style::BAR_GREEN.r);
+        assert!(assignment_marker_with_filter(None, false).is_none());
+    }
+
+    #[test]
+    fn test_assign_filter_outline_uses_gold_room_highlight() {
+        let filtered =
+            building_outline_style_for_assign_filter(true, Some(style::BAR_GREEN), true).unwrap();
+        assert_eq!(filtered.0.r, style::ACCENT_GOLD.r);
+        assert_eq!(filtered.0.g, style::ACCENT_GOLD.g);
+        assert_eq!(filtered.0.b, style::ACCENT_GOLD.b);
+        assert_eq!(filtered.1, 3.0);
+
+        let assigned =
+            building_outline_style_for_assign_filter(false, Some(style::BAR_GREEN), false).unwrap();
+        assert_eq!(assigned.1, 2.0);
+        assert!(building_outline_style_for_assign_filter(false, None, false).is_none());
     }
 }
 
