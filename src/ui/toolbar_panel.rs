@@ -12,9 +12,9 @@ use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSumm
 use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
     assign_batch_home_rect, assign_batch_work_rect, assign_page_next_rect,
-    assign_page_previous_rect, log_page_next_rect, log_page_previous_rect,
+    assign_page_previous_rect, log_filter_rect, log_page_next_rect, log_page_previous_rect,
     toolbar_buildings_for_mode, toolbar_context_item_rect, toolbar_context_rect,
-    toolbar_list_item_rect, ToolbarMode,
+    toolbar_list_item_rect, LogFilter, ToolbarMode,
 };
 use crate::ui::style;
 use crate::ui::tooltip::draw_tooltip_near_mouse;
@@ -35,6 +35,7 @@ pub fn draw_toolbar_context_panel(
     social_history: &[SocialHistoryEntry],
     assign_roster_page: usize,
     social_history_page: usize,
+    social_history_filter: LogFilter,
     active_priority: ColonyPriority,
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
@@ -68,6 +69,7 @@ pub fn draw_toolbar_context_panel(
             logs,
             social_history,
             social_history_page,
+            social_history_filter,
             colony_summary,
         ),
     }
@@ -667,6 +669,7 @@ fn draw_log_context(
     logs: &[ColonyLogEntry],
     social_history: &[SocialHistoryEntry],
     social_history_page: usize,
+    social_history_filter: LogFilter,
     summary: &ColonyPressureSummary,
 ) {
     let mut hovered_history = None;
@@ -686,10 +689,10 @@ fn draw_log_context(
         style::TEXT_BODY,
     );
 
-    let page_count = social_history_page_count(social_history);
+    let page_count = social_history_page_count(social_history, social_history_filter);
     let current_page = social_history_page.min(page_count.saturating_sub(1));
-    let timeline = social_timeline_rows(social_history, current_page);
-    if !timeline.is_empty() {
+    let timeline = social_timeline_rows(social_history, social_history_filter, current_page);
+    if !social_history.is_empty() {
         draw_text(
             "SOCIAL TIMELINE",
             context.x + 18.0,
@@ -697,8 +700,20 @@ fn draw_log_context(
             style::TINY_SIZE,
             style::HEADING_BLUE,
         );
+        draw_log_filter_controls(context, social_history_filter);
         if page_count > 1 {
             draw_log_page_controls(context, current_page, page_count);
+        }
+
+        if timeline.is_empty() {
+            draw_text(
+                "No matching daily reports in this archive.",
+                context.x + 18.0,
+                context.y + 102.0,
+                style::TINY_SIZE,
+                style::TEXT_MUTED,
+            );
+            return;
         }
 
         for (index, row) in timeline.iter().enumerate() {
@@ -782,6 +797,25 @@ fn draw_log_context(
     }
 }
 
+fn draw_log_filter_controls(context: Rect, active_filter: LogFilter) {
+    for (index, filter) in LogFilter::all().iter().enumerate() {
+        let rect = log_filter_rect(context, index);
+        let active = *filter == active_filter;
+        style::draw_button(rect, active, rect.contains(mouse_position().into()));
+        draw_text(
+            filter.label(),
+            rect.x + 6.0,
+            rect.y + 12.0,
+            style::TINY_SIZE,
+            if active {
+                style::TEXT_PRIMARY
+            } else {
+                style::TEXT_MUTED
+            },
+        );
+    }
+}
+
 fn draw_log_page_controls(context: Rect, current_page: usize, page_count: usize) {
     let previous = log_page_previous_rect(context);
     let next = log_page_next_rect(context);
@@ -830,15 +864,24 @@ struct SocialTimelineRow {
     color: Color,
 }
 
-pub fn social_history_page_count(history: &[SocialHistoryEntry]) -> usize {
-    ((history.len() + SOCIAL_TIMELINE_PAGE_SIZE - 1) / SOCIAL_TIMELINE_PAGE_SIZE).max(1)
+pub fn social_history_page_count(history: &[SocialHistoryEntry], filter: LogFilter) -> usize {
+    let count = history
+        .iter()
+        .filter(|entry| social_history_matches_filter(entry, filter))
+        .count();
+    ((count + SOCIAL_TIMELINE_PAGE_SIZE - 1) / SOCIAL_TIMELINE_PAGE_SIZE).max(1)
 }
 
-fn social_timeline_rows(history: &[SocialHistoryEntry], page: usize) -> Vec<SocialTimelineRow> {
-    let page = page.min(social_history_page_count(history).saturating_sub(1));
+fn social_timeline_rows(
+    history: &[SocialHistoryEntry],
+    filter: LogFilter,
+    page: usize,
+) -> Vec<SocialTimelineRow> {
+    let page = page.min(social_history_page_count(history, filter).saturating_sub(1));
     history
         .iter()
         .rev()
+        .filter(|entry| social_history_matches_filter(entry, filter))
         .skip(page * SOCIAL_TIMELINE_PAGE_SIZE)
         .take(SOCIAL_TIMELINE_PAGE_SIZE)
         .map(|entry| SocialTimelineRow {
@@ -852,6 +895,14 @@ fn social_timeline_rows(history: &[SocialHistoryEntry], page: usize) -> Vec<Soci
             color: social_history_color(entry),
         })
         .collect()
+}
+
+fn social_history_matches_filter(entry: &SocialHistoryEntry, filter: LogFilter) -> bool {
+    match filter {
+        LogFilter::All => true,
+        LogFilter::Tense => entry.strained_pairs > 0 || entry.average_relationship < -5.0,
+        LogFilter::Support => entry.close_pairs > 0 || entry.average_relationship > 8.0,
+    }
 }
 
 fn social_history_color(entry: &SocialHistoryEntry) -> Color {
@@ -1134,7 +1185,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let rows = social_timeline_rows(&history, 0);
+        let rows = social_timeline_rows(&history, LogFilter::All, 0);
 
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].day, 4);
@@ -1149,12 +1200,12 @@ mod tests {
             .map(|day| SocialHistoryEntry::new(day, "", "", "", 50.0, day as f32, 0, 0))
             .collect::<Vec<_>>();
 
-        let first_page = social_timeline_rows(&history, 0);
-        let second_page = social_timeline_rows(&history, 1);
-        let last_page = social_timeline_rows(&history, 2);
-        let clamped_page = social_timeline_rows(&history, 99);
+        let first_page = social_timeline_rows(&history, LogFilter::All, 0);
+        let second_page = social_timeline_rows(&history, LogFilter::All, 1);
+        let last_page = social_timeline_rows(&history, LogFilter::All, 2);
+        let clamped_page = social_timeline_rows(&history, LogFilter::All, 99);
 
-        assert_eq!(social_history_page_count(&history), 3);
+        assert_eq!(social_history_page_count(&history, LogFilter::All), 3);
         assert_eq!(
             first_page.iter().map(|row| row.day).collect::<Vec<_>>(),
             vec![6, 5, 4]
@@ -1168,6 +1219,24 @@ mod tests {
             vec![0]
         );
         assert_eq!(clamped_page[0].day, 0);
+    }
+
+    #[test]
+    fn test_social_timeline_rows_filter_tense_and_support_reports() {
+        let history = vec![
+            SocialHistoryEntry::new(0, "Neutral", "", "", 52.0, 0.0, 0, 0),
+            SocialHistoryEntry::new(1, "Tense", "", "", 43.0, -9.0, 0, 1),
+            SocialHistoryEntry::new(2, "Support", "", "", 66.0, 12.0, 1, 0),
+        ];
+
+        let tense = social_timeline_rows(&history, LogFilter::Tense, 0);
+        let support = social_timeline_rows(&history, LogFilter::Support, 0);
+
+        assert_eq!(tense.len(), 1);
+        assert_eq!(tense[0].day, 1);
+        assert_eq!(support.len(), 1);
+        assert_eq!(support[0].day, 2);
+        assert_eq!(social_history_page_count(&history, LogFilter::Tense), 1);
     }
 
     #[test]

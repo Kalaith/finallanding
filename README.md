@@ -27,7 +27,7 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 - Z: undo placement.
 - Esc: cancel current tool.
 - Assign mode: page through survivor cards, hover to preview social pressure, click a survivor card to cycle their work role, click a compatible map building to pin or clear their recovery/work space, then use Copy H/Copy W to batch-copy selected pins to compatible visible survivors; warnings flag over-capacity or tense pins.
-- Log mode: review the live social brief and page through daily relationship reports.
+- Log mode: review the live social brief and page/filter daily relationship reports by all, tense, or supportive days.
 - Research mode: click a mission card to launch a field mission when the colony has an Exploration Gate.
 
 ## Current Scope
@@ -51,7 +51,7 @@ Strong social ties can now surface directly on the colony map through survivor p
 - Change priorities from Colony mode after an incident and confirm the advisor responds.
 - Use Assign mode to page through the roster, retask one survivor, pin a compatible Habitat or work space from the map, then copy HOME/WORK pins to compatible visible survivors and confirm any conflict warning appears.
 - Confirm tense/supportive survivors show visible body-language markers on the colony map before opening the inspector.
-- Open Log mode after several day summaries and confirm the social archive pages through older relationship recommendations.
+- Open Log mode after several day summaries and confirm the social archive pages and filters older relationship recommendations.
 - Launch at least two different mission types from Research mode and compare risk/reward.
 - Hover and inspect one colonist, then identify their strongest or weakest relationship.
 - Reach victory or failure, then use the restart button to begin another run.

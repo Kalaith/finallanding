@@ -323,6 +323,7 @@ Completed in the active rebuild:
 - Log mode now includes a compact social brief that highlights mood, close/tense pair counts, and the strongest relationship signal before recent events.
 - End-of-day social reports are now preserved as social history entries, and Log mode shows a compact latest-three-day social timeline with mood, relationship, and strain metrics.
 - Log mode now pages the social archive so older daily relationship reports remain reviewable after more than three summaries.
+- Log mode now filters the social archive by all, tense, or supportive reports for faster relationship review.
 - The colony surface now has deterministic crash-site dressing with wreckage, cables, tracks, and richer room-specific cutaway details on placed buildings.
 - Colony-map hover/selection states now use stronger survivor rings plus building footprint and roof outlines for hovered or selected room-assignment spaces.
 - `scripts/capture_ui_smoke.ps1` captures 1280x720, 1920x1080, Assign-mode, Log-mode, placement-preview, and pose-variant gameplay screenshots under `docs/verification/` and checks important map, rail, active-toolbar, and placement-preview regions for visible pixels.
@@ -351,7 +352,7 @@ Highest-value remaining items:
 
 3. Expand relationship-manager gameplay.
    - Add broader all-colony assignment workflows once colony size grows beyond the current paged roster.
-   - Add richer archive filters or event drilldowns once the daily report history becomes dense enough to need search.
+   - Add event drilldowns once the daily report history becomes dense enough to need search.
    - Upgrade relationship-reactive body language from procedural pose swaps to richer animation frames when production art is available.
 
 4. Improve screenshot verification depth.

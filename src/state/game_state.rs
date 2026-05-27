@@ -32,11 +32,11 @@ use crate::ui::{
     assign_batch_action_at, assign_page_action_at, draw_advisor_overlay, draw_bottom_toolbar,
     draw_colonist_inspector, draw_debug_overlay, draw_iso_diamond, draw_iso_diamond_lines,
     draw_iso_prism, draw_right_rail, draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar,
-    log_page_action_at, restart_button_rect, side_panel_hit_at, social_history_page_count,
-    toolbar_building_at_for_mode, toolbar_buildings_for_mode, toolbar_colonist_index_at,
-    toolbar_context_rect, toolbar_mission_at, toolbar_mode_at, toolbar_priority_at,
-    top_bar_priority_at, top_bar_speed_at, AssignBatchAction, IsoView, Layout, PageAction,
-    PlaceholderArt, SidePanelHit, SpritePose, ToolbarMode,
+    log_filter_at, log_page_action_at, restart_button_rect, side_panel_hit_at,
+    social_history_page_count, toolbar_building_at_for_mode, toolbar_buildings_for_mode,
+    toolbar_colonist_index_at, toolbar_context_rect, toolbar_mission_at, toolbar_mode_at,
+    toolbar_priority_at, top_bar_priority_at, top_bar_speed_at, AssignBatchAction, IsoView, Layout,
+    LogFilter, PageAction, PlaceholderArt, SidePanelHit, SpritePose, ToolbarMode,
 };
 use macroquad::prelude::*;
 
@@ -67,6 +67,8 @@ pub struct GameplayState {
     assign_roster_page: usize,
     /// Current page in the Log mode social archive.
     social_history_page: usize,
+    /// Active filter in the Log mode social archive.
+    social_history_filter: LogFilter,
     /// Placeholder visual assets extracted from the rebuild reference.
     art: PlaceholderArt,
 }
@@ -110,6 +112,7 @@ impl GameplayState {
             toolbar_mode,
             assign_roster_page: 0,
             social_history_page: 0,
+            social_history_filter: LogFilter::All,
             art: PlaceholderArt::new(),
         }
     }
@@ -440,6 +443,11 @@ impl GameplayState {
                 }
             }
             ToolbarMode::Log => {
+                if let Some(filter) = log_filter_at(context, mouse_x, mouse_y) {
+                    self.social_history_filter = filter;
+                    self.social_history_page = 0;
+                    return true;
+                }
                 if let Some(action) = log_page_action_at(context, mouse_x, mouse_y) {
                     self.update_log_page(action);
                 }
@@ -466,7 +474,8 @@ impl GameplayState {
     }
 
     fn update_log_page(&mut self, action: PageAction) {
-        let page_count = social_history_page_count(&self.data.social_history);
+        let page_count =
+            social_history_page_count(&self.data.social_history, self.social_history_filter);
         match action {
             PageAction::Previous => {
                 self.social_history_page = self.social_history_page.saturating_sub(1);
@@ -3057,6 +3066,7 @@ impl State for GameplayState {
             &self.data.social_history,
             self.assign_roster_page,
             self.social_history_page,
+            self.social_history_filter,
             self.data.priority.active,
             &self.data.colonists,
             self.selected_colonist_id,

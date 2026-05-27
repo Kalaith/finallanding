@@ -54,6 +54,27 @@ pub enum AssignBatchAction {
     Work,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LogFilter {
+    All,
+    Tense,
+    Support,
+}
+
+impl LogFilter {
+    pub fn all() -> &'static [LogFilter] {
+        &[LogFilter::All, LogFilter::Tense, LogFilter::Support]
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            LogFilter::All => "ALL",
+            LogFilter::Tense => "TENSE",
+            LogFilter::Support => "PLUS",
+        }
+    }
+}
+
 impl ToolbarMode {
     pub fn all() -> &'static [ToolbarMode] {
         &[
@@ -245,6 +266,24 @@ pub fn log_page_action_at(context: Rect, x: f32, y: f32) -> Option<PageAction> {
     }
 
     None
+}
+
+pub fn log_filter_rect(context: Rect, index: usize) -> Rect {
+    Rect::new(
+        context.x + 120.0 + index as f32 * 50.0,
+        context.y + 72.0,
+        46.0,
+        17.0,
+    )
+}
+
+pub fn log_filter_at(context: Rect, x: f32, y: f32) -> Option<LogFilter> {
+    LogFilter::all()
+        .iter()
+        .enumerate()
+        .find_map(|(index, filter)| {
+            contains(log_filter_rect(context, index), x, y).then_some(*filter)
+        })
 }
 
 pub fn assign_page_previous_rect(context: Rect) -> Rect {
@@ -547,6 +586,23 @@ mod tests {
         );
         assert_eq!(
             log_page_action_at(context, context.x + 18.0, context.y + 82.0),
+            None
+        );
+    }
+
+    #[test]
+    fn test_log_filter_hit_zones_match_filter_controls() {
+        let context = Rect::new(380.0, 500.0, 520.0, 126.0);
+        let (all_x, all_y) = center(log_filter_rect(context, 0));
+        let (support_x, support_y) = center(log_filter_rect(context, 2));
+
+        assert_eq!(log_filter_at(context, all_x, all_y), Some(LogFilter::All));
+        assert_eq!(
+            log_filter_at(context, support_x, support_y),
+            Some(LogFilter::Support)
+        );
+        assert_eq!(
+            log_filter_at(context, context.x + 18.0, context.y + 82.0),
             None
         );
     }
