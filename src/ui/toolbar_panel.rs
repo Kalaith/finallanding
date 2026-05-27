@@ -11,10 +11,10 @@ use crate::systems::relationship_directive_system::{PairDirective, RelationshipD
 use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
 use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
-    assign_batch_home_rect, assign_batch_work_rect, assign_page_next_rect,
-    assign_page_previous_rect, log_filter_rect, log_page_next_rect, log_page_previous_rect,
-    log_timeline_row_rect, toolbar_buildings_for_mode, toolbar_context_item_rect,
-    toolbar_context_rect, toolbar_list_item_rect, LogFilter, ToolbarMode,
+    assign_batch_rect, assign_page_next_rect, assign_page_previous_rect, log_filter_rect,
+    log_page_next_rect, log_page_previous_rect, log_timeline_row_rect, toolbar_buildings_for_mode,
+    toolbar_context_item_rect, toolbar_context_rect, toolbar_list_item_rect, AssignBatchAction,
+    LogFilter, ToolbarMode,
 };
 use crate::ui::style;
 use crate::ui::tooltip::draw_tooltip_near_mouse;
@@ -400,36 +400,43 @@ fn draw_assign_context(
 }
 
 fn draw_assign_batch_controls(context: Rect, selected_colonist: &Colonist) {
-    let home = assign_batch_home_rect(context);
-    let work = assign_batch_work_rect(context);
     let mouse = mouse_position().into();
     let home_enabled = selected_colonist.assigned_habitat.is_some();
     let work_enabled = selected_colonist.assigned_workplace.is_some();
+    let mut hovered_action = None;
 
-    style::draw_button(home, false, home_enabled && home.contains(mouse));
-    style::draw_button(work, false, work_enabled && work.contains(mouse));
-    draw_text(
-        "COPY H",
-        home.x + 7.0,
-        home.y + 12.0,
-        style::TINY_SIZE,
-        if home_enabled {
-            style::TEXT_PRIMARY
+    for (index, action) in AssignBatchAction::all().iter().enumerate() {
+        let rect = assign_batch_rect(context, index);
+        let enabled = if action.copies_home() {
+            home_enabled
         } else {
-            style::TEXT_MUTED
-        },
-    );
-    draw_text(
-        "COPY W",
-        work.x + 7.0,
-        work.y + 12.0,
-        style::TINY_SIZE,
-        if work_enabled {
-            style::TEXT_PRIMARY
-        } else {
-            style::TEXT_MUTED
-        },
-    );
+            work_enabled
+        };
+        let hovered = rect.contains(mouse);
+        if hovered {
+            hovered_action = Some(*action);
+        }
+        style::draw_button(rect, false, enabled && hovered);
+        draw_text(
+            action.label(),
+            rect.x + 5.0,
+            rect.y + 12.0,
+            style::TINY_SIZE,
+            if enabled {
+                style::TEXT_PRIMARY
+            } else {
+                style::TEXT_MUTED
+            },
+        );
+    }
+
+    if let Some(action) = hovered_action {
+        draw_tooltip_near_mouse(
+            toolbar_tooltip_bounds(context),
+            action.tooltip_title(),
+            action.tooltip_body(),
+        );
+    }
 }
 
 fn draw_assign_page_controls(context: Rect, current_page: usize, page_count: usize) {

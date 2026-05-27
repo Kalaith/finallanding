@@ -513,18 +513,27 @@ impl GameplayState {
         let Some(selected_id) = self.selected_colonist_id else {
             return;
         };
-        let visible_indices = assign_visible_colonist_indices(
-            &self.data.colonists,
-            self.selected_colonist_id,
-            self.assign_roster_page,
-        );
+        let target_indices = if action.targets_all() {
+            (0..self.data.colonists.len()).collect::<Vec<_>>()
+        } else {
+            assign_visible_colonist_indices(
+                &self.data.colonists,
+                self.selected_colonist_id,
+                self.assign_roster_page,
+            )
+        };
+        let scope = if action.targets_all() {
+            BatchAssignmentScope::All
+        } else {
+            BatchAssignmentScope::Page
+        };
 
         let Some(selected) = self.colonist_by_id(selected_id).cloned() else {
             return;
         };
 
         let (title, detail) = match action {
-            AssignBatchAction::Home => {
+            AssignBatchAction::PageHome | AssignBatchAction::AllHome => {
                 let Some(habitat_id) = selected.assigned_habitat else {
                     self.log_batch_assignment_unavailable("home", &selected.name);
                     return;
@@ -534,7 +543,7 @@ impl GameplayState {
                     &mut self.data.colonists,
                     selected_id,
                     habitat_id,
-                    &visible_indices,
+                    &target_indices,
                     capacity,
                 );
                 batch_assignment_log(
@@ -542,10 +551,11 @@ impl GameplayState {
                     &selected.name,
                     "H",
                     habitat_id,
+                    scope,
                     assigned,
                 )
             }
-            AssignBatchAction::Work => {
+            AssignBatchAction::PageWork | AssignBatchAction::AllWork => {
                 let Some(workplace_id) = selected.assigned_workplace else {
                     self.log_batch_assignment_unavailable("work", &selected.name);
                     return;
@@ -564,13 +574,14 @@ impl GameplayState {
                     selected_id,
                     workplace_id,
                     building_type,
-                    &visible_indices,
+                    &target_indices,
                 );
                 batch_assignment_log(
                     "Batch work pins",
                     &selected.name,
                     "W",
                     workplace_id,
+                    scope,
                     assigned,
                 )
             }
@@ -2534,11 +2545,11 @@ fn apply_batch_work_pin(
     selected_id: u32,
     workplace_id: u32,
     building_type: BuildingType,
-    visible_indices: &[usize],
+    target_indices: &[usize],
 ) -> Vec<String> {
     let mut assigned = Vec::new();
 
-    for index in visible_indices {
+    for index in target_indices {
         let Some(colonist) = colonists.get_mut(*index) else {
             continue;
         };
@@ -2563,25 +2574,45 @@ fn apply_batch_work_pin(
     assigned
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BatchAssignmentScope {
+    Page,
+    All,
+}
+
+impl BatchAssignmentScope {
+    fn label(self) -> &'static str {
+        match self {
+            BatchAssignmentScope::Page => "visible roster",
+            BatchAssignmentScope::All => "all compatible survivors",
+        }
+    }
+}
+
 fn batch_assignment_log(
     title: &'static str,
     source_name: &str,
     pin_prefix: &str,
     building_id: u32,
+    scope: BatchAssignmentScope,
     assigned: Vec<String>,
 ) -> (String, String) {
     let detail = if assigned.is_empty() {
         format!(
-            "{} had no compatible visible survivors to copy {}#{} to.",
-            source_name, pin_prefix, building_id
+            "{} had no compatible survivors in {} to copy {}#{} to.",
+            source_name,
+            scope.label(),
+            pin_prefix,
+            building_id
         )
     } else {
         format!(
-            "Copied {}#{} from {} to {}.",
+            "Copied {}#{} from {} to {} in {}.",
             pin_prefix,
             building_id,
             source_name,
-            truncate_text(&assigned.join(", "), 54)
+            truncate_text(&assigned.join(", "), 45),
+            scope.label()
         )
     };
 
@@ -2895,6 +2926,21 @@ mod tests {
         assert_eq!(colonists[1].state, ColonistState::Idle);
         assert_eq!(colonists[1].activity_location, ActivityLocation::None);
         assert_eq!(colonists[2].assigned_workplace, None);
+    }
+
+    #[test]
+    fn test_batch_assignment_log_names_all_colony_scope() {
+        let (_title, detail) = batch_assignment_log(
+            "Batch work pins",
+            "Alice",
+            "W",
+            9,
+            BatchAssignmentScope::All,
+            vec!["Bob".to_string(), "Charlie".to_string()],
+        );
+
+        assert!(detail.contains("all compatible survivors"));
+        assert!(detail.contains("Bob, Charlie"));
     }
 
     #[test]

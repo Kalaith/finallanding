@@ -50,8 +50,70 @@ pub enum PageAction {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AssignBatchAction {
-    Home,
-    Work,
+    PageHome,
+    PageWork,
+    AllHome,
+    AllWork,
+}
+
+impl AssignBatchAction {
+    pub fn all() -> &'static [AssignBatchAction] {
+        &[
+            AssignBatchAction::PageHome,
+            AssignBatchAction::PageWork,
+            AssignBatchAction::AllHome,
+            AssignBatchAction::AllWork,
+        ]
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            AssignBatchAction::PageHome => "P-H",
+            AssignBatchAction::PageWork => "P-W",
+            AssignBatchAction::AllHome => "ALL-H",
+            AssignBatchAction::AllWork => "ALL-W",
+        }
+    }
+
+    pub fn tooltip_title(self) -> &'static str {
+        match self {
+            AssignBatchAction::PageHome => "Copy page home",
+            AssignBatchAction::PageWork => "Copy page work",
+            AssignBatchAction::AllHome => "Copy colony home",
+            AssignBatchAction::AllWork => "Copy colony work",
+        }
+    }
+
+    pub fn tooltip_body(self) -> &'static str {
+        match self {
+            AssignBatchAction::PageHome => {
+                "Copy this survivor's Habitat pin to compatible survivors on the visible roster page."
+            }
+            AssignBatchAction::PageWork => {
+                "Copy this survivor's work pin to compatible survivors on the visible roster page."
+            }
+            AssignBatchAction::AllHome => {
+                "Copy this survivor's Habitat pin to every compatible survivor in the colony."
+            }
+            AssignBatchAction::AllWork => {
+                "Copy this survivor's work pin to every compatible survivor in the colony."
+            }
+        }
+    }
+
+    pub fn copies_home(self) -> bool {
+        matches!(
+            self,
+            AssignBatchAction::PageHome | AssignBatchAction::AllHome
+        )
+    }
+
+    pub fn targets_all(self) -> bool {
+        matches!(
+            self,
+            AssignBatchAction::AllHome | AssignBatchAction::AllWork
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -314,23 +376,22 @@ pub fn assign_page_action_at(context: Rect, x: f32, y: f32) -> Option<PageAction
     None
 }
 
-pub fn assign_batch_home_rect(context: Rect) -> Rect {
-    Rect::new(context.x + context.w - 132.0, context.y + 94.0, 58.0, 17.0)
-}
-
-pub fn assign_batch_work_rect(context: Rect) -> Rect {
-    Rect::new(context.x + context.w - 68.0, context.y + 94.0, 58.0, 17.0)
+pub fn assign_batch_rect(context: Rect, index: usize) -> Rect {
+    Rect::new(
+        context.x + context.w - 222.0 + index as f32 * 53.0,
+        context.y + 94.0,
+        48.0,
+        17.0,
+    )
 }
 
 pub fn assign_batch_action_at(context: Rect, x: f32, y: f32) -> Option<AssignBatchAction> {
-    if contains(assign_batch_home_rect(context), x, y) {
-        return Some(AssignBatchAction::Home);
-    }
-    if contains(assign_batch_work_rect(context), x, y) {
-        return Some(AssignBatchAction::Work);
-    }
-
-    None
+    AssignBatchAction::all()
+        .iter()
+        .enumerate()
+        .find_map(|(index, action)| {
+            contains(assign_batch_rect(context, index), x, y).then_some(*action)
+        })
 }
 
 pub fn toolbar_context_item_rect(context: Rect, index: usize) -> Rect {
@@ -650,16 +711,16 @@ mod tests {
     #[test]
     fn test_assign_batch_hit_zones_match_copy_controls() {
         let context = Rect::new(380.0, 500.0, 520.0, 126.0);
-        let (home_x, home_y) = center(assign_batch_home_rect(context));
-        let (work_x, work_y) = center(assign_batch_work_rect(context));
+        let (page_home_x, page_home_y) = center(assign_batch_rect(context, 0));
+        let (all_work_x, all_work_y) = center(assign_batch_rect(context, 3));
 
         assert_eq!(
-            assign_batch_action_at(context, home_x, home_y),
-            Some(AssignBatchAction::Home)
+            assign_batch_action_at(context, page_home_x, page_home_y),
+            Some(AssignBatchAction::PageHome)
         );
         assert_eq!(
-            assign_batch_action_at(context, work_x, work_y),
-            Some(AssignBatchAction::Work)
+            assign_batch_action_at(context, all_work_x, all_work_y),
+            Some(AssignBatchAction::AllWork)
         );
         assert_eq!(
             assign_batch_action_at(context, context.x + 18.0, context.y + 111.0),
