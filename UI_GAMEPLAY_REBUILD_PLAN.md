@@ -295,7 +295,7 @@ Completed in the active rebuild:
 - Reference extraction exists under `docs/reference/tfl_guide_mvp/`, including visual/color samples and screenshot-cropped placeholder portraits/sprites.
 - Screenshot-style color tokens, panel treatment, left rail, right rail, top bar, and bottom toolbar are implemented.
 - The central playfield now uses isometric projection for terrain, placement previews, buildings, and colonist positions.
-- Placeholder portrait and world-sprite crops are wired into the inspector, relationship row, right rail colonist list, and colony view.
+- Production-safe generated portraits and world sprites are wired into the inspector, relationship row, right rail colonist list, and colony view.
 - Objective cards are generated from current game state: survival day, shelter capacity, food buffer, core rooms, and field technology.
 - The right rail now reports real gameplay tracks: food days, salvage, prepared meals, survey, repair, and hauling progress.
 - Bottom toolbar modes now affect gameplay:
@@ -325,10 +325,10 @@ Validation currently passing:
 
 Highest-value remaining items:
 
-1. Replace screenshot-cropped placeholder art with production-safe art.
-   - Generate or commission six portraits.
-   - Generate or commission six standing sprites.
-   - Replace screenshot crops once approved art exists.
+1. Upgrade generated survivor art to higher-fidelity production assets.
+   - Commission or generate larger portrait masters if the current procedural 64px set is not expressive enough.
+   - Add idle/work/eat/sleep sprite variants after relationship gameplay needs clearer body language.
+   - Keep screenshot crops as visual reference only.
 
 2. Add richer isometric terrain and building assets.
    - Dirt, wreckage, scrap, paths, and work-zone tile variation.
