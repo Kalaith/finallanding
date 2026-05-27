@@ -512,9 +512,9 @@ pub fn assign_filter_at(context: Rect, x: f32, y: f32) -> Option<AssignRosterFil
 
 pub fn assign_sort_rect(context: Rect, index: usize) -> Rect {
     Rect::new(
-        context.x + 264.0 + index as f32 * 50.0,
+        context.x + 252.0 + index as f32 * 42.0,
         context.y + 13.0,
-        46.0,
+        40.0,
         17.0,
     )
 }
@@ -524,6 +524,14 @@ pub fn assign_sort_at(context: Rect, x: f32, y: f32) -> Option<AssignRosterSort>
         .iter()
         .enumerate()
         .find_map(|(index, sort)| contains(assign_sort_rect(context, index), x, y).then_some(*sort))
+}
+
+pub fn assign_role_filter_rect(context: Rect) -> Rect {
+    Rect::new(context.x + 380.0, context.y + 13.0, 40.0, 17.0)
+}
+
+pub fn assign_role_filter_at(context: Rect, x: f32, y: f32) -> bool {
+    contains(assign_role_filter_rect(context), x, y)
 }
 
 pub fn assign_batch_rect(context: Rect, index: usize) -> Rect {
@@ -883,6 +891,7 @@ mod tests {
         let context = Rect::new(380.0, 500.0, 520.0, 126.0);
         let (risk_x, risk_y) = center(assign_filter_rect(context, 1));
         let (bond_x, bond_y) = center(assign_sort_rect(context, 2));
+        let (role_x, role_y) = center(assign_role_filter_rect(context));
 
         assert_eq!(
             assign_filter_at(context, risk_x, risk_y),
@@ -892,6 +901,7 @@ mod tests {
             assign_sort_at(context, bond_x, bond_y),
             Some(AssignRosterSort::Bond)
         );
+        assert!(assign_role_filter_at(context, role_x, role_y));
         assert_eq!(
             assign_filter_at(context, context.x + context.w - 20.0, context.y + 21.0),
             None

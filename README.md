@@ -26,7 +26,7 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 - Top bar buttons: adjust time speed.
 - Z: undo placement.
 - Esc: cancel current tool.
-- Assign mode: filter the roster by all, relationship risk, support, or pinned spaces; sort by roster order, low mood, or strongest bond pressure; hover survivor cards to preview social pressure, click a card to cycle work role, click a compatible map building to pin or clear recovery/work space, then use P-H/P-W to copy pins across the visible page or ALL-H/ALL-W across the full colony.
+- Assign mode: filter the roster by relationship state, pinned spaces, and work role; sort by roster order, low mood, or strongest bond pressure; hover survivor cards to preview social pressure, click a card to cycle work role, click a compatible map building to pin or clear recovery/work space, then use P-H/P-W to copy pins across the visible page or ALL-H/ALL-W across the full colony.
 - Log mode: review the live social brief, search page/filter daily relationship reports by all, tense, or supportive days, and click a report for its recommendation drilldown.
 - Research mode: click a mission card to launch a field mission when the colony has an Exploration Gate.
 

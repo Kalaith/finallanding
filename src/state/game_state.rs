@@ -1,5 +1,5 @@
 use crate::data::building::{Building, BuildingType};
-use crate::data::colonist::{ActivityLocation, Colonist, ColonistState};
+use crate::data::colonist::{ActivityLocation, Colonist, ColonistState, JobPreference};
 use crate::data::event_log::{LogCategory, SocialHistoryEntry};
 use crate::data::game_state::GameState;
 use crate::data::game_state::TimeSpeed;
@@ -29,9 +29,9 @@ use crate::systems::work_system::WorkSystem;
 use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use crate::ui::{
-    assign_batch_action_at, assign_filter_at, assign_page_action_at, assign_sort_at,
-    draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
-    draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
+    assign_batch_action_at, assign_filter_at, assign_page_action_at, assign_role_filter_at,
+    assign_sort_at, draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector,
+    draw_debug_overlay, draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
     draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar, log_filter_at, log_page_action_at,
     log_search_action_at, log_timeline_row_at, restart_button_rect, side_panel_hit_at,
     social_history_page_count, social_timeline_day_at, toolbar_building_at_for_mode,
@@ -71,6 +71,8 @@ pub struct GameplayState {
     assign_roster_filter: AssignRosterFilter,
     /// Active sort in the Assign mode roster.
     assign_roster_sort: AssignRosterSort,
+    /// Optional work-role filter in the Assign mode roster.
+    assign_role_filter: Option<JobPreference>,
     /// Current page in the Log mode social archive.
     social_history_page: usize,
     /// Active filter in the Log mode social archive.
@@ -126,6 +128,7 @@ impl GameplayState {
             assign_roster_page: 0,
             assign_roster_filter: AssignRosterFilter::All,
             assign_roster_sort: AssignRosterSort::Roster,
+            assign_role_filter: None,
             social_history_page: 0,
             social_history_filter: LogFilter::All,
             social_history_query: String::new(),
@@ -487,6 +490,12 @@ impl GameplayState {
                     return true;
                 }
 
+                if assign_role_filter_at(context, mouse_x, mouse_y) {
+                    self.assign_role_filter = next_assign_role_filter(self.assign_role_filter);
+                    self.assign_roster_page = 0;
+                    return true;
+                }
+
                 if let Some(action) = assign_batch_action_at(context, mouse_x, mouse_y) {
                     self.apply_assign_batch_action(action);
                     return true;
@@ -503,6 +512,7 @@ impl GameplayState {
                     self.assign_roster_page,
                     self.assign_roster_filter,
                     self.assign_roster_sort,
+                    self.assign_role_filter,
                 )
                 .len();
                 if let Some(slot) =
@@ -565,6 +575,7 @@ impl GameplayState {
             &self.data.colonists,
             self.selected_colonist_id,
             self.assign_roster_filter,
+            self.assign_role_filter,
         );
         match action {
             PageAction::Previous => {
@@ -613,6 +624,7 @@ impl GameplayState {
                 self.assign_roster_page,
                 self.assign_roster_filter,
                 self.assign_roster_sort,
+                self.assign_role_filter,
             )
         };
         let scope = if action.targets_all() {
@@ -701,6 +713,7 @@ impl GameplayState {
             self.assign_roster_page,
             self.assign_roster_filter,
             self.assign_roster_sort,
+            self.assign_role_filter,
         )
         .get(slot)
         .copied()
@@ -2569,13 +2582,16 @@ fn assign_roster_page_count(
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
     active_filter: AssignRosterFilter,
+    active_role_filter: Option<JobPreference>,
 ) -> usize {
     let selected_exists = selected_colonist_id
         .and_then(|id| colonists.iter().position(|colonist| colonist.id == id))
         .is_some();
     let other_count = (0..colonists.len())
         .filter(|index| Some(colonists[*index].id) != selected_colonist_id)
-        .filter(|index| assign_roster_filter_matches(&colonists[*index], active_filter))
+        .filter(|index| {
+            assign_roster_filter_matches(&colonists[*index], active_filter, active_role_filter)
+        })
         .count();
     let page_size = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(usize::from(selected_exists));
 
@@ -2588,6 +2604,7 @@ fn assign_visible_colonist_indices(
     page: usize,
     active_filter: AssignRosterFilter,
     active_sort: AssignRosterSort,
+    active_role_filter: Option<JobPreference>,
 ) -> Vec<usize> {
     let mut indices = Vec::new();
 
@@ -2599,11 +2616,22 @@ fn assign_visible_colonist_indices(
     }
 
     let open_slots = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(indices.len());
-    let page =
-        page.min(assign_roster_page_count(colonists, selected_colonist_id, active_filter) - 1);
+    let page = page.min(
+        assign_roster_page_count(
+            colonists,
+            selected_colonist_id,
+            active_filter,
+            active_role_filter,
+        ) - 1,
+    );
 
-    let roster =
-        assign_sorted_roster_indices(colonists, selected_index, active_filter, active_sort);
+    let roster = assign_sorted_roster_indices(
+        colonists,
+        selected_index,
+        active_filter,
+        active_sort,
+        active_role_filter,
+    );
     indices.extend(roster.into_iter().skip(page * open_slots).take(open_slots));
 
     indices
@@ -2614,10 +2642,13 @@ fn assign_sorted_roster_indices(
     selected_index: Option<usize>,
     active_filter: AssignRosterFilter,
     active_sort: AssignRosterSort,
+    active_role_filter: Option<JobPreference>,
 ) -> Vec<usize> {
     let mut indices = (0..colonists.len())
         .filter(|index| Some(*index) != selected_index)
-        .filter(|index| assign_roster_filter_matches(&colonists[*index], active_filter))
+        .filter(|index| {
+            assign_roster_filter_matches(&colonists[*index], active_filter, active_role_filter)
+        })
         .collect::<Vec<_>>();
 
     match active_sort {
@@ -2639,15 +2670,20 @@ fn assign_sorted_roster_indices(
     indices
 }
 
-fn assign_roster_filter_matches(colonist: &Colonist, active_filter: AssignRosterFilter) -> bool {
-    match active_filter {
+fn assign_roster_filter_matches(
+    colonist: &Colonist,
+    active_filter: AssignRosterFilter,
+    active_role_filter: Option<JobPreference>,
+) -> bool {
+    let relationship_match = match active_filter {
         AssignRosterFilter::All => true,
         AssignRosterFilter::Risk => colonist.relationships.values().any(|value| *value <= -10),
         AssignRosterFilter::Support => colonist.relationships.values().any(|value| *value >= 10),
         AssignRosterFilter::Pinned => {
             colonist.assigned_habitat.is_some() || colonist.assigned_workplace.is_some()
         }
-    }
+    };
+    relationship_match && active_role_filter.is_none_or(|role| colonist.job_preference == role)
 }
 
 fn relationship_pressure_score(colonist: &Colonist) -> i32 {
@@ -2657,6 +2693,16 @@ fn relationship_pressure_score(colonist: &Colonist) -> i32 {
         .map(|value| value.abs())
         .max()
         .unwrap_or(0)
+}
+
+fn next_assign_role_filter(current: Option<JobPreference>) -> Option<JobPreference> {
+    match current {
+        None => Some(JobPreference::Explorer),
+        Some(JobPreference::Explorer) => Some(JobPreference::Builder),
+        Some(JobPreference::Builder) => Some(JobPreference::Cook),
+        Some(JobPreference::Cook) => Some(JobPreference::Hauler),
+        Some(JobPreference::Hauler) | Some(JobPreference::None) => None,
+    }
 }
 
 fn apply_batch_home_pin(
@@ -2988,6 +3034,7 @@ mod tests {
                 0,
                 AssignRosterFilter::All,
                 AssignRosterSort::Roster,
+                None,
             ),
             vec![5, 0, 1, 2, 3]
         );
@@ -2998,6 +3045,7 @@ mod tests {
                 0,
                 AssignRosterFilter::All,
                 AssignRosterSort::Roster,
+                None,
             ),
             vec![0, 1, 2, 3, 4]
         );
@@ -3018,7 +3066,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(
-            assign_roster_page_count(&colonists, Some(5), AssignRosterFilter::All),
+            assign_roster_page_count(&colonists, Some(5), AssignRosterFilter::All, None),
             2
         );
         assert_eq!(
@@ -3028,6 +3076,7 @@ mod tests {
                 1,
                 AssignRosterFilter::All,
                 AssignRosterSort::Roster,
+                None,
             ),
             vec![5, 4, 6, 7]
         );
@@ -3038,6 +3087,7 @@ mod tests {
                 1,
                 AssignRosterFilter::All,
                 AssignRosterSort::Roster,
+                None,
             ),
             vec![5, 6, 7]
         );
@@ -3067,9 +3117,49 @@ mod tests {
                 0,
                 AssignRosterFilter::Risk,
                 AssignRosterSort::Bond,
+                None,
             ),
             vec![5, 3, 1]
         );
+    }
+
+    #[test]
+    fn test_assign_visible_indices_filter_role() {
+        let mut colonists = (0..6)
+            .map(|id| {
+                Colonist::new(
+                    id,
+                    format!("Colonist {}", id),
+                    Position::new(id as i32, 0),
+                    Trait::HardWorker,
+                    JobPreference::Builder,
+                )
+            })
+            .collect::<Vec<_>>();
+        colonists[1].job_preference = JobPreference::Cook;
+        colonists[4].job_preference = JobPreference::Cook;
+
+        assert_eq!(
+            assign_visible_colonist_indices(
+                &colonists,
+                Some(5),
+                0,
+                AssignRosterFilter::All,
+                AssignRosterSort::Roster,
+                Some(JobPreference::Cook),
+            ),
+            vec![5, 1, 4]
+        );
+    }
+
+    #[test]
+    fn test_next_assign_role_filter_cycles_assignable_roles() {
+        assert_eq!(next_assign_role_filter(None), Some(JobPreference::Explorer));
+        assert_eq!(
+            next_assign_role_filter(Some(JobPreference::Explorer)),
+            Some(JobPreference::Builder)
+        );
+        assert_eq!(next_assign_role_filter(Some(JobPreference::Hauler)), None);
     }
 
     #[test]
@@ -3350,6 +3440,7 @@ impl State for GameplayState {
             self.assign_roster_page,
             self.assign_roster_filter,
             self.assign_roster_sort,
+            self.assign_role_filter,
             self.social_history_page,
             self.social_history_filter,
             &self.social_history_query,
