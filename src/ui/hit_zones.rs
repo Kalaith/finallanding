@@ -13,24 +13,6 @@ pub const PRIORITY_BUTTON_W: f32 = 68.0;
 pub const PRIORITY_BUTTON_START_X: f32 = 915.0;
 pub const BUTTON_GAP: f32 = 5.0;
 
-const PANEL_SECTION_OFFSET_Y: f32 = 10.0;
-const BUILD_BUTTON_START_OFFSET_Y: f32 = 55.0;
-const BUILD_BUTTON_H: f32 = 28.0;
-const BUILD_BUTTON_GAP: f32 = 3.0;
-const PANEL_BUTTON_X_PAD: f32 = 10.0;
-const UNDO_OFFSET_Y: f32 = 10.0;
-const UNDO_BUTTON_H: f32 = 28.0;
-const MISSION_BUTTON_OFFSET_Y: f32 = 52.0;
-const MISSION_BUTTON_H: f32 = 25.0;
-const MISSION_BUTTON_GAP: f32 = 3.0;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SidePanelHit {
-    Building(BuildingType),
-    Undo,
-    Mission(MissionType),
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToolbarMode {
     Build,
@@ -351,41 +333,6 @@ pub fn top_bar_priority_at(x: f32, y: f32) -> Option<ColonyPriority> {
         })
 }
 
-pub fn build_button_rect(panel: Rect, index: usize) -> Rect {
-    Rect::new(
-        panel.x + PANEL_BUTTON_X_PAD,
-        panel.y
-            + PANEL_SECTION_OFFSET_Y
-            + BUILD_BUTTON_START_OFFSET_Y
-            + index as f32 * (BUILD_BUTTON_H + BUILD_BUTTON_GAP),
-        panel.w - PANEL_BUTTON_X_PAD * 2.0,
-        BUILD_BUTTON_H,
-    )
-}
-
-pub fn undo_button_rect(panel: Rect) -> Rect {
-    Rect::new(
-        panel.x + PANEL_BUTTON_X_PAD,
-        panel.y
-            + PANEL_SECTION_OFFSET_Y
-            + BUILD_BUTTON_START_OFFSET_Y
-            + BuildingType::all().len() as f32 * (BUILD_BUTTON_H + BUILD_BUTTON_GAP)
-            + UNDO_OFFSET_Y,
-        panel.w - PANEL_BUTTON_X_PAD * 2.0,
-        UNDO_BUTTON_H,
-    )
-}
-
-pub fn mission_button_rect(panel: Rect, index: usize) -> Rect {
-    let undo = undo_button_rect(panel);
-    Rect::new(
-        undo.x,
-        undo.y + MISSION_BUTTON_OFFSET_Y + index as f32 * (MISSION_BUTTON_H + MISSION_BUTTON_GAP),
-        undo.w,
-        MISSION_BUTTON_H,
-    )
-}
-
 pub fn toolbar_button_rect(toolbar: Rect, index: usize) -> Rect {
     let button_w = toolbar.w / ToolbarMode::all().len() as f32;
     Rect::new(
@@ -628,30 +575,6 @@ pub fn toolbar_mission_at(context: Rect, x: f32, y: f32) -> Option<MissionType> 
         })
 }
 
-pub fn side_panel_hit_at(panel: Rect, x: f32, y: f32) -> Option<SidePanelHit> {
-    if !contains(panel, x, y) {
-        return None;
-    }
-
-    for (index, building_type) in BuildingType::all().iter().enumerate() {
-        if contains(build_button_rect(panel, index), x, y) {
-            return Some(SidePanelHit::Building(*building_type));
-        }
-    }
-
-    if contains(undo_button_rect(panel), x, y) {
-        return Some(SidePanelHit::Undo);
-    }
-
-    for (index, mission_type) in MissionType::all().iter().enumerate() {
-        if contains(mission_button_rect(panel, index), x, y) {
-            return Some(SidePanelHit::Mission(*mission_type));
-        }
-    }
-
-    None
-}
-
 fn contains(rect: Rect, x: f32, y: f32) -> bool {
     x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h
 }
@@ -691,42 +614,6 @@ mod tests {
         let (x, y) = center(priority_button_rect(2));
 
         assert_eq!(top_bar_priority_at(x, y), Some(ColonyPriority::Survey));
-    }
-
-    #[test]
-    fn test_side_panel_building_undo_and_mission_hits() {
-        let panel = Rect::new(1060.0, 50.0, 220.0, 670.0);
-        let (habitat_x, habitat_y) = center(build_button_rect(panel, 0));
-        let (gate_x, gate_y) = center(build_button_rect(panel, 4));
-        let (undo_x, undo_y) = center(undo_button_rect(panel));
-        let (supply_x, supply_y) = center(mission_button_rect(panel, 0));
-        let (scan_x, scan_y) = center(mission_button_rect(panel, 1));
-        let (deep_x, deep_y) = center(mission_button_rect(panel, 2));
-
-        assert_eq!(
-            side_panel_hit_at(panel, habitat_x, habitat_y),
-            Some(SidePanelHit::Building(BuildingType::Habitat))
-        );
-        assert_eq!(
-            side_panel_hit_at(panel, gate_x, gate_y),
-            Some(SidePanelHit::Building(BuildingType::ExplorationGate))
-        );
-        assert_eq!(
-            side_panel_hit_at(panel, undo_x, undo_y),
-            Some(SidePanelHit::Undo)
-        );
-        assert_eq!(
-            side_panel_hit_at(panel, supply_x, supply_y),
-            Some(SidePanelHit::Mission(MissionType::SupplyRun))
-        );
-        assert_eq!(
-            side_panel_hit_at(panel, scan_x, scan_y),
-            Some(SidePanelHit::Mission(MissionType::PerimeterScan))
-        );
-        assert_eq!(
-            side_panel_hit_at(panel, deep_x, deep_y),
-            Some(SidePanelHit::Mission(MissionType::DeepSurvey))
-        );
     }
 
     #[test]

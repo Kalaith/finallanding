@@ -44,11 +44,6 @@ impl Layout {
         }
     }
 
-    /// Get the side panel rectangle
-    pub fn side_panel(&self) -> Rect {
-        self.right_panel()
-    }
-
     pub fn left_panel(&self) -> Rect {
         Rect {
             x: self.screen_margin,

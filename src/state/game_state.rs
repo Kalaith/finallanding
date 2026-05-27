@@ -33,12 +33,12 @@ use crate::ui::{
     assign_sort_at, draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector,
     draw_debug_overlay, draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
     draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar, log_filter_at, log_page_action_at,
-    log_search_action_at, log_timeline_row_at, restart_button_rect, side_panel_hit_at,
-    social_history_page_count, social_timeline_day_at, toolbar_building_at_for_mode,
-    toolbar_buildings_for_mode, toolbar_colonist_index_at, toolbar_context_rect,
-    toolbar_mission_at, toolbar_mode_at, toolbar_priority_at, top_bar_priority_at,
-    top_bar_speed_at, AssignBatchAction, AssignRosterFilter, AssignRosterSort, IsoView, Layout,
-    LogFilter, LogSearchAction, PageAction, PlaceholderArt, SidePanelHit, SpritePose, ToolbarMode,
+    log_search_action_at, log_timeline_row_at, restart_button_rect, social_history_page_count,
+    social_timeline_day_at, toolbar_building_at_for_mode, toolbar_buildings_for_mode,
+    toolbar_colonist_index_at, toolbar_context_rect, toolbar_mission_at, toolbar_mode_at,
+    toolbar_priority_at, top_bar_priority_at, top_bar_speed_at, AssignBatchAction,
+    AssignRosterFilter, AssignRosterSort, IsoView, Layout, LogFilter, LogSearchAction, PageAction,
+    PlaceholderArt, SpritePose, ToolbarMode,
 };
 use macroquad::prelude::*;
 use std::path::PathBuf;
@@ -443,11 +443,11 @@ impl GameplayState {
             return;
         }
 
-        let panel = self.layout.side_panel();
-        if mouse_x >= panel.x
-            && mouse_x <= panel.x + panel.w
-            && mouse_y >= panel.y
-            && mouse_y <= panel.y + panel.h
+        let right_panel = self.layout.right_panel();
+        if mouse_x >= right_panel.x
+            && mouse_x <= right_panel.x + right_panel.w
+            && mouse_y >= right_panel.y
+            && mouse_y <= right_panel.y + right_panel.h
         {
             return;
         }
@@ -1072,19 +1072,6 @@ impl GameplayState {
 
         if let Some(priority) = top_bar_priority_at(mouse_x, mouse_y) {
             self.set_priority(priority);
-        }
-    }
-
-    fn update_side_panel_click(&mut self, mouse_x: f32, mouse_y: f32, panel: Rect) {
-        match side_panel_hit_at(panel, mouse_x, mouse_y) {
-            Some(SidePanelHit::Building(building_type)) => self.toggle_building(building_type),
-            Some(SidePanelHit::Undo) => {
-                self.undo_last_building();
-            }
-            Some(SidePanelHit::Mission(mission_type)) => {
-                self.launch_mission(mission_type);
-            }
-            None => {}
         }
     }
 

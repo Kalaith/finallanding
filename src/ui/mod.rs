@@ -12,7 +12,6 @@ pub mod hit_zones;
 pub mod isometric;
 pub mod layout;
 pub mod right_rail;
-pub mod side_panel;
 pub mod style;
 pub mod toolbar_panel;
 pub mod tooltip;

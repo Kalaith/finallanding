@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use macroquad::prelude::*;
 
 mod data;

@@ -1,6 +1,5 @@
 pub mod building_system;
 pub mod colonist_ai;
-pub mod colonist_renderer;
 pub mod colonist_spawner;
 
 use crate::state::menu_state::MenuState;
