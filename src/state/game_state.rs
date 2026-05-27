@@ -11,6 +11,7 @@ use crate::state::{State, StateTransition};
 use crate::systems::advisor_system::AdvisorSystem;
 use crate::systems::incident_system::IncidentSystem;
 use crate::systems::mission_system::MissionSystem;
+use crate::systems::objective_system::ObjectiveSystem;
 use crate::systems::planning_system::{BuildingPlacementFeedback, PlanningSystem};
 use crate::systems::proximity_system::ProximitySystem;
 use crate::systems::resource_system::ResourceSystem;
@@ -1018,8 +1019,8 @@ impl State for GameplayState {
         self.draw_ghost_preview();
         self.draw_colonists_with_offset(hovered_colonist_id);
         let advisor_plan = AdvisorSystem::plan(&self.data);
-        let objective_line = ScenarioSystem::objective_line(&self.data);
-        draw_advisor_overlay(&self.layout, &objective_line, &advisor_plan);
+        let objectives = ObjectiveSystem::active_cards(&self.data);
+        draw_advisor_overlay(&self.layout, &objectives, &advisor_plan);
         draw_colonist_inspector(
             &self.layout,
             self.inspected_colonist(hovered_colonist_id),

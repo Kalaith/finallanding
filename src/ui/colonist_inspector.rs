@@ -20,7 +20,7 @@ pub fn draw_colonist_inspector(
 
     let rail = layout.left_panel();
     let width = rail.w;
-    let height = 286.0_f32.min(rail.h * 0.52);
+    let height = 260.0_f32.min(rail.h * 0.48);
     let x = rail.x;
     let y = rail.y + rail.h - height;
     let accent = mood_color(colonist.mood);

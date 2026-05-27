@@ -3,6 +3,7 @@ pub mod incident_system;
 pub mod job_decision_system;
 pub mod mission_system;
 pub mod mood_system;
+pub mod objective_system;
 pub mod planning_system;
 pub mod playtest_system;
 pub mod proximity_system;
