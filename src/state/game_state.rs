@@ -33,12 +33,12 @@ use crate::ui::{
     draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
     draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
     draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar, log_filter_at, log_page_action_at,
-    log_timeline_row_at, restart_button_rect, side_panel_hit_at, social_history_page_count,
-    social_timeline_day_at, toolbar_building_at_for_mode, toolbar_buildings_for_mode,
-    toolbar_colonist_index_at, toolbar_context_rect, toolbar_mission_at, toolbar_mode_at,
-    toolbar_priority_at, top_bar_priority_at, top_bar_speed_at, AssignBatchAction,
-    AssignRosterFilter, AssignRosterSort, IsoView, Layout, LogFilter, PageAction, PlaceholderArt,
-    SidePanelHit, SpritePose, ToolbarMode,
+    log_search_action_at, log_timeline_row_at, restart_button_rect, side_panel_hit_at,
+    social_history_page_count, social_timeline_day_at, toolbar_building_at_for_mode,
+    toolbar_buildings_for_mode, toolbar_colonist_index_at, toolbar_context_rect,
+    toolbar_mission_at, toolbar_mode_at, toolbar_priority_at, top_bar_priority_at,
+    top_bar_speed_at, AssignBatchAction, AssignRosterFilter, AssignRosterSort, IsoView, Layout,
+    LogFilter, LogSearchAction, PageAction, PlaceholderArt, SidePanelHit, SpritePose, ToolbarMode,
 };
 use macroquad::prelude::*;
 
@@ -75,6 +75,10 @@ pub struct GameplayState {
     social_history_page: usize,
     /// Active filter in the Log mode social archive.
     social_history_filter: LogFilter,
+    /// Search query for the Log mode social archive.
+    social_history_query: String,
+    /// Whether typed keys should edit the Log mode social archive search.
+    social_history_search_active: bool,
     /// Selected daily social report for persistent Log drilldown.
     selected_social_history_day: Option<u32>,
     /// Placeholder visual assets extracted from the rebuild reference.
@@ -124,6 +128,8 @@ impl GameplayState {
             assign_roster_sort: AssignRosterSort::Roster,
             social_history_page: 0,
             social_history_filter: LogFilter::All,
+            social_history_query: String::new(),
+            social_history_search_active: false,
             selected_social_history_day,
             art: PlaceholderArt::new(),
         }
@@ -166,6 +172,45 @@ impl GameplayState {
         if is_key_pressed(KeyCode::Z) {
             self.undo_last_building();
         }
+    }
+
+    fn update_social_history_search_input(&mut self) -> bool {
+        if self.toolbar_mode != ToolbarMode::Log {
+            self.social_history_search_active = false;
+            return false;
+        }
+        if !self.social_history_search_active {
+            return false;
+        }
+
+        let mut changed = false;
+        while let Some(character) = get_char_pressed() {
+            if character.is_ascii()
+                && !character.is_control()
+                && self.social_history_query.chars().count() < 28
+            {
+                self.social_history_query.push(character);
+                changed = true;
+            }
+        }
+
+        if is_key_pressed(KeyCode::Backspace) {
+            changed |= self.social_history_query.pop().is_some();
+        }
+        if is_key_pressed(KeyCode::Delete) && !self.social_history_query.is_empty() {
+            self.social_history_query.clear();
+            changed = true;
+        }
+        if is_key_pressed(KeyCode::Escape) || is_key_pressed(KeyCode::Enter) {
+            self.social_history_search_active = false;
+        }
+
+        if changed {
+            self.social_history_page = 0;
+            self.selected_social_history_day = None;
+        }
+
+        true
     }
 
     fn toggle_building(&mut self, building_type: BuildingType) {
@@ -469,6 +514,23 @@ impl GameplayState {
                 }
             }
             ToolbarMode::Log => {
+                if let Some(action) = log_search_action_at(context, mouse_x, mouse_y) {
+                    match action {
+                        LogSearchAction::Focus => {
+                            self.social_history_search_active = true;
+                        }
+                        LogSearchAction::Clear => {
+                            self.social_history_query.clear();
+                            self.social_history_search_active = false;
+                            self.social_history_page = 0;
+                            self.selected_social_history_day = None;
+                        }
+                    }
+                    return true;
+                }
+
+                self.social_history_search_active = false;
+
                 if let Some(filter) = log_filter_at(context, mouse_x, mouse_y) {
                     self.social_history_filter = filter;
                     self.social_history_page = 0;
@@ -484,6 +546,7 @@ impl GameplayState {
                     if let Some(day) = social_timeline_day_at(
                         &self.data.social_history,
                         self.social_history_filter,
+                        &self.social_history_query,
                         self.social_history_page,
                         row,
                     ) {
@@ -518,8 +581,11 @@ impl GameplayState {
     }
 
     fn update_log_page(&mut self, action: PageAction) {
-        let page_count =
-            social_history_page_count(&self.data.social_history, self.social_history_filter);
+        let page_count = social_history_page_count(
+            &self.data.social_history,
+            self.social_history_filter,
+            &self.social_history_query,
+        );
         match action {
             PageAction::Previous => {
                 self.social_history_page = self.social_history_page.saturating_sub(1);
@@ -3171,26 +3237,27 @@ impl State for GameplayState {
         if is_key_pressed(KeyCode::F3) {
             self.debug_mode = !self.debug_mode;
         }
+        let keyboard_captured = self.update_social_history_search_input();
 
         if let Some(transition) = self.scenario_restart_transition() {
             return transition;
         }
 
         // Time speed and priority controls (keyboard)
-        if is_key_pressed(KeyCode::Space) {
+        if !keyboard_captured && is_key_pressed(KeyCode::Space) {
             self.data.time.speed = if self.data.time.speed == TimeSpeed::Paused {
                 TimeSpeed::Normal
             } else {
                 TimeSpeed::Paused
             };
         }
-        if is_key_pressed(KeyCode::Key1) {
+        if !keyboard_captured && is_key_pressed(KeyCode::Key1) {
             self.set_priority(ColonyPriority::Recovery);
         }
-        if is_key_pressed(KeyCode::Key2) {
+        if !keyboard_captured && is_key_pressed(KeyCode::Key2) {
             self.set_priority(ColonyPriority::Stockpile);
         }
-        if is_key_pressed(KeyCode::Key3) {
+        if !keyboard_captured && is_key_pressed(KeyCode::Key3) {
             self.set_priority(ColonyPriority::Survey);
         }
 
@@ -3221,7 +3288,9 @@ impl State for GameplayState {
         }
 
         // Building system updates (keyboard)
-        self.update_building_selection();
+        if !keyboard_captured {
+            self.update_building_selection();
+        }
         self.update_building_placement();
 
         StateTransition::None
@@ -3283,6 +3352,8 @@ impl State for GameplayState {
             self.assign_roster_sort,
             self.social_history_page,
             self.social_history_filter,
+            &self.social_history_query,
+            self.social_history_search_active,
             self.selected_social_history_day,
             self.data.priority.active,
             &self.data.colonists,
