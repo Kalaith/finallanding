@@ -3,6 +3,7 @@ use crate::data::colonist::{Colonist, ColonistState};
 use crate::data::event_log::LogCategory;
 use crate::data::game_state::GameState;
 use crate::data::game_state::TimeSpeed;
+use crate::data::grid::CellType;
 use crate::data::mission::MissionType;
 use crate::data::priority::ColonyPriority;
 use crate::data::types::Position;
@@ -853,18 +854,21 @@ impl GameplayState {
 
         for y in 0..self.data.grid.height {
             for x in 0..self.data.grid.width {
-                let cell = self.data.grid.get_cell(x as i32, y as i32);
-                let color = match cell {
-                    Some(c) => match c.cell_type {
-                        crate::data::grid::CellType::Empty => Color::new(0.19, 0.17, 0.11, 1.0),
-                        crate::data::grid::CellType::Floor => Color::new(0.24, 0.22, 0.15, 1.0),
-                        crate::data::grid::CellType::Wall => Color::new(0.16, 0.18, 0.16, 1.0),
-                    },
-                    None => BLACK,
-                };
+                let cell_type = self
+                    .data
+                    .grid
+                    .get_cell(x as i32, y as i32)
+                    .map(|cell| cell.cell_type);
+                let color = terrain_color(cell_type, x as i32, y as i32);
 
                 let center = iso.grid_to_screen(Position::new(x as i32, y as i32));
                 draw_iso_diamond(center, iso.tile_w, iso.tile_h, color);
+                draw_terrain_detail(
+                    center,
+                    iso.tile_w,
+                    iso.tile_h,
+                    terrain_detail(cell_type, x as i32, y as i32),
+                );
                 draw_iso_diamond_lines(
                     center,
                     iso.tile_w,
@@ -1185,6 +1189,97 @@ fn draw_building_shell_detail(building_type: BuildingType, center: Vec2, width: 
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TerrainDetail {
+    None,
+    Scrap,
+    Brush,
+    Scorch,
+}
+
+fn terrain_color(cell_type: Option<CellType>, x: i32, y: i32) -> Color {
+    let seed = terrain_seed(x, y);
+    let tint = ((seed % 9) as f32 - 4.0) * 0.006;
+
+    match cell_type {
+        Some(CellType::Empty) => Color::new(0.18 + tint, 0.16 + tint, 0.105 + tint, 1.0),
+        Some(CellType::Floor) => Color::new(0.235 + tint, 0.215 + tint, 0.15 + tint, 1.0),
+        Some(CellType::Wall) => Color::new(0.145 + tint, 0.165 + tint, 0.145 + tint, 1.0),
+        None => BLACK,
+    }
+}
+
+fn terrain_detail(cell_type: Option<CellType>, x: i32, y: i32) -> TerrainDetail {
+    if cell_type.is_none() {
+        return TerrainDetail::None;
+    }
+
+    let seed = terrain_seed(x, y);
+    if seed % 23 == 0 {
+        TerrainDetail::Scrap
+    } else if seed % 19 == 0 {
+        TerrainDetail::Scorch
+    } else if seed % 13 == 0 {
+        TerrainDetail::Brush
+    } else {
+        TerrainDetail::None
+    }
+}
+
+fn draw_terrain_detail(center: Vec2, tile_w: f32, tile_h: f32, detail: TerrainDetail) {
+    match detail {
+        TerrainDetail::None => {}
+        TerrainDetail::Scrap => {
+            draw_line(
+                center.x - tile_w * 0.11,
+                center.y + tile_h * 0.46,
+                center.x + tile_w * 0.06,
+                center.y + tile_h * 0.34,
+                1.0,
+                Color::new(0.48, 0.48, 0.42, 0.65),
+            );
+            draw_circle(
+                center.x + tile_w * 0.09,
+                center.y + tile_h * 0.58,
+                1.4,
+                Color::new(0.62, 0.52, 0.34, 0.75),
+            );
+        }
+        TerrainDetail::Brush => {
+            draw_line(
+                center.x - tile_w * 0.08,
+                center.y + tile_h * 0.55,
+                center.x - tile_w * 0.02,
+                center.y + tile_h * 0.38,
+                1.2,
+                Color::new(0.22, 0.32, 0.16, 0.7),
+            );
+            draw_line(
+                center.x + tile_w * 0.02,
+                center.y + tile_h * 0.58,
+                center.x + tile_w * 0.08,
+                center.y + tile_h * 0.42,
+                1.2,
+                Color::new(0.18, 0.28, 0.13, 0.7),
+            );
+        }
+        TerrainDetail::Scorch => {
+            draw_iso_diamond(
+                center + vec2(0.0, tile_h * 0.12),
+                tile_w * 0.48,
+                tile_h * 0.48,
+                Color::new(0.05, 0.045, 0.035, 0.35),
+            );
+        }
+    }
+}
+
+fn terrain_seed(x: i32, y: i32) -> u32 {
+    let x = x as u32;
+    let y = y as u32;
+    x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663) ^ 0x9E37_79B9
+}
+
 fn placement_result_reason(result: &PlacementResult) -> &'static str {
     match result {
         PlacementResult::Success(_) => "Placement succeeded.",
@@ -1225,6 +1320,30 @@ fn colonist_activity_summary(colonist: &Colonist) -> &'static str {
         ColonistState::Eating => "Eating",
         ColonistState::Sleeping => "Resting",
         ColonistState::OnMission { .. } => "On mission",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_terrain_detail_is_deterministic_and_skips_missing_cells() {
+        assert_eq!(
+            terrain_detail(Some(CellType::Empty), 7, 11),
+            terrain_detail(Some(CellType::Empty), 7, 11)
+        );
+        assert_eq!(terrain_detail(None, 7, 11), TerrainDetail::None);
+    }
+
+    #[test]
+    fn test_terrain_color_varies_without_leaving_palette() {
+        let first = terrain_color(Some(CellType::Empty), 1, 1);
+        let second = terrain_color(Some(CellType::Empty), 2, 1);
+
+        assert_ne!(first, second);
+        assert!((0.14..=0.22).contains(&first.r));
+        assert!((0.08..=0.14).contains(&first.b));
     }
 }
 
