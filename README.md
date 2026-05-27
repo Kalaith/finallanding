@@ -26,7 +26,7 @@ Keep the colony alive after the crash and turn a fragile landing site into a sta
 - Top bar buttons: adjust time speed.
 - Z: undo placement.
 - Esc: cancel current tool.
-- Assign mode: click a survivor card to cycle their work role.
+- Assign mode: hover a survivor card to preview social pressure, then click to cycle their work role.
 - Research mode: click a mission card to launch a field mission when the colony has an Exploration Gate.
 
 ## Current Scope
@@ -46,7 +46,7 @@ The left rail surfaces current objectives and alerts while the right rail tracks
 - Use Build, Rooms, and Objects modes to place at least one Habitat, Mess Hall, Workshop, Storage, and Exploration Gate.
 - Hover toolbar buttons and context cards; confirm tooltips stay inside the playable view.
 - Change priorities from Colony mode after an incident and confirm the advisor responds.
-- Use Assign mode to retask one survivor, then confirm their listed role changes.
+- Use Assign mode to retask one survivor, then confirm their listed role and assignment log mention the expected social pressure.
 - Launch at least two different mission types from Research mode and compare risk/reward.
 - Hover and inspect one colonist, then identify their strongest or weakest relationship.
 - Reach victory or failure, then use the restart button to begin another run.

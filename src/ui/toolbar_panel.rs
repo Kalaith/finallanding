@@ -5,6 +5,7 @@ use crate::data::event_log::{ColonyLogEntry, LogCategory};
 use crate::data::priority::ColonyPriority;
 use crate::data::resources::ResourceState;
 use crate::data::technology::{TechId, TechnologyState};
+use crate::systems::assignment_system::{AssignmentPressure, AssignmentSystem};
 use crate::systems::mission_system::MissionPlan;
 use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
@@ -221,15 +222,26 @@ fn draw_research_context(
 }
 
 fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_id: Option<u32>) {
-    let mut hovered_colonist = None;
+    let mut hovered_forecast = None;
+    let mut hovered_name = None;
     for (index, colonist) in colonists.iter().take(5).enumerate() {
         let rect = toolbar_list_item_rect(context, index);
         let selected = selected_colonist_id == Some(colonist.id);
+        let next_role = colonist.job_preference.next_assignable();
+        let forecast = AssignmentSystem::forecast_role_change(colonists, colonist.id, next_role);
         let hovered = rect.contains(mouse_position().into());
         if hovered {
-            hovered_colonist = Some(colonist);
+            hovered_forecast = Some(forecast.clone());
+            hovered_name = Some(colonist.name.clone());
         }
         style::draw_button(rect, selected, hovered);
+        draw_rectangle(
+            rect.x,
+            rect.y,
+            3.0,
+            rect.h,
+            assignment_pressure_color(forecast.pressure),
+        );
         draw_text(
             &style::truncate_text(&colonist.name, 11),
             rect.x + 10.0,
@@ -238,7 +250,14 @@ fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_
             style::TEXT_PRIMARY,
         );
         draw_text(
-            colonist.job_preference.label(),
+            &style::truncate_text(
+                &format!(
+                    "{} -> {}",
+                    colonist.job_preference.label(),
+                    next_role.label()
+                ),
+                15,
+            ),
             rect.x + 10.0,
             rect.y + 34.0,
             style::TINY_SIZE,
@@ -254,16 +273,8 @@ fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_
         style::TEXT_MUTED,
     );
 
-    if let Some(colonist) = hovered_colonist {
-        draw_tooltip_near_mouse(
-            toolbar_tooltip_bounds(context),
-            &colonist.name,
-            &format!(
-                "{} role. Mood {:.0}. Next click cycles role.",
-                colonist.job_preference.label(),
-                colonist.mood
-            ),
-        );
+    if let (Some(name), Some(forecast)) = (hovered_name, hovered_forecast) {
+        draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &name, &forecast.detail);
     }
 }
 
@@ -313,6 +324,14 @@ fn toolbar_tooltip_bounds(context: Rect) -> Rect {
         context.w,
         context.h + 58.0,
     )
+}
+
+fn assignment_pressure_color(pressure: AssignmentPressure) -> Color {
+    match pressure {
+        AssignmentPressure::Supported => style::BAR_GREEN,
+        AssignmentPressure::Neutral => style::HEADING_BLUE,
+        AssignmentPressure::Tense => style::ALERT_RED,
+    }
 }
 
 fn category_prefix(category: LogCategory) -> &'static str {

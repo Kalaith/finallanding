@@ -9,6 +9,7 @@ use crate::data::types::Position;
 use crate::game::building_system::PlacementResult;
 use crate::state::{State, StateTransition};
 use crate::systems::advisor_system::AdvisorSystem;
+use crate::systems::assignment_system::AssignmentSystem;
 use crate::systems::incident_system::IncidentSystem;
 use crate::systems::mission_system::MissionSystem;
 use crate::systems::objective_system::ObjectiveSystem;
@@ -394,14 +395,21 @@ impl GameplayState {
     }
 
     fn cycle_colonist_job(&mut self, colonist_index: usize) {
+        let Some(snapshot) = self.data.colonists.get(colonist_index) else {
+            return;
+        };
+
+        let colonist_id = snapshot.id;
+        let name = snapshot.name.clone();
+        let previous = snapshot.job_preference;
+        let next = previous.next_assignable();
+        let forecast =
+            AssignmentSystem::forecast_role_change(&self.data.colonists, colonist_id, next);
+
         let Some(colonist) = self.data.colonists.get_mut(colonist_index) else {
             return;
         };
 
-        let colonist_id = colonist.id;
-        let name = colonist.name.clone();
-        let previous = colonist.job_preference;
-        let next = previous.next_assignable();
         colonist.job_preference = next;
         if matches!(
             colonist.state,
@@ -416,9 +424,10 @@ impl GameplayState {
             LogCategory::System,
             format!("Role assigned: {}", name),
             format!(
-                "{} -> {}. Their next work block will target the matching room.",
+                "{} -> {}. {}",
                 previous.label(),
-                next.label()
+                next.label(),
+                forecast.detail
             ),
         );
     }
