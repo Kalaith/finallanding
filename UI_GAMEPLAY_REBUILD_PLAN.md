@@ -287,3 +287,65 @@ Done when: a tester can start, read the UI, play a complete run, and restart wit
 Start with **Sprint A: Visual Foundation**.
 
 Reason: it gives immediate visual alignment with the screenshot while keeping the current proven gameplay loop intact. After the style system and layout shell are stable, the isometric map and character art can be swapped in without destabilizing simulation code.
+
+## Current Implementation Status
+
+Completed in the active rebuild:
+
+- Reference extraction exists under `docs/reference/tfl_guide_mvp/`, including visual/color samples and screenshot-cropped placeholder portraits/sprites.
+- Screenshot-style color tokens, panel treatment, left rail, right rail, top bar, and bottom toolbar are implemented.
+- The central playfield now uses isometric projection for terrain, placement previews, buildings, and colonist positions.
+- Placeholder portrait and world-sprite crops are wired into the inspector, relationship row, right rail colonist list, and colony view.
+- Objective cards are generated from current game state: survival day, shelter capacity, food buffer, core rooms, and field technology.
+- The right rail now reports real gameplay tracks: food days, salvage, prepared meals, survey, repair, and hauling progress.
+- Bottom toolbar modes now affect gameplay:
+  - `Build` shows all construction plans.
+  - `Rooms` filters to Habitat, Mess Hall, and Storage.
+  - `Objects` filters to Workshop and Exploration Gate.
+  - `Colony` changes the active priority.
+  - `Research` launches mission types.
+  - `Assign` cycles colonist work roles, which changes future work targets and mission eligibility.
+  - `Log` shows recent colony events.
+- Buildings render as raised isometric shell placeholders instead of flat colored cells.
+
+Validation currently passing:
+
+- `cargo fmt --check`
+- `cargo test`
+- `cargo build`
+- `git diff --check`
+- Native launch smoke test
+
+## Remaining Rebuild Backlog
+
+Highest-value remaining items:
+
+1. Add licensed UI font loading.
+   - Preferred: Rajdhani SemiBold/Bold.
+   - Keep default font fallback if the font asset fails to load.
+   - Apply it through shared text helpers instead of one-off calls.
+
+2. Replace screenshot-cropped placeholder art with production-safe art.
+   - Generate or commission six portraits.
+   - Generate or commission six standing sprites.
+   - Replace screenshot crops once approved art exists.
+
+3. Add richer isometric terrain and building assets.
+   - Dirt, wreckage, scrap, paths, and work-zone tile variation.
+   - Building interiors or roof-cutaway sprites for each room/object.
+   - Stronger selected/hover outlines.
+
+4. Add tooltip and hover polish.
+   - Toolbar icon tooltips.
+   - Context card hover states with compact consequences.
+   - Colonist/world hover cards that do not overlap core panels.
+
+5. Expand relationship-manager gameplay.
+   - Assigning roles should expose social consequences, not just production targets.
+   - Add relationship-aware work grouping and recovery decisions.
+   - Promote daily social stories into player-readable log summaries.
+
+6. Add screenshot-based visual verification.
+   - Capture 1280x720 and 1920x1080 smoke screenshots.
+   - Check that panels do not overlap, the map is nonblank, and text stays inside key containers.
+   - Add a manual playtest checklist to `README.md`.
