@@ -313,8 +313,9 @@ Completed in the active rebuild:
 - Initial survivors now start with a small social backstory so relationship management is visible from the first playable frame.
 - Colonists prefer available workplaces and habitat assignments with supportive partners over hostile pairings when the colony has a choice.
 - The map and right rail now expose relationship pressure/support through compact social badges and Friendly/Tense value chips.
+- Assign mode now supports player-authored pair and space directives between selected survivors, and those directives influence future workplace and habitat choices.
 - The colony surface now has deterministic crash-site dressing with wreckage, cables, tracks, and richer room-specific cutaway details on placed buildings.
-- `scripts/capture_ui_smoke.ps1` captures 1280x720 and 1920x1080 gameplay screenshots under `docs/verification/` and checks important map, rail, and active-toolbar regions for visible pixels.
+- `scripts/capture_ui_smoke.ps1` captures 1280x720, 1920x1080, and Assign-mode gameplay screenshots under `docs/verification/` and checks important map, rail, and active-toolbar regions for visible pixels.
 
 Validation currently passing:
 
@@ -340,11 +341,11 @@ Highest-value remaining items:
    - Stronger selected/hover outlines.
 
 3. Expand relationship-manager gameplay.
-   - Expand relationship-aware work grouping beyond target selection into player-authored team/room assignments.
+   - Expand relationship directives into persistent team/room assignment panels once the colony has more than one candidate room per type.
    - Promote daily social stories into a richer player-readable summary panel.
    - Add clearer on-map body-language variants when idle/work/eat/sleep sprite variants exist.
 
 4. Improve screenshot verification depth.
    - Keep captured PNGs updated when major UI layout changes land.
    - Extend the manual playtest checklist when new relationship decisions are added.
-   - Add scenario-specific captures once scripted placement/playthrough UI setup exists.
+   - Add placement/playthrough captures once scripted world setup exists.

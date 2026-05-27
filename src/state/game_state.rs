@@ -16,6 +16,9 @@ use crate::systems::mission_system::MissionSystem;
 use crate::systems::objective_system::ObjectiveSystem;
 use crate::systems::planning_system::{BuildingPlacementFeedback, PlanningSystem};
 use crate::systems::proximity_system::ProximitySystem;
+use crate::systems::relationship_directive_system::{
+    DirectiveChange, PairDirective, RelationshipDirectiveSystem,
+};
 use crate::systems::resource_system::ResourceSystem;
 use crate::systems::scenario_system::ScenarioSystem;
 use crate::systems::social_system::SocialSystem;
@@ -78,17 +81,20 @@ impl GameplayState {
             ),
         );
 
+        let toolbar_mode = initial_toolbar_mode();
+        let selected_colonist_id = initial_selected_colonist_id(&data, toolbar_mode);
+
         Self {
             prev_tick: data.tick,
             data,
             hovered_cell: None,
             selected_building: None,
-            selected_colonist_id: None,
+            selected_colonist_id,
             time_events: TimeEventCollector::new(),
             time_accumulator: 0.0,
             layout: Layout::default(),
             debug_mode: false,
-            toolbar_mode: ToolbarMode::Build,
+            toolbar_mode,
             art: PlaceholderArt::new(),
         }
     }
@@ -383,16 +389,93 @@ impl GameplayState {
                 }
             }
             ToolbarMode::Assign => {
-                if let Some(index) =
+                if let Some(slot) =
                     toolbar_colonist_index_at(context, self.data.colonists.len(), mouse_x, mouse_y)
                 {
-                    self.cycle_colonist_job(index);
+                    if let Some(index) = self.assign_colonist_index_for_slot(slot) {
+                        self.update_assign_click(index);
+                    }
                 }
             }
             ToolbarMode::Log => {}
         }
 
         true
+    }
+
+    fn assign_colonist_index_for_slot(&self, slot: usize) -> Option<usize> {
+        assign_visible_colonist_indices(&self.data.colonists, self.selected_colonist_id)
+            .get(slot)
+            .copied()
+    }
+
+    fn update_assign_click(&mut self, colonist_index: usize) {
+        let Some(clicked_id) = self
+            .data
+            .colonists
+            .get(colonist_index)
+            .map(|colonist| colonist.id)
+        else {
+            return;
+        };
+
+        if let Some(selected_id) = self.selected_colonist_id {
+            if selected_id != clicked_id {
+                self.toggle_relationship_directive(selected_id, clicked_id);
+                return;
+            }
+        }
+
+        self.cycle_colonist_job(colonist_index);
+    }
+
+    fn toggle_relationship_directive(&mut self, first_id: u32, second_id: u32) {
+        let first_name = self
+            .colonist_by_id(first_id)
+            .map(|colonist| colonist.name.clone())
+            .unwrap_or_else(|| format!("Colonist {}", first_id));
+        let second_name = self
+            .colonist_by_id(second_id)
+            .map(|colonist| colonist.name.clone())
+            .unwrap_or_else(|| format!("Colonist {}", second_id));
+
+        let change = RelationshipDirectiveSystem::toggle_pair_directive(
+            &mut self.data.colonists,
+            first_id,
+            second_id,
+        );
+
+        match change {
+            Ok(DirectiveChange::Set(directive)) => {
+                self.data.push_log(
+                    LogCategory::Social,
+                    directive.log_title(),
+                    directive_log_detail(directive, &first_name, &second_name),
+                );
+            }
+            Ok(DirectiveChange::Cleared(directive)) => {
+                self.data.push_log(
+                    LogCategory::Social,
+                    "Relationship directive cleared",
+                    format!(
+                        "{} and {} no longer have a forced {} directive.",
+                        first_name,
+                        second_name,
+                        directive.label().to_lowercase()
+                    ),
+                );
+            }
+            Err(_) => {
+                self.data.push_log(
+                    LogCategory::Social,
+                    "Directive failed",
+                    format!(
+                        "Could not update a directive between {} and {}.",
+                        first_name, second_name
+                    ),
+                );
+            }
+        }
     }
 
     fn cycle_colonist_job(&mut self, colonist_index: usize) {
@@ -1564,6 +1647,80 @@ fn colonist_activity_summary(colonist: &Colonist) -> &'static str {
     }
 }
 
+fn directive_log_detail(directive: PairDirective, first_name: &str, second_name: &str) -> String {
+    match directive {
+        PairDirective::Pair => format!(
+            "{} and {} will prefer the same work and recovery spaces when the settlement has a choice.",
+            first_name, second_name
+        ),
+        PairDirective::Separate => format!(
+            "{} and {} will avoid sharing work and recovery spaces when another option exists.",
+            first_name, second_name
+        ),
+    }
+}
+
+fn initial_toolbar_mode() -> ToolbarMode {
+    std::env::var("TFL_START_TOOLBAR_MODE")
+        .ok()
+        .and_then(|value| toolbar_mode_from_name(&value))
+        .unwrap_or(ToolbarMode::Build)
+}
+
+fn initial_selected_colonist_id(data: &GameState, toolbar_mode: ToolbarMode) -> Option<u32> {
+    std::env::var("TFL_START_SELECTED_COLONIST")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|id| data.colonists.iter().any(|colonist| colonist.id == *id))
+        .or_else(|| {
+            (toolbar_mode == ToolbarMode::Assign)
+                .then(|| data.colonists.first().map(|colonist| colonist.id))
+                .flatten()
+        })
+}
+
+fn toolbar_mode_from_name(value: &str) -> Option<ToolbarMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "build" => Some(ToolbarMode::Build),
+        "rooms" => Some(ToolbarMode::Rooms),
+        "objects" => Some(ToolbarMode::Objects),
+        "colony" => Some(ToolbarMode::Colony),
+        "research" => Some(ToolbarMode::Research),
+        "assign" => Some(ToolbarMode::Assign),
+        "log" => Some(ToolbarMode::Log),
+        _ => None,
+    }
+}
+
+fn assign_visible_colonist_indices(
+    colonists: &[Colonist],
+    selected_colonist_id: Option<u32>,
+) -> Vec<usize> {
+    let mut indices = Vec::new();
+
+    if let Some(selected_id) = selected_colonist_id {
+        if let Some(index) = colonists
+            .iter()
+            .position(|colonist| colonist.id == selected_id)
+        {
+            indices.push(index);
+        }
+    }
+
+    for index in 0..colonists.len() {
+        if indices.contains(&index) {
+            continue;
+        }
+
+        indices.push(index);
+        if indices.len() >= 5 {
+            break;
+        }
+    }
+
+    indices
+}
+
 fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
     colonist
         .relationships
@@ -1715,6 +1872,40 @@ mod tests {
 
         second.activity_location = ActivityLocation::Ground(Position::new(2, 2));
         assert!(!shared_social_location(&first, &second));
+    }
+
+    #[test]
+    fn test_toolbar_mode_from_name_accepts_capture_modes() {
+        assert_eq!(toolbar_mode_from_name("assign"), Some(ToolbarMode::Assign));
+        assert_eq!(
+            toolbar_mode_from_name(" Research "),
+            Some(ToolbarMode::Research)
+        );
+        assert_eq!(toolbar_mode_from_name("missing"), None);
+    }
+
+    #[test]
+    fn test_assign_visible_indices_pin_selected_colonist_first() {
+        let colonists = (0..6)
+            .map(|id| {
+                Colonist::new(
+                    id,
+                    format!("Colonist {}", id),
+                    Position::new(id as i32, 0),
+                    Trait::HardWorker,
+                    JobPreference::Builder,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            assign_visible_colonist_indices(&colonists, Some(5)),
+            vec![5, 0, 1, 2, 3]
+        );
+        assert_eq!(
+            assign_visible_colonist_indices(&colonists, None),
+            vec![0, 1, 2, 3, 4]
+        );
     }
 }
 

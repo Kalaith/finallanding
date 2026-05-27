@@ -473,7 +473,18 @@ fn social_score_for_building(
         .filter(|(other_id, location)| {
             *other_id != colonist.id && location.building_id() == Some(building_id)
         })
-        .map(|(other_id, _)| colonist.relationships.get(other_id).copied().unwrap_or(0))
+        .map(|(other_id, _)| {
+            let relationship = colonist.relationships.get(other_id).copied().unwrap_or(0);
+            let directive = if colonist.preferred_partner_id == Some(*other_id) {
+                80
+            } else if colonist.avoided_partner_id == Some(*other_id) {
+                -80
+            } else {
+                0
+            };
+
+            relationship + directive
+        })
         .sum()
 }
 
@@ -752,6 +763,43 @@ mod tests {
                 },
             ),
         ];
+
+        let target = find_building_entrance(
+            colonist.position,
+            BuildingType::Workshop,
+            &buildings,
+            None,
+            &colonist,
+            &social_locations,
+        )
+        .expect("workshop target should be found");
+
+        assert_eq!(target.building_id, 20);
+    }
+
+    #[test]
+    fn test_work_target_honors_keep_apart_directive() {
+        let mut colonist = Colonist::new(
+            1,
+            "Alice".to_string(),
+            Position::new(0, 0),
+            Trait::FastWalker,
+            JobPreference::Builder,
+        );
+        colonist.relationships.insert(2, 30);
+        colonist.avoided_partner_id = Some(2);
+
+        let buildings = vec![
+            (10, BuildingType::Workshop, Position::new(1, 1), (2, 2)),
+            (20, BuildingType::Workshop, Position::new(12, 12), (2, 2)),
+        ];
+        let social_locations = vec![(
+            2,
+            ActivityLocation::Building {
+                building_id: 10,
+                building_type: BuildingType::Workshop,
+            },
+        )];
 
         let target = find_building_entrance(
             colonist.position,

@@ -7,6 +7,7 @@ use crate::data::resources::ResourceState;
 use crate::data::technology::{TechId, TechnologyState};
 use crate::systems::assignment_system::{AssignmentPressure, AssignmentSystem};
 use crate::systems::mission_system::MissionPlan;
+use crate::systems::relationship_directive_system::{PairDirective, RelationshipDirectiveSystem};
 use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
     toolbar_buildings_for_mode, toolbar_context_item_rect, toolbar_context_rect,
@@ -224,23 +225,33 @@ fn draw_research_context(
 fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_id: Option<u32>) {
     let mut hovered_forecast = None;
     let mut hovered_name = None;
-    for (index, colonist) in colonists.iter().take(5).enumerate() {
-        let rect = toolbar_list_item_rect(context, index);
+    let mut hovered_directive = None;
+    for (slot, colonist) in assign_visible_colonists(colonists, selected_colonist_id)
+        .into_iter()
+        .enumerate()
+    {
+        let rect = toolbar_list_item_rect(context, slot);
         let selected = selected_colonist_id == Some(colonist.id);
-        let next_role = colonist.job_preference.next_assignable();
-        let forecast = AssignmentSystem::forecast_role_change(colonists, colonist.id, next_role);
         let hovered = rect.contains(mouse_position().into());
-        if hovered {
-            hovered_forecast = Some(forecast.clone());
-            hovered_name = Some(colonist.name.clone());
-        }
+        let pair_action = selected_colonist_id
+            .filter(|selected_id| *selected_id != colonist.id)
+            .and_then(|selected_id| assign_pair_action(colonists, selected_id, colonist.id));
+
         style::draw_button(rect, selected, hovered);
         draw_rectangle(
             rect.x,
             rect.y,
             3.0,
             rect.h,
-            assignment_pressure_color(forecast.pressure),
+            pair_action
+                .as_ref()
+                .map(|action| directive_color(action.directive))
+                .unwrap_or_else(|| {
+                    let next_role = colonist.job_preference.next_assignable();
+                    let forecast =
+                        AssignmentSystem::forecast_role_change(colonists, colonist.id, next_role);
+                    assignment_pressure_color(forecast.pressure)
+                }),
         );
         draw_text(
             &style::truncate_text(&colonist.name, 11),
@@ -249,33 +260,121 @@ fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_
             style::SMALL_SIZE,
             style::TEXT_PRIMARY,
         );
-        draw_text(
-            &style::truncate_text(
-                &format!(
-                    "{} -> {}",
-                    colonist.job_preference.label(),
-                    next_role.label()
+
+        if let Some(action) = pair_action {
+            if hovered {
+                hovered_directive = Some(action.detail);
+                hovered_name = Some(colonist.name.clone());
+            }
+            draw_text(
+                &style::truncate_text(&action.label, 16),
+                rect.x + 10.0,
+                rect.y + 34.0,
+                style::TINY_SIZE,
+                directive_color(action.directive),
+            );
+        } else {
+            let next_role = colonist.job_preference.next_assignable();
+            let forecast =
+                AssignmentSystem::forecast_role_change(colonists, colonist.id, next_role);
+            if hovered {
+                hovered_forecast = Some(forecast.clone());
+                hovered_name = Some(colonist.name.clone());
+            }
+            draw_text(
+                &style::truncate_text(
+                    &format!(
+                        "{} -> {}",
+                        colonist.job_preference.label(),
+                        next_role.label()
+                    ),
+                    15,
                 ),
-                15,
-            ),
-            rect.x + 10.0,
-            rect.y + 34.0,
-            style::TINY_SIZE,
-            style::HEADING_BLUE,
-        );
+                rect.x + 10.0,
+                rect.y + 34.0,
+                style::TINY_SIZE,
+                style::HEADING_BLUE,
+            );
+        }
     }
 
+    let footer = selected_colonist_id
+        .and_then(|id| colonists.iter().find(|colonist| colonist.id == id))
+        .map(|colonist| format!("Selected {} | role and social directives", colonist.name))
+        .unwrap_or_else(|| {
+            "Roles, pair directives, and space directives shape work blocks.".to_string()
+        });
     draw_text(
-        "Roles redirect next work block and mission eligibility.",
+        &style::truncate_text(&footer, 76),
         context.x + 18.0,
         context.y + 111.0,
         style::TINY_SIZE,
         style::TEXT_MUTED,
     );
 
-    if let (Some(name), Some(forecast)) = (hovered_name, hovered_forecast) {
+    if let (Some(name), Some(detail)) = (hovered_name.clone(), hovered_directive) {
+        draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &name, &detail);
+    } else if let (Some(name), Some(forecast)) = (hovered_name, hovered_forecast) {
         draw_tooltip_near_mouse(toolbar_tooltip_bounds(context), &name, &forecast.detail);
     }
+}
+
+struct AssignPairAction {
+    label: String,
+    detail: String,
+    directive: PairDirective,
+}
+
+fn assign_visible_colonists<'a>(
+    colonists: &'a [Colonist],
+    selected_colonist_id: Option<u32>,
+) -> Vec<&'a Colonist> {
+    let mut visible = Vec::new();
+
+    if let Some(selected_id) = selected_colonist_id {
+        if let Some(colonist) = colonists.iter().find(|colonist| colonist.id == selected_id) {
+            visible.push(colonist);
+        }
+    }
+
+    for colonist in colonists {
+        if visible.iter().any(|visible| visible.id == colonist.id) {
+            continue;
+        }
+
+        visible.push(colonist);
+        if visible.len() >= 5 {
+            break;
+        }
+    }
+
+    visible
+}
+
+fn assign_pair_action(
+    colonists: &[Colonist],
+    selected_id: u32,
+    target_id: u32,
+) -> Option<AssignPairAction> {
+    let current =
+        RelationshipDirectiveSystem::directive_for_pair(colonists, selected_id, target_id);
+    let directive = current.or_else(|| {
+        RelationshipDirectiveSystem::recommended_directive(colonists, selected_id, target_id)
+    })?;
+    let value =
+        RelationshipDirectiveSystem::average_relationship(colonists, selected_id, target_id)
+            .unwrap_or(0);
+    let label = match current {
+        Some(active) => format!("{} set {:+}", active.label(), value),
+        None => format!("{} {:+}", directive.label(), value),
+    };
+    let detail = RelationshipDirectiveSystem::directive_detail(colonists, selected_id, target_id);
+
+    Some(AssignPairAction {
+        label,
+        detail,
+        directive,
+    })
 }
 
 fn draw_log_context(context: Rect, logs: &[ColonyLogEntry]) {
@@ -334,6 +433,13 @@ fn assignment_pressure_color(pressure: AssignmentPressure) -> Color {
     }
 }
 
+fn directive_color(directive: PairDirective) -> Color {
+    match directive {
+        PairDirective::Pair => style::BAR_GREEN,
+        PairDirective::Separate => style::ALERT_RED,
+    }
+}
+
 fn category_prefix(category: LogCategory) -> &'static str {
     match category {
         LogCategory::Time => "TIME",
@@ -345,5 +451,47 @@ fn category_prefix(category: LogCategory) -> &'static str {
         LogCategory::Technology => "TECH",
         LogCategory::Colony => "COL",
         LogCategory::System => "SYS",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::colonist::{JobPreference, Trait};
+    use crate::data::types::Position;
+
+    fn test_colonist(id: u32) -> Colonist {
+        Colonist::new(
+            id,
+            format!("Colonist {}", id),
+            Position::new(id as i32, 0),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        )
+    }
+
+    #[test]
+    fn test_assign_visible_colonists_pin_selected_first() {
+        let colonists = (0..6).map(test_colonist).collect::<Vec<_>>();
+        let visible = assign_visible_colonists(&colonists, Some(5))
+            .into_iter()
+            .map(|colonist| colonist.id)
+            .collect::<Vec<_>>();
+
+        assert_eq!(visible, vec![5, 0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_assign_pair_action_reports_active_directive() {
+        let mut colonists = vec![test_colonist(1), test_colonist(2)];
+        colonists[0].relationships.insert(2, -24);
+        colonists[1].relationships.insert(1, -20);
+        colonists[0].avoided_partner_id = Some(2);
+        colonists[1].avoided_partner_id = Some(1);
+
+        let action = assign_pair_action(&colonists, 1, 2).unwrap();
+
+        assert_eq!(action.directive, PairDirective::Separate);
+        assert_eq!(action.label, "Apart set -22");
     }
 }

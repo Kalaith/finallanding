@@ -95,14 +95,20 @@ function Assert-ActiveToolbarVisible {
     param(
         [System.Drawing.Bitmap]$Bitmap,
         [int]$Width,
-        [int]$Height
+        [int]$Height,
+        [int]$ActiveIndex
     )
+
+    $toolbarWidth = [Math]::Min([Math]::Max($Width * 0.46, 520), 760)
+    $toolbarX = ($Width - $toolbarWidth) * 0.5
+    $buttonWidth = $toolbarWidth / 7
+    $buttonX = $toolbarX + $ActiveIndex * $buttonWidth
 
     $stats = Get-RegionStats `
         -Bitmap $Bitmap `
-        -X ([int]($Width * 0.27)) `
+        -X ([int]($buttonX + $buttonWidth * 0.1)) `
         -Y ([int]($Height * 0.90)) `
-        -Width ([int]($Width * 0.08)) `
+        -Width ([int]($buttonWidth * 0.8)) `
         -Height ([int]($Height * 0.08)) `
         -Step 3
 
@@ -112,8 +118,9 @@ function Assert-ActiveToolbarVisible {
 }
 
 $sizes = @(
-    @{ Width = 1280; Height = 720; Name = "ui_smoke_1280x720.png"; Fullscreen = "0" },
-    @{ Width = 1920; Height = 1080; Name = "ui_smoke_1920x1080.png"; Fullscreen = "1" }
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_1280x720.png"; Fullscreen = "0"; Mode = "build"; Selected = ""; ActiveIndex = 0 },
+    @{ Width = 1920; Height = 1080; Name = "ui_smoke_1920x1080.png"; Fullscreen = "1"; Mode = "build"; Selected = ""; ActiveIndex = 0 },
+    @{ Width = 1280; Height = 720; Name = "ui_smoke_assign_1280x720.png"; Fullscreen = "0"; Mode = "assign"; Selected = "5"; ActiveIndex = 5 }
 )
 
 foreach ($size in $sizes) {
@@ -128,6 +135,12 @@ foreach ($size in $sizes) {
     $env:TFL_WINDOW_WIDTH = "$($size.Width)"
     $env:TFL_WINDOW_HEIGHT = "$($size.Height)"
     $env:TFL_FULLSCREEN = "$($size.Fullscreen)"
+    $env:TFL_START_TOOLBAR_MODE = "$($size.Mode)"
+    if ($size.Selected -ne "") {
+        $env:TFL_START_SELECTED_COLONIST = "$($size.Selected)"
+    } else {
+        Remove-Item Env:\TFL_START_SELECTED_COLONIST -ErrorAction SilentlyContinue
+    }
 
     & $exe
 
@@ -149,7 +162,7 @@ foreach ($size in $sizes) {
         Assert-RegionVisible -Bitmap $image -Name "left rail" -X 10 -Y 78 -Width 278 -Height 170 -MinNonBlackRatio 0.35 -MinBrightnessRange 45
         Assert-RegionVisible -Bitmap $image -Name "right rail" -X ([int]($size.Width - 292)) -Y 78 -Width 278 -Height 545 -MinNonBlackRatio 0.18 -MinBrightnessRange 45
         Assert-RegionVisible -Bitmap $image -Name "central map" -X ([int]($size.Width * 0.26)) -Y ([int]($size.Height * 0.18)) -Width ([int]($size.Width * 0.48)) -Height ([int]($size.Height * 0.48)) -MinNonBlackRatio 0.12 -MinBrightnessRange 30
-        Assert-ActiveToolbarVisible -Bitmap $image -Width $size.Width -Height $size.Height
+        Assert-ActiveToolbarVisible -Bitmap $image -Width $size.Width -Height $size.Height -ActiveIndex $size.ActiveIndex
     }
     finally {
         $image.Dispose()
@@ -164,3 +177,5 @@ Remove-Item Env:\TFL_CAPTURE_FRAMES -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_WINDOW_WIDTH -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_WINDOW_HEIGHT -ErrorAction SilentlyContinue
 Remove-Item Env:\TFL_FULLSCREEN -ErrorAction SilentlyContinue
+Remove-Item Env:\TFL_START_TOOLBAR_MODE -ErrorAction SilentlyContinue
+Remove-Item Env:\TFL_START_SELECTED_COLONIST -ErrorAction SilentlyContinue

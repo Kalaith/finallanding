@@ -36,6 +36,10 @@ pub struct Colonist {
     pub injured_until_tick: Option<u64>,
     #[serde(default)]
     pub active_mission_id: Option<u32>,
+    #[serde(default)]
+    pub preferred_partner_id: Option<u32>,
+    #[serde(default)]
+    pub avoided_partner_id: Option<u32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -164,6 +168,8 @@ impl Colonist {
             last_social_strain_tick: 0,
             injured_until_tick: None,
             active_mission_id: None,
+            preferred_partner_id: None,
+            avoided_partner_id: None,
         }
     }
 

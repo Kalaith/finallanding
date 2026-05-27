@@ -8,6 +8,7 @@ pub mod objective_system;
 pub mod planning_system;
 pub mod playtest_system;
 pub mod proximity_system;
+pub mod relationship_directive_system;
 pub mod resource_system;
 pub mod scenario_system;
 pub mod social_system;
