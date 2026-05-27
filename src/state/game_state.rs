@@ -24,8 +24,9 @@ use crate::systems::work_system::WorkSystem;
 use crate::ui::{
     draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector, draw_debug_overlay,
     draw_iso_diamond, draw_iso_diamond_lines, draw_right_rail, draw_toolbar_context_panel,
-    draw_top_bar, restart_button_rect, side_panel_hit_at, toolbar_building_at,
-    toolbar_context_rect, toolbar_mission_at, toolbar_mode_at, top_bar_priority_at,
+    draw_top_bar, restart_button_rect, side_panel_hit_at, toolbar_building_at_for_mode,
+    toolbar_buildings_for_mode, toolbar_colonist_index_at, toolbar_context_rect,
+    toolbar_mission_at, toolbar_mode_at, toolbar_priority_at, top_bar_priority_at,
     top_bar_speed_at, IsoView, Layout, PlaceholderArt, SidePanelHit, ToolbarMode,
 };
 use macroquad::prelude::*;
@@ -236,6 +237,17 @@ impl GameplayState {
         // Only allow placement in the game area (not over UI)
         let (mouse_x, mouse_y) = mouse_position();
         let game_area = self.layout.game_area();
+        let mouse_pos = vec2(mouse_x, mouse_y);
+        let toolbar = self.layout.bottom_toolbar();
+
+        if toolbar.contains(mouse_pos)
+            || toolbar_context_rect(toolbar).contains(mouse_pos)
+            || self.layout.left_panel().contains(mouse_pos)
+            || self.layout.right_panel().contains(mouse_pos)
+            || mouse_y <= self.layout.top_bar_height
+        {
+            return;
+        }
 
         if mouse_x < game_area.x || mouse_x > game_area.x + game_area.w {
             return;
@@ -331,9 +343,11 @@ impl GameplayState {
         let toolbar = self.layout.bottom_toolbar();
         if let Some(mode) = toolbar_mode_at(toolbar, mouse_x, mouse_y) {
             self.toolbar_mode = mode;
-            if mode != ToolbarMode::Build
-                && mode != ToolbarMode::Rooms
-                && mode != ToolbarMode::Objects
+            if !mode.uses_building_choices() {
+                self.selected_building = None;
+            } else if self
+                .selected_building
+                .is_some_and(|building| !toolbar_buildings_for_mode(mode).contains(&building))
             {
                 self.selected_building = None;
             }
@@ -347,8 +361,15 @@ impl GameplayState {
 
         match self.toolbar_mode {
             ToolbarMode::Build | ToolbarMode::Rooms | ToolbarMode::Objects => {
-                if let Some(building_type) = toolbar_building_at(context, mouse_x, mouse_y) {
+                if let Some(building_type) =
+                    toolbar_building_at_for_mode(context, self.toolbar_mode, mouse_x, mouse_y)
+                {
                     self.toggle_building(building_type);
+                }
+            }
+            ToolbarMode::Colony => {
+                if let Some(priority) = toolbar_priority_at(context, mouse_x, mouse_y) {
+                    self.set_priority(priority);
                 }
             }
             ToolbarMode::Research => {
@@ -356,10 +377,47 @@ impl GameplayState {
                     self.launch_mission(mission_type);
                 }
             }
-            ToolbarMode::Colony | ToolbarMode::Assign | ToolbarMode::Log => {}
+            ToolbarMode::Assign => {
+                if let Some(index) =
+                    toolbar_colonist_index_at(context, self.data.colonists.len(), mouse_x, mouse_y)
+                {
+                    self.cycle_colonist_job(index);
+                }
+            }
+            ToolbarMode::Log => {}
         }
 
         true
+    }
+
+    fn cycle_colonist_job(&mut self, colonist_index: usize) {
+        let Some(colonist) = self.data.colonists.get_mut(colonist_index) else {
+            return;
+        };
+
+        let colonist_id = colonist.id;
+        let name = colonist.name.clone();
+        let previous = colonist.job_preference;
+        let next = previous.next_assignable();
+        colonist.job_preference = next;
+        if matches!(
+            colonist.state,
+            ColonistState::Working | ColonistState::Moving { .. }
+        ) {
+            colonist.state = ColonistState::Idle;
+            colonist.activity_location = crate::data::colonist::ActivityLocation::None;
+        }
+        self.selected_colonist_id = Some(colonist_id);
+
+        self.data.push_log(
+            LogCategory::System,
+            format!("Role assigned: {}", name),
+            format!(
+                "{} -> {}. Their next work block will target the matching room.",
+                previous.label(),
+                next.label()
+            ),
+        );
     }
 
     fn update_colonist_selection(&mut self) {
@@ -369,6 +427,17 @@ impl GameplayState {
 
         let game_area = self.layout.game_area();
         let (mouse_x, mouse_y) = mouse_position();
+        let mouse_pos = vec2(mouse_x, mouse_y);
+        let toolbar = self.layout.bottom_toolbar();
+        if toolbar.contains(mouse_pos)
+            || toolbar_context_rect(toolbar).contains(mouse_pos)
+            || self.layout.left_panel().contains(mouse_pos)
+            || self.layout.right_panel().contains(mouse_pos)
+            || mouse_y <= self.layout.top_bar_height
+        {
+            return;
+        }
+
         if mouse_x < game_area.x
             || mouse_x > game_area.x + game_area.w
             || mouse_y < game_area.y
@@ -1059,6 +1128,9 @@ impl State for GameplayState {
             &self.data.technology,
             self.data.missions.active_count(),
             &self.data.event_log,
+            self.data.priority.active,
+            &self.data.colonists,
+            self.selected_colonist_id,
         );
         draw_bottom_toolbar(&self.layout, self.toolbar_mode, self.selected_building);
 

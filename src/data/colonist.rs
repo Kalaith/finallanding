@@ -104,6 +104,37 @@ pub enum JobPreference {
     None,
 }
 
+impl JobPreference {
+    pub fn all_assignable() -> &'static [JobPreference] {
+        &[
+            JobPreference::Explorer,
+            JobPreference::Builder,
+            JobPreference::Cook,
+            JobPreference::Hauler,
+        ]
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            JobPreference::Explorer => "Explorer",
+            JobPreference::Builder => "Builder",
+            JobPreference::Cook => "Cook",
+            JobPreference::Hauler => "Hauler",
+            JobPreference::None => "General",
+        }
+    }
+
+    pub fn next_assignable(self) -> JobPreference {
+        let jobs = Self::all_assignable();
+        let next_index = jobs
+            .iter()
+            .position(|job| *job == self)
+            .map(|index| (index + 1) % jobs.len())
+            .unwrap_or(0);
+        jobs[next_index]
+    }
+}
+
 impl Colonist {
     pub fn new(
         id: u32,
@@ -188,5 +219,31 @@ pub fn relationship_label(value: i32) -> &'static str {
         "Tense"
     } else {
         "Neutral"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_job_assignment_cycles_through_work_roles() {
+        assert_eq!(
+            JobPreference::Explorer.next_assignable(),
+            JobPreference::Builder
+        );
+        assert_eq!(
+            JobPreference::Builder.next_assignable(),
+            JobPreference::Cook
+        );
+        assert_eq!(JobPreference::Cook.next_assignable(), JobPreference::Hauler);
+        assert_eq!(
+            JobPreference::Hauler.next_assignable(),
+            JobPreference::Explorer
+        );
+        assert_eq!(
+            JobPreference::None.next_assignable(),
+            JobPreference::Explorer
+        );
     }
 }

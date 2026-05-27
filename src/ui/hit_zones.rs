@@ -78,7 +78,21 @@ impl ToolbarMode {
             ToolbarMode::Log => "L",
         }
     }
+
+    pub fn uses_building_choices(self) -> bool {
+        matches!(
+            self,
+            ToolbarMode::Build | ToolbarMode::Rooms | ToolbarMode::Objects
+        )
+    }
 }
+
+const ROOM_BUILDINGS: &[BuildingType] = &[
+    BuildingType::Habitat,
+    BuildingType::MessHall,
+    BuildingType::Storage,
+];
+const OBJECT_BUILDINGS: &[BuildingType] = &[BuildingType::Workshop, BuildingType::ExplorationGate];
 
 pub fn menu_start_rect(screen_width: f32, screen_height: f32) -> Rect {
     Rect::new(screen_width * 0.5 - 100.0, screen_height * 0.5, 200.0, 50.0)
@@ -205,13 +219,48 @@ pub fn toolbar_context_item_rect(context: Rect, index: usize) -> Rect {
     )
 }
 
+pub fn toolbar_list_item_rect(context: Rect, index: usize) -> Rect {
+    toolbar_context_item_rect(context, index)
+}
+
+pub fn toolbar_buildings_for_mode(mode: ToolbarMode) -> &'static [BuildingType] {
+    match mode {
+        ToolbarMode::Build => BuildingType::all(),
+        ToolbarMode::Rooms => ROOM_BUILDINGS,
+        ToolbarMode::Objects => OBJECT_BUILDINGS,
+        ToolbarMode::Colony | ToolbarMode::Research | ToolbarMode::Assign | ToolbarMode::Log => &[],
+    }
+}
+
 pub fn toolbar_building_at(context: Rect, x: f32, y: f32) -> Option<BuildingType> {
-    BuildingType::all()
+    toolbar_building_at_for_mode(context, ToolbarMode::Build, x, y)
+}
+
+pub fn toolbar_building_at_for_mode(
+    context: Rect,
+    mode: ToolbarMode,
+    x: f32,
+    y: f32,
+) -> Option<BuildingType> {
+    toolbar_buildings_for_mode(mode)
         .iter()
         .enumerate()
         .find_map(|(index, building_type)| {
             contains(toolbar_context_item_rect(context, index), x, y).then_some(*building_type)
         })
+}
+
+pub fn toolbar_priority_at(context: Rect, x: f32, y: f32) -> Option<ColonyPriority> {
+    ColonyPriority::all()
+        .iter()
+        .enumerate()
+        .find_map(|(index, priority)| {
+            contains(toolbar_context_item_rect(context, index), x, y).then_some(*priority)
+        })
+}
+
+pub fn toolbar_colonist_index_at(context: Rect, count: usize, x: f32, y: f32) -> Option<usize> {
+    (0..count.min(5)).find(|index| contains(toolbar_list_item_rect(context, *index), x, y))
 }
 
 pub fn toolbar_mission_at(context: Rect, x: f32, y: f32) -> Option<MissionType> {
@@ -358,6 +407,46 @@ mod tests {
         assert_eq!(
             toolbar_mission_at(context, habitat_x, habitat_y),
             Some(MissionType::SupplyRun)
+        );
+    }
+
+    #[test]
+    fn test_toolbar_building_filters_match_modes() {
+        let context = Rect::new(380.0, 500.0, 520.0, 126.0);
+        let (first_x, first_y) = center(toolbar_context_item_rect(context, 0));
+        let (third_x, third_y) = center(toolbar_context_item_rect(context, 2));
+
+        assert_eq!(
+            toolbar_building_at_for_mode(context, ToolbarMode::Rooms, first_x, first_y),
+            Some(BuildingType::Habitat)
+        );
+        assert_eq!(
+            toolbar_building_at_for_mode(context, ToolbarMode::Rooms, third_x, third_y),
+            Some(BuildingType::Storage)
+        );
+        assert_eq!(
+            toolbar_building_at_for_mode(context, ToolbarMode::Objects, third_x, third_y),
+            None
+        );
+    }
+
+    #[test]
+    fn test_toolbar_priority_and_colonist_hits() {
+        let context = Rect::new(380.0, 500.0, 520.0, 126.0);
+        let (priority_x, priority_y) = center(toolbar_context_item_rect(context, 1));
+        let (colonist_x, colonist_y) = center(toolbar_list_item_rect(context, 4));
+
+        assert_eq!(
+            toolbar_priority_at(context, priority_x, priority_y),
+            Some(ColonyPriority::Stockpile)
+        );
+        assert_eq!(
+            toolbar_colonist_index_at(context, 5, colonist_x, colonist_y),
+            Some(4)
+        );
+        assert_eq!(
+            toolbar_colonist_index_at(context, 4, colonist_x, colonist_y),
+            None
         );
     }
 }

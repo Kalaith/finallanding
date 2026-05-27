@@ -1,10 +1,15 @@
 use super::Layout;
 use crate::data::building::BuildingType;
+use crate::data::colonist::Colonist;
 use crate::data::event_log::{ColonyLogEntry, LogCategory};
+use crate::data::priority::ColonyPriority;
 use crate::data::resources::ResourceState;
 use crate::data::technology::{TechId, TechnologyState};
 use crate::systems::mission_system::MissionPlan;
-use crate::ui::hit_zones::{toolbar_context_item_rect, toolbar_context_rect, ToolbarMode};
+use crate::ui::hit_zones::{
+    toolbar_buildings_for_mode, toolbar_context_item_rect, toolbar_context_rect,
+    toolbar_list_item_rect, ToolbarMode,
+};
 use crate::ui::style;
 use macroquad::prelude::*;
 
@@ -17,6 +22,9 @@ pub fn draw_toolbar_context_panel(
     technology: &TechnologyState,
     active_mission_count: usize,
     logs: &[ColonyLogEntry],
+    active_priority: ColonyPriority,
+    colonists: &[Colonist],
+    selected_colonist_id: Option<u32>,
 ) {
     let context = toolbar_context_rect(layout.bottom_toolbar());
     style::draw_panel(context);
@@ -28,23 +36,24 @@ pub fn draw_toolbar_context_panel(
 
     match mode {
         ToolbarMode::Build | ToolbarMode::Rooms | ToolbarMode::Objects => {
-            draw_build_context(context, selected_building, resources)
+            draw_build_context(context, mode, selected_building, resources)
         }
-        ToolbarMode::Colony => draw_colony_context(context),
+        ToolbarMode::Colony => draw_colony_context(context, active_priority),
         ToolbarMode::Research => {
             draw_research_context(context, mission_plans, technology, active_mission_count)
         }
-        ToolbarMode::Assign => draw_assign_context(context),
+        ToolbarMode::Assign => draw_assign_context(context, colonists, selected_colonist_id),
         ToolbarMode::Log => draw_log_context(context, logs),
     }
 }
 
 fn draw_build_context(
     context: Rect,
+    mode: ToolbarMode,
     selected_building: Option<BuildingType>,
     resources: &ResourceState,
 ) {
-    for (index, building_type) in BuildingType::all().iter().enumerate() {
+    for (index, building_type) in toolbar_buildings_for_mode(mode).iter().enumerate() {
         let rect = toolbar_context_item_rect(context, index);
         let can_afford = resources.salvage >= building_type.salvage_cost();
         let selected = selected_building == Some(*building_type);
@@ -80,20 +89,41 @@ fn draw_build_context(
             },
         );
     }
+
+    let helper = match mode {
+        ToolbarMode::Rooms => "Room plans shape sleep, meals, and storage pressure.",
+        ToolbarMode::Objects => "Work objects produce salvage and survey returns.",
+        _ => "Plans reserve salvage and define colony space.",
+    };
+    draw_text(
+        helper,
+        context.x + 18.0,
+        context.y + 111.0,
+        style::TINY_SIZE,
+        style::TEXT_MUTED,
+    );
 }
 
-fn draw_colony_context(context: Rect) {
-    let lines = [
-        "1 Recovery lowers pressure and mission danger.",
-        "2 Stockpile boosts food, storage, and repair work.",
-        "3 Survey pushes exploration and research returns.",
-    ];
-    for (index, line) in lines.iter().enumerate() {
+fn draw_colony_context(context: Rect, active_priority: ColonyPriority) {
+    for (index, priority) in ColonyPriority::all().iter().enumerate() {
+        let rect = toolbar_context_item_rect(context, index);
+        style::draw_button(
+            rect,
+            *priority == active_priority,
+            rect.contains(mouse_position().into()),
+        );
         draw_text(
-            line,
-            context.x + 18.0,
-            context.y + 56.0 + index as f32 * 22.0,
+            priority.short_label(),
+            rect.x + 10.0,
+            rect.y + 18.0,
             style::SMALL_SIZE,
+            style::TEXT_PRIMARY,
+        );
+        draw_text(
+            &style::truncate_text(priority.description(), 26),
+            rect.x + 10.0,
+            rect.y + 34.0,
+            style::TINY_SIZE,
             style::TEXT_BODY,
         );
     }
@@ -150,18 +180,31 @@ fn draw_research_context(
     );
 }
 
-fn draw_assign_context(context: Rect) {
+fn draw_assign_context(context: Rect, colonists: &[Colonist], selected_colonist_id: Option<u32>) {
+    for (index, colonist) in colonists.iter().take(5).enumerate() {
+        let rect = toolbar_list_item_rect(context, index);
+        let selected = selected_colonist_id == Some(colonist.id);
+        style::draw_button(rect, selected, rect.contains(mouse_position().into()));
+        draw_text(
+            &style::truncate_text(&colonist.name, 11),
+            rect.x + 10.0,
+            rect.y + 18.0,
+            style::SMALL_SIZE,
+            style::TEXT_PRIMARY,
+        );
+        draw_text(
+            colonist.job_preference.label(),
+            rect.x + 10.0,
+            rect.y + 34.0,
+            style::TINY_SIZE,
+            style::HEADING_BLUE,
+        );
+    }
+
     draw_text(
-        "Click a colonist in the colony view to inspect relationships and current work.",
+        "Roles redirect next work block and mission eligibility.",
         context.x + 18.0,
-        context.y + 62.0,
-        style::SMALL_SIZE,
-        style::TEXT_BODY,
-    );
-    draw_text(
-        "Detailed job assignment is queued for the next rebuild pass.",
-        context.x + 18.0,
-        context.y + 86.0,
+        context.y + 111.0,
         style::TINY_SIZE,
         style::TEXT_MUTED,
     );
