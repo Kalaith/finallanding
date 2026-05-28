@@ -3,14 +3,13 @@ use crate::data::colonist::{ActivityLocation, ColonistState, JobPreference};
 use crate::data::game_state::GameState;
 use crate::data::mission::MissionType;
 use crate::data::priority::ColonyPriority;
-use crate::data::resources::ColonyCondition;
-use crate::data::scenario::ScenarioOutcome;
 use crate::data::schedule::ActivityType;
 use crate::data::types::Position;
 use crate::game::building_system::PlacementResult;
 use crate::systems::incident_system::IncidentSystem;
 use crate::systems::mission_system::MissionSystem;
 use crate::systems::mood_system::update_mood;
+use crate::systems::playtest_strategy::{activity_for_hour, ReferenceStrategy};
 use crate::systems::resource_system::ResourceSystem;
 use crate::systems::scenario_system::ScenarioSystem;
 use crate::systems::social_system::SocialSystem;
@@ -21,128 +20,8 @@ use crate::systems::work_system::WorkSystem;
 pub const REFERENCE_START_TICK: u64 = 420;
 pub const NORMAL_SECONDS_PER_TICK: f32 = 0.25;
 
-#[derive(Clone, Debug)]
-pub struct PlaytestReport {
-    pub start_tick: u64,
-    pub strategy: PlaytestStrategyKind,
-    pub end_tick: u64,
-    pub estimated_normal_minutes: f32,
-    pub outcome: ScenarioOutcome,
-    pub condition: ColonyCondition,
-    pub average_mood: f32,
-    pub supplies: i32,
-    pub salvage: i32,
-    pub daily_supply_need: i32,
-    pub technologies_unlocked: usize,
-    pub required_technologies: usize,
-    pub missions_completed: u32,
-    pub buildings_placed: usize,
-    pub incidents_triggered: usize,
-}
-
-impl PlaytestReport {
-    pub fn proves_reference_run(&self) -> bool {
-        self.outcome == ScenarioOutcome::Victory
-            && (30.0..=40.0).contains(&self.estimated_normal_minutes)
-            && self.condition != ColonyCondition::Critical
-            && self.condition != ColonyCondition::Collapsed
-            && self.supplies >= self.daily_supply_need.max(1)
-            && self.technologies_unlocked >= self.required_technologies
-            && self.missions_completed >= self.required_technologies as u32
-            && self.buildings_placed >= 5
-            && self.incidents_triggered >= 1
-    }
-
-    pub fn outcome_band(&self) -> PlaytestOutcomeBand {
-        let reached_target_day = self.end_tick >= TimeSystem::TICKS_PER_DAY * 6;
-        if self.outcome == ScenarioOutcome::Victory
-            && self.condition == ColonyCondition::Stable
-            && self.supplies >= self.daily_supply_need.max(1) * 2
-            && self.average_mood >= 50.0
-        {
-            PlaytestOutcomeBand::Win
-        } else if reached_target_day
-            && self.supplies >= self.daily_supply_need.max(1)
-            && self.technologies_unlocked >= self.required_technologies
-            && (self.condition == ColonyCondition::Strained || self.average_mood < 50.0)
-        {
-            PlaytestOutcomeBand::Limp
-        } else {
-            PlaytestOutcomeBand::Fail
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PlaytestStrategyKind {
-    Reference,
-    Conservative,
-    SurveyHeavy,
-    RecoveryHeavy,
-    NoFood,
-    NoHabitats,
-    NoMissions,
-}
-
-impl PlaytestStrategyKind {
-    pub fn report_set() -> &'static [PlaytestStrategyKind] {
-        &[
-            PlaytestStrategyKind::Reference,
-            PlaytestStrategyKind::Conservative,
-            PlaytestStrategyKind::SurveyHeavy,
-            PlaytestStrategyKind::RecoveryHeavy,
-            PlaytestStrategyKind::NoFood,
-            PlaytestStrategyKind::NoHabitats,
-            PlaytestStrategyKind::NoMissions,
-        ]
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            PlaytestStrategyKind::Reference => "Reference",
-            PlaytestStrategyKind::Conservative => "Conservative",
-            PlaytestStrategyKind::SurveyHeavy => "Survey heavy",
-            PlaytestStrategyKind::RecoveryHeavy => "Recovery heavy",
-            PlaytestStrategyKind::NoFood => "No food",
-            PlaytestStrategyKind::NoHabitats => "No habitats",
-            PlaytestStrategyKind::NoMissions => "No missions",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PlaytestOutcomeBand {
-    Win,
-    Limp,
-    Fail,
-}
-
-impl PlaytestOutcomeBand {
-    pub fn label(self) -> &'static str {
-        match self {
-            PlaytestOutcomeBand::Win => "Win",
-            PlaytestOutcomeBand::Limp => "Limp",
-            PlaytestOutcomeBand::Fail => "Fail",
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-struct ReferenceStrategy {
-    kind: PlaytestStrategyKind,
-    missions_completed: u32,
-    next_mission_tick: u64,
-}
-
-impl ReferenceStrategy {
-    fn new(kind: PlaytestStrategyKind) -> Self {
-        Self {
-            kind,
-            missions_completed: 0,
-            next_mission_tick: 0,
-        }
-    }
-}
+pub use crate::systems::playtest_report::PlaytestReport;
+pub use crate::systems::playtest_strategy::PlaytestStrategyKind;
 
 pub struct PlaytestSystem;
 
@@ -507,18 +386,11 @@ impl PlaytestSystem {
     }
 }
 
-fn activity_for_hour(hour: u32) -> ActivityType {
-    match hour {
-        6 | 20 | 21 => ActivityType::Eat,
-        7..=17 => ActivityType::Work,
-        22..=23 | 0..=5 => ActivityType::Sleep,
-        _ => ActivityType::Relax,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::scenario::ScenarioOutcome;
+    use crate::systems::playtest_report::PlaytestOutcomeBand;
 
     #[test]
     fn test_reference_playthrough_reaches_day_7_victory_window() {
