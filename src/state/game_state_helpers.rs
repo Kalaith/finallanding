@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn building_wall_height(building_type: BuildingType, tile_h: f32) -> f32 {
+pub(crate) fn building_wall_height(building_type: BuildingType, tile_h: f32) -> f32 {
     let multiplier = match building_type {
         BuildingType::Habitat => 0.95,
         BuildingType::MessHall => 0.78,
@@ -11,7 +11,7 @@ pub(super) fn building_wall_height(building_type: BuildingType, tile_h: f32) -> 
     tile_h * multiplier
 }
 
-pub(super) fn building_outline_style(
+pub(crate) fn building_outline_style(
     hovered: bool,
     assignment_color: Option<Color>,
 ) -> Option<(Color, f32)> {
@@ -22,14 +22,14 @@ pub(super) fn building_outline_style(
     }
 }
 
-pub(super) fn assignment_marker_with_filter(
+pub(crate) fn assignment_marker_with_filter(
     assignment_marker: Option<(&'static str, Color)>,
     filter_match: bool,
 ) -> Option<(&'static str, Color)> {
     assignment_marker.or_else(|| filter_match.then_some(("FILTER", style::ACCENT_GOLD)))
 }
 
-pub(super) fn building_outline_style_for_assign_filter(
+pub(crate) fn building_outline_style_for_assign_filter(
     hovered: bool,
     assignment_color: Option<Color>,
     filter_match: bool,
@@ -41,7 +41,7 @@ pub(super) fn building_outline_style_for_assign_filter(
     }
 }
 
-pub(super) fn building_shell_colors(building_type: BuildingType) -> (Color, Color, Color) {
+pub(crate) fn building_shell_colors(building_type: BuildingType) -> (Color, Color, Color) {
     match building_type {
         BuildingType::Habitat => (
             Color::new(0.24, 0.34, 0.42, 1.0),
@@ -71,7 +71,7 @@ pub(super) fn building_shell_colors(building_type: BuildingType) -> (Color, Colo
     }
 }
 
-pub(super) fn draw_building_shell_detail(
+pub(crate) fn draw_building_shell_detail(
     building_type: BuildingType,
     center: Vec2,
     width: f32,
@@ -336,7 +336,7 @@ pub(super) fn draw_building_shell_detail(
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum TerrainDetail {
+pub(crate) enum TerrainDetail {
     None,
     Scrap,
     Brush,
@@ -350,7 +350,7 @@ pub(super) enum TerrainDetail {
     FuelDrum,
 }
 
-pub(super) fn terrain_color(cell_type: Option<CellType>, x: i32, y: i32) -> Color {
+pub(crate) fn terrain_color(cell_type: Option<CellType>, x: i32, y: i32) -> Color {
     let seed = terrain_seed(x, y);
     let tint = ((seed % 9) as f32 - 4.0) * 0.006;
 
@@ -362,7 +362,7 @@ pub(super) fn terrain_color(cell_type: Option<CellType>, x: i32, y: i32) -> Colo
     }
 }
 
-pub(super) fn terrain_detail(cell_type: Option<CellType>, x: i32, y: i32) -> TerrainDetail {
+pub(crate) fn terrain_detail(cell_type: Option<CellType>, x: i32, y: i32) -> TerrainDetail {
     if cell_type.is_none() {
         return TerrainDetail::None;
     }
@@ -387,7 +387,7 @@ pub(super) fn terrain_detail(cell_type: Option<CellType>, x: i32, y: i32) -> Ter
     }
 }
 
-pub(super) fn crash_site_detail(x: i32, y: i32) -> Option<TerrainDetail> {
+pub(crate) fn crash_site_detail(x: i32, y: i32) -> Option<TerrainDetail> {
     if (10..=12).contains(&x) && y == 10 {
         return Some(TerrainDetail::SupplyCrate);
     }
@@ -419,7 +419,7 @@ pub(super) fn crash_site_detail(x: i32, y: i32) -> Option<TerrainDetail> {
     None
 }
 
-pub(super) fn draw_terrain_detail(center: Vec2, tile_w: f32, tile_h: f32, detail: TerrainDetail) {
+pub(crate) fn draw_terrain_detail(center: Vec2, tile_w: f32, tile_h: f32, detail: TerrainDetail) {
     match detail {
         TerrainDetail::None => {}
         TerrainDetail::Scrap => {
@@ -612,13 +612,13 @@ pub(super) fn draw_terrain_detail(center: Vec2, tile_w: f32, tile_h: f32, detail
     }
 }
 
-pub(super) fn terrain_seed(x: i32, y: i32) -> u32 {
+pub(crate) fn terrain_seed(x: i32, y: i32) -> u32 {
     let x = x as u32;
     let y = y as u32;
     x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663) ^ 0x9E37_79B9
 }
 
-pub(super) fn placement_result_reason(result: &PlacementResult) -> &'static str {
+pub(crate) fn placement_result_reason(result: &PlacementResult) -> &'static str {
     match result {
         PlacementResult::Success(_) => "Placement succeeded.",
         PlacementResult::OutOfBounds => "Footprint leaves the map.",
@@ -627,7 +627,7 @@ pub(super) fn placement_result_reason(result: &PlacementResult) -> &'static str 
     }
 }
 
-pub(super) fn truncate_text(text: &str, max_chars: usize) -> String {
+pub(crate) fn truncate_text(text: &str, max_chars: usize) -> String {
     if text.chars().count() <= max_chars {
         return text.to_string();
     }
@@ -640,7 +640,7 @@ pub(super) fn truncate_text(text: &str, max_chars: usize) -> String {
     truncated
 }
 
-pub(super) fn job_color(job_preference: crate::data::colonist::JobPreference) -> Color {
+pub(crate) fn job_color(job_preference: crate::data::colonist::JobPreference) -> Color {
     match job_preference {
         crate::data::colonist::JobPreference::Explorer => PURPLE,
         crate::data::colonist::JobPreference::Builder => YELLOW,
@@ -650,7 +650,7 @@ pub(super) fn job_color(job_preference: crate::data::colonist::JobPreference) ->
     }
 }
 
-pub(super) fn colonist_activity_summary(colonist: &Colonist) -> &'static str {
+pub(crate) fn colonist_activity_summary(colonist: &Colonist) -> &'static str {
     match colonist.state {
         ColonistState::Idle => "Idle",
         ColonistState::Moving { .. } => "Moving",
@@ -661,7 +661,7 @@ pub(super) fn colonist_activity_summary(colonist: &Colonist) -> &'static str {
     }
 }
 
-pub(super) fn sprite_pose_for_state(state: ColonistState) -> SpritePose {
+pub(crate) fn sprite_pose_for_state(state: ColonistState) -> SpritePose {
     match state {
         ColonistState::Idle => SpritePose::Idle,
         ColonistState::Moving { .. } => SpritePose::Moving,
@@ -673,19 +673,19 @@ pub(super) fn sprite_pose_for_state(state: ColonistState) -> SpritePose {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum SocialBodyLanguage {
+pub(crate) enum SocialBodyLanguage {
     Supported(i32),
     Tense(i32),
 }
 
 impl SocialBodyLanguage {
-    pub(super) fn intensity(self) -> i32 {
+    pub(crate) fn intensity(self) -> i32 {
         match self {
             SocialBodyLanguage::Supported(value) | SocialBodyLanguage::Tense(value) => value.abs(),
         }
     }
 
-    pub(super) fn color(self, alpha: f32) -> Color {
+    pub(crate) fn color(self, alpha: f32) -> Color {
         match self {
             SocialBodyLanguage::Supported(_) => Color::new(
                 style::BAR_GREEN.r,
@@ -702,7 +702,7 @@ impl SocialBodyLanguage {
         }
     }
 
-    pub(super) fn symbol(self) -> &'static str {
+    pub(crate) fn symbol(self) -> &'static str {
         match self {
             SocialBodyLanguage::Supported(_) => "+",
             SocialBodyLanguage::Tense(_) => "!",
@@ -710,14 +710,14 @@ impl SocialBodyLanguage {
     }
 }
 
-pub(super) fn sprite_pose_for_colonist(
+pub(crate) fn sprite_pose_for_colonist(
     colonist: &Colonist,
     social_signal: Option<SocialBodyLanguage>,
 ) -> SpritePose {
     sprite_pose_for_colonist_frame(colonist, social_signal, 0)
 }
 
-pub(super) fn sprite_pose_for_colonist_frame(
+pub(crate) fn sprite_pose_for_colonist_frame(
     colonist: &Colonist,
     social_signal: Option<SocialBodyLanguage>,
     tick: u64,
@@ -744,11 +744,11 @@ pub(super) fn sprite_pose_for_colonist_frame(
     sprite_pose_for_state(colonist.state)
 }
 
-pub(super) fn social_pose_uses_alternate_frame(tick: u64) -> bool {
+pub(crate) fn social_pose_uses_alternate_frame(tick: u64) -> bool {
     (tick / 45) % 2 == 1
 }
 
-pub(super) fn shared_assignment_pin(first: &Colonist, second: &Colonist) -> bool {
+pub(crate) fn shared_assignment_pin(first: &Colonist, second: &Colonist) -> bool {
     first
         .assigned_habitat
         .is_some_and(|id| second.assigned_habitat == Some(id))
@@ -757,17 +757,17 @@ pub(super) fn shared_assignment_pin(first: &Colonist, second: &Colonist) -> bool
             .is_some_and(|id| second.assigned_workplace == Some(id))
 }
 
-pub(super) fn adjacent_positions(first: Position, second: Position) -> bool {
+pub(crate) fn adjacent_positions(first: Position, second: Position) -> bool {
     (first.x - second.x).abs() + (first.y - second.y).abs() <= 1
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum SpaceAssignmentKind {
+pub(crate) enum SpaceAssignmentKind {
     Recovery,
     Work,
 }
 
-pub(super) fn space_assignment_kind(
+pub(crate) fn space_assignment_kind(
     job_preference: crate::data::colonist::JobPreference,
     building_type: BuildingType,
 ) -> Option<SpaceAssignmentKind> {
@@ -778,7 +778,7 @@ pub(super) fn space_assignment_kind(
     (building_type == job_preference.work_building_type()).then_some(SpaceAssignmentKind::Work)
 }
 
-pub(super) fn directive_log_detail(
+pub(crate) fn directive_log_detail(
     directive: PairDirective,
     first_name: &str,
     second_name: &str,
@@ -795,14 +795,14 @@ pub(super) fn directive_log_detail(
     }
 }
 
-pub(super) fn initial_toolbar_mode() -> ToolbarMode {
+pub(crate) fn initial_toolbar_mode() -> ToolbarMode {
     std::env::var("TFL_START_TOOLBAR_MODE")
         .ok()
         .and_then(|value| toolbar_mode_from_name(&value))
         .unwrap_or(ToolbarMode::Build)
 }
 
-pub(super) fn initial_selected_building(toolbar_mode: ToolbarMode) -> Option<BuildingType> {
+pub(crate) fn initial_selected_building(toolbar_mode: ToolbarMode) -> Option<BuildingType> {
     std::env::var("TFL_START_SELECTED_BUILDING")
         .ok()
         .and_then(|value| building_type_from_name(&value))
@@ -812,7 +812,7 @@ pub(super) fn initial_selected_building(toolbar_mode: ToolbarMode) -> Option<Bui
         })
 }
 
-pub(super) fn initial_capture_preview_position() -> Option<Position> {
+pub(crate) fn initial_capture_preview_position() -> Option<Position> {
     let x = std::env::var("TFL_PREVIEW_GRID_X")
         .ok()
         .and_then(|value| value.parse::<i32>().ok())?;
@@ -822,7 +822,7 @@ pub(super) fn initial_capture_preview_position() -> Option<Position> {
     Some(Position::new(x, y))
 }
 
-pub(super) fn seed_assign_spaces_for_capture(data: &mut GameState) {
+pub(crate) fn seed_assign_spaces_for_capture(data: &mut GameState) {
     if !std::env::var("TFL_SEED_ASSIGN_SPACES").is_ok_and(|value| value != "0") {
         return;
     }
@@ -858,7 +858,7 @@ pub(super) fn seed_assign_spaces_for_capture(data: &mut GameState) {
     }
 }
 
-pub(super) fn seed_social_history_for_capture(data: &mut GameState) {
+pub(crate) fn seed_social_history_for_capture(data: &mut GameState) {
     if !std::env::var("TFL_SEED_SOCIAL_HISTORY").is_ok_and(|value| value != "0") {
         return;
     }
@@ -919,7 +919,7 @@ pub(super) fn seed_social_history_for_capture(data: &mut GameState) {
     }
 }
 
-pub(super) fn seed_activity_poses_for_capture(data: &mut GameState) {
+pub(crate) fn seed_activity_poses_for_capture(data: &mut GameState) {
     if !std::env::var("TFL_SEED_ACTIVITY_POSES").is_ok_and(|value| value != "0") {
         return;
     }
@@ -949,7 +949,7 @@ pub(super) fn seed_activity_poses_for_capture(data: &mut GameState) {
     }
 }
 
-pub(super) fn initial_selected_colonist_id(
+pub(crate) fn initial_selected_colonist_id(
     data: &GameState,
     toolbar_mode: ToolbarMode,
 ) -> Option<u32> {
@@ -964,14 +964,14 @@ pub(super) fn initial_selected_colonist_id(
         })
 }
 
-pub(super) fn initial_selected_social_history_day(data: &GameState) -> Option<u32> {
+pub(crate) fn initial_selected_social_history_day(data: &GameState) -> Option<u32> {
     std::env::var("TFL_START_SOCIAL_HISTORY_DAY")
         .ok()
         .and_then(|value| value.parse::<u32>().ok())
         .filter(|day| data.social_history.iter().any(|entry| entry.day == *day))
 }
 
-pub(super) fn write_social_archive_markdown(
+pub(crate) fn write_social_archive_markdown(
     history: &[SocialHistoryEntry],
 ) -> Result<PathBuf, String> {
     let output_dir = PathBuf::from("docs").join("exports");
@@ -983,7 +983,7 @@ pub(super) fn write_social_archive_markdown(
     Ok(output_path)
 }
 
-pub(super) fn social_archive_markdown(history: &[SocialHistoryEntry]) -> String {
+pub(crate) fn social_archive_markdown(history: &[SocialHistoryEntry]) -> String {
     let mut output = String::from("# The Final Landing Social Archive\n\n");
     output.push_str(&format!("Reports: {}\n\n", history.len()));
 
@@ -1000,7 +1000,7 @@ pub(super) fn social_archive_markdown(history: &[SocialHistoryEntry]) -> String 
     output
 }
 
-pub(super) fn toolbar_mode_from_name(value: &str) -> Option<ToolbarMode> {
+pub(crate) fn toolbar_mode_from_name(value: &str) -> Option<ToolbarMode> {
     match value.trim().to_ascii_lowercase().as_str() {
         "build" => Some(ToolbarMode::Build),
         "rooms" => Some(ToolbarMode::Rooms),
@@ -1013,7 +1013,7 @@ pub(super) fn toolbar_mode_from_name(value: &str) -> Option<ToolbarMode> {
     }
 }
 
-pub(super) fn building_type_from_name(value: &str) -> Option<BuildingType> {
+pub(crate) fn building_type_from_name(value: &str) -> Option<BuildingType> {
     match value
         .trim()
         .to_ascii_lowercase()
@@ -1029,9 +1029,9 @@ pub(super) fn building_type_from_name(value: &str) -> Option<BuildingType> {
     }
 }
 
-pub(super) const ASSIGN_ROSTER_SLOT_COUNT: usize = 5;
+pub(crate) const ASSIGN_ROSTER_SLOT_COUNT: usize = 5;
 
-pub(super) fn assign_roster_page_count(
+pub(crate) fn assign_roster_page_count(
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
     active_filter: AssignRosterFilter,
@@ -1053,7 +1053,7 @@ pub(super) fn assign_roster_page_count(
     ((other_count + page_size - 1) / page_size).max(1)
 }
 
-pub(super) fn assign_visible_colonist_indices(
+pub(crate) fn assign_visible_colonist_indices(
     colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
     page: usize,
@@ -1095,7 +1095,7 @@ pub(super) fn assign_visible_colonist_indices(
     indices
 }
 
-pub(super) fn assign_sorted_roster_indices(
+pub(crate) fn assign_sorted_roster_indices(
     colonists: &[Colonist],
     selected_index: Option<usize>,
     active_filter: AssignRosterFilter,
@@ -1130,7 +1130,7 @@ pub(super) fn assign_sorted_roster_indices(
     indices
 }
 
-pub(super) fn assign_roster_filter_matches(
+pub(crate) fn assign_roster_filter_matches(
     colonist: &Colonist,
     active_filter: AssignRosterFilter,
     active_role_filter: Option<JobPreference>,
@@ -1146,7 +1146,7 @@ pub(super) fn assign_roster_filter_matches(
     relationship_match && active_role_filter.is_none_or(|role| colonist.job_preference == role)
 }
 
-pub(super) fn relationship_pressure_score(colonist: &Colonist) -> i32 {
+pub(crate) fn relationship_pressure_score(colonist: &Colonist) -> i32 {
     colonist
         .relationships
         .values()
@@ -1155,7 +1155,7 @@ pub(super) fn relationship_pressure_score(colonist: &Colonist) -> i32 {
         .unwrap_or(0)
 }
 
-pub(super) fn assign_building_filter_matches(
+pub(crate) fn assign_building_filter_matches(
     colonist: &Colonist,
     building_id: Option<u32>,
 ) -> bool {
@@ -1164,7 +1164,7 @@ pub(super) fn assign_building_filter_matches(
     })
 }
 
-pub(super) fn next_assign_role_filter(current: Option<JobPreference>) -> Option<JobPreference> {
+pub(crate) fn next_assign_role_filter(current: Option<JobPreference>) -> Option<JobPreference> {
     match current {
         None => Some(JobPreference::Explorer),
         Some(JobPreference::Explorer) => Some(JobPreference::Builder),
@@ -1174,7 +1174,7 @@ pub(super) fn next_assign_role_filter(current: Option<JobPreference>) -> Option<
     }
 }
 
-pub(super) fn apply_batch_home_pin(
+pub(crate) fn apply_batch_home_pin(
     colonists: &mut [Colonist],
     selected_id: u32,
     habitat_id: u32,
@@ -1207,7 +1207,7 @@ pub(super) fn apply_batch_home_pin(
     assigned
 }
 
-pub(super) fn apply_batch_work_pin(
+pub(crate) fn apply_batch_work_pin(
     colonists: &mut [Colonist],
     selected_id: u32,
     workplace_id: u32,
@@ -1242,7 +1242,7 @@ pub(super) fn apply_batch_work_pin(
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum BatchAssignmentScope {
+pub(crate) enum BatchAssignmentScope {
     Page,
     All,
 }
@@ -1256,7 +1256,7 @@ impl BatchAssignmentScope {
     }
 }
 
-pub(super) fn batch_assignment_log(
+pub(crate) fn batch_assignment_log(
     title: &'static str,
     source_name: &str,
     pin_prefix: &str,
@@ -1286,7 +1286,7 @@ pub(super) fn batch_assignment_log(
     (title.to_string(), detail)
 }
 
-pub(super) fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
+pub(crate) fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
     colonist
         .relationships
         .values()
@@ -1294,7 +1294,7 @@ pub(super) fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
         .copied()
 }
 
-pub(super) fn average_relationship_between(first: &Colonist, second: &Colonist) -> i32 {
+pub(crate) fn average_relationship_between(first: &Colonist, second: &Colonist) -> i32 {
     let first_value = first.relationships.get(&second.id).copied().unwrap_or(0);
     let second_value = second.relationships.get(&first.id).copied().unwrap_or(0);
 
@@ -1307,7 +1307,7 @@ pub(super) fn average_relationship_between(first: &Colonist, second: &Colonist) 
     }
 }
 
-pub(super) fn shared_social_location(first: &Colonist, second: &Colonist) -> bool {
+pub(crate) fn shared_social_location(first: &Colonist, second: &Colonist) -> bool {
     match (&first.activity_location, &second.activity_location) {
         (
             ActivityLocation::Building {
@@ -1326,7 +1326,7 @@ pub(super) fn shared_social_location(first: &Colonist, second: &Colonist) -> boo
     }
 }
 
-pub(super) fn social_color(value: i32, alpha: f32) -> Color {
+pub(crate) fn social_color(value: i32, alpha: f32) -> Color {
     if value >= 10 {
         Color::new(
             style::BAR_GREEN.r,

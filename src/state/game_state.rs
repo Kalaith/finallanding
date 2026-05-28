@@ -14,7 +14,7 @@ use crate::systems::assignment_system::AssignmentSystem;
 use crate::systems::incident_system::IncidentSystem;
 use crate::systems::mission_system::MissionSystem;
 use crate::systems::objective_system::ObjectiveSystem;
-use crate::systems::planning_system::{BuildingPlacementFeedback, PlanningSystem};
+use crate::systems::planning_system::PlanningSystem;
 use crate::systems::proximity_system::ProximitySystem;
 use crate::systems::relationship_directive_system::{
     DirectiveChange, PairDirective, RelationshipDirectiveSystem,
@@ -26,70 +26,68 @@ use crate::systems::summary_system::SummarySystem;
 use crate::systems::time_events::TimeEventCollector;
 use crate::systems::time_system::TimeSystem;
 use crate::systems::work_system::WorkSystem;
-use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use crate::ui::{
     assign_batch_action_at, assign_filter_at, assign_page_action_at, assign_role_filter_at,
     assign_sort_at, draw_advisor_overlay, draw_bottom_toolbar, draw_colonist_inspector,
-    draw_debug_overlay, draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_right_rail,
-    draw_toolbar_context_panel, draw_tooltip_at, draw_top_bar, log_filter_at, log_page_action_at,
-    log_search_action_at, log_timeline_row_at, restart_button_rect, social_history_page_count,
-    social_timeline_day_at, toolbar_building_at_for_mode, toolbar_buildings_for_mode,
-    toolbar_colonist_index_at, toolbar_context_rect, toolbar_mission_at, toolbar_mode_at,
-    toolbar_priority_at, top_bar_priority_at, top_bar_speed_at, AssignBatchAction,
-    AssignRosterFilter, AssignRosterSort, IsoView, Layout, LogFilter, LogSearchAction, PageAction,
-    PlaceholderArt, SpritePose, ToolbarAssignData, ToolbarLogData, ToolbarMode, ToolbarPanelData,
-    ToolbarResearchData,
+    draw_debug_overlay, draw_iso_diamond, draw_right_rail, draw_toolbar_context_panel,
+    draw_top_bar, log_filter_at, log_page_action_at, log_search_action_at, log_timeline_row_at,
+    restart_button_rect, social_history_page_count, social_timeline_day_at,
+    toolbar_building_at_for_mode, toolbar_buildings_for_mode, toolbar_colonist_index_at,
+    toolbar_context_rect, toolbar_mission_at, toolbar_mode_at, toolbar_priority_at,
+    top_bar_priority_at, top_bar_speed_at, AssignBatchAction, AssignRosterFilter, AssignRosterSort,
+    IsoView, Layout, LogFilter, LogSearchAction, PageAction, PlaceholderArt, SpritePose,
+    ToolbarAssignData, ToolbarLogData, ToolbarMode, ToolbarPanelData, ToolbarResearchData,
 };
 use macroquad::prelude::*;
-use macroquad_toolkit::input::{mouse_position_vec2, InputState};
+use macroquad_toolkit::input::InputState;
 use std::path::PathBuf;
 
 const SECONDS_PER_GAME_TICK: f32 = 0.25;
 
 pub struct GameplayState {
     pub data: GameState,
-    hovered_cell: Option<Position>,
+    pub(crate) hovered_cell: Option<Position>,
     /// Currently selected building type for placement (None = not in build mode)
-    selected_building: Option<BuildingType>,
+    pub(crate) selected_building: Option<BuildingType>,
     /// Fixed preview grid position used only by screenshot verification captures.
-    capture_preview_position: Option<Position>,
+    pub(crate) capture_preview_position: Option<Position>,
     /// Selected colonist for relationship inspection.
-    selected_colonist_id: Option<u32>,
+    pub(crate) selected_colonist_id: Option<u32>,
     /// Time event collector for processing time-based events
-    time_events: TimeEventCollector,
+    pub(crate) time_events: TimeEventCollector,
     /// Previous tick for event detection
-    prev_tick: u64,
+    pub(crate) prev_tick: u64,
     /// Accumulates real time before advancing the simulation by game ticks
-    time_accumulator: f32,
+    pub(crate) time_accumulator: f32,
     /// UI layout configuration
-    layout: Layout,
+    pub(crate) layout: Layout,
     /// Debug overlay visible
-    debug_mode: bool,
+    pub(crate) debug_mode: bool,
     /// Active bottom-toolbar mode.
-    toolbar_mode: ToolbarMode,
+    pub(crate) toolbar_mode: ToolbarMode,
     /// Current page in the Assign mode roster.
-    assign_roster_page: usize,
+    pub(crate) assign_roster_page: usize,
     /// Active filter in the Assign mode roster.
-    assign_roster_filter: AssignRosterFilter,
+    pub(crate) assign_roster_filter: AssignRosterFilter,
     /// Active sort in the Assign mode roster.
-    assign_roster_sort: AssignRosterSort,
+    pub(crate) assign_roster_sort: AssignRosterSort,
     /// Optional work-role filter in the Assign mode roster.
-    assign_role_filter: Option<JobPreference>,
+    pub(crate) assign_role_filter: Option<JobPreference>,
     /// Optional room/work-space instance filter in the Assign mode roster.
-    assign_building_filter: Option<u32>,
+    pub(crate) assign_building_filter: Option<u32>,
     /// Current page in the Log mode social archive.
-    social_history_page: usize,
+    pub(crate) social_history_page: usize,
     /// Active filter in the Log mode social archive.
-    social_history_filter: LogFilter,
+    pub(crate) social_history_filter: LogFilter,
     /// Search query for the Log mode social archive.
-    social_history_query: String,
+    pub(crate) social_history_query: String,
     /// Whether typed keys should edit the Log mode social archive search.
-    social_history_search_active: bool,
+    pub(crate) social_history_search_active: bool,
     /// Selected daily social report for persistent Log drilldown.
-    selected_social_history_day: Option<u32>,
+    pub(crate) selected_social_history_day: Option<u32>,
     /// Placeholder visual assets extracted from the rebuild reference.
-    art: PlaceholderArt,
+    pub(crate) art: PlaceholderArt,
 }
 
 impl GameplayState {
@@ -146,8 +144,8 @@ impl GameplayState {
 }
 
 #[path = "game_state_helpers.rs"]
-mod game_state_helpers;
-use game_state_helpers::*;
+pub(crate) mod game_state_helpers;
+pub(crate) use game_state_helpers::*;
 
 #[path = "game_state_commands.rs"]
 mod game_state_commands;
@@ -155,8 +153,6 @@ mod game_state_commands;
 mod game_state_lifecycle;
 #[path = "game_state_queries.rs"]
 mod game_state_queries;
-#[path = "game_state_render.rs"]
-mod game_state_render;
 #[path = "game_state_simulation.rs"]
 mod game_state_simulation;
 

@@ -1,7 +1,20 @@
-use super::*;
+use crate::data::building::{Building, BuildingType};
+use crate::data::colonist::{Colonist, ColonistState};
+use crate::data::types::Position;
+use crate::state::game_state::{game_state_helpers::*, GameplayState};
+use crate::systems::planning_system::{BuildingPlacementFeedback, PlanningSystem};
+use crate::systems::scenario_system::ScenarioSystem;
+use crate::ui::font::{draw_text, measure_text};
+use crate::ui::style;
+use crate::ui::{
+    draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_tooltip_at, restart_button_rect,
+    IsoView, ToolbarMode,
+};
+use macroquad::prelude::*;
+use macroquad_toolkit::input::mouse_position_vec2;
 
 impl GameplayState {
-    pub(super) fn draw_scenario_overlay(&self) {
+    pub(crate) fn draw_scenario_overlay(&self) {
         if !self.data.scenario.is_finished() {
             return;
         }
@@ -62,7 +75,7 @@ impl GameplayState {
     }
 
     /// Draw buildings on the grid
-    pub(super) fn draw_buildings(&self) {
+    pub(crate) fn draw_buildings(&self) {
         let iso = self.iso_view();
         let hovered_building_id = self.building_at_mouse().map(|building| building.id);
         for building in self.data.building_system.buildings() {
@@ -151,7 +164,7 @@ impl GameplayState {
         }
     }
 
-    pub(super) fn draw_building_footprint_outline(
+    pub(crate) fn draw_building_footprint_outline(
         &self,
         building: &Building,
         iso: &IsoView,
@@ -164,7 +177,7 @@ impl GameplayState {
         }
     }
 
-    pub(super) fn assignment_marker_for_building(
+    pub(crate) fn assignment_marker_for_building(
         &self,
         building_id: u32,
     ) -> Option<(&'static str, Color)> {
@@ -185,7 +198,7 @@ impl GameplayState {
         }
     }
 
-    pub(super) fn draw_building_shell(
+    pub(crate) fn draw_building_shell(
         &self,
         building_type: BuildingType,
         position: Position,
@@ -226,7 +239,7 @@ impl GameplayState {
     }
 
     /// Draw ghost preview of building at cursor
-    pub(super) fn draw_ghost_preview(&self) {
+    pub(crate) fn draw_ghost_preview(&self) {
         if let Some(building_type) = self.selected_building {
             let mouse = mouse_position_vec2();
             let mouse_x = mouse.x;
@@ -289,7 +302,7 @@ impl GameplayState {
         }
     }
 
-    pub(super) fn draw_placement_feedback_panel(
+    pub(crate) fn draw_placement_feedback_panel(
         &self,
         feedback: &BuildingPlacementFeedback,
         anchor: Vec2,
@@ -365,7 +378,7 @@ impl GameplayState {
     }
 
     /// Draw the grid with offset for top bar
-    pub(super) fn draw_grid_with_offset(&self) {
+    pub(crate) fn draw_grid_with_offset(&self) {
         let iso = self.iso_view();
 
         for y in 0..self.data.grid.height {
@@ -403,7 +416,7 @@ impl GameplayState {
     }
 
     /// Draw colonists with offset for top bar
-    pub(super) fn draw_colonists_with_offset(&self, hovered_colonist_id: Option<u32>) {
+    pub(crate) fn draw_colonists_with_offset(&self, hovered_colonist_id: Option<u32>) {
         let iso = self.iso_view();
 
         self.draw_social_links(hovered_colonist_id);
@@ -557,7 +570,7 @@ impl GameplayState {
         }
     }
 
-    pub(super) fn draw_social_links(&self, hovered_colonist_id: Option<u32>) {
+    pub(crate) fn draw_social_links(&self, hovered_colonist_id: Option<u32>) {
         let focus_id = hovered_colonist_id.or(self.selected_colonist_id);
         let iso = self.iso_view();
 
@@ -628,7 +641,7 @@ impl GameplayState {
         }
     }
 
-    pub(super) fn social_body_language_for(
+    pub(crate) fn social_body_language_for(
         &self,
         colonist: &Colonist,
     ) -> Option<SocialBodyLanguage> {
@@ -675,7 +688,7 @@ impl GameplayState {
         best_signal
     }
 
-    pub(super) fn draw_hover_colonist_card(&self, hovered_colonist_id: Option<u32>) {
+    pub(crate) fn draw_hover_colonist_card(&self, hovered_colonist_id: Option<u32>) {
         let Some(colonist) = hovered_colonist_id.and_then(|id| self.colonist_by_id(id)) else {
             return;
         };
@@ -694,7 +707,7 @@ impl GameplayState {
         );
     }
 
-    pub(super) fn colonist_id_at_mouse(&self) -> Option<u32> {
+    pub(crate) fn colonist_id_at_mouse(&self) -> Option<u32> {
         let game_area = self.layout.game_area();
         let mouse = mouse_position_vec2();
         let mouse_x = mouse.x;
@@ -729,7 +742,7 @@ impl GameplayState {
             .map(|(id, _)| id)
     }
 
-    pub(super) fn building_at_mouse(&self) -> Option<&Building> {
+    pub(crate) fn building_at_mouse(&self) -> Option<&Building> {
         let game_area = self.layout.game_area();
         let mouse = mouse_position_vec2();
         if !game_area.contains(mouse) {
@@ -740,14 +753,14 @@ impl GameplayState {
         self.data.building_system.get_building_at(grid_pos)
     }
 
-    pub(super) fn colonist_by_id(&self, id: u32) -> Option<&Colonist> {
+    pub(crate) fn colonist_by_id(&self, id: u32) -> Option<&Colonist> {
         self.data
             .colonists
             .iter()
             .find(|colonist| colonist.id == id)
     }
 
-    pub(super) fn inspected_colonist(&self, hovered_colonist_id: Option<u32>) -> Option<&Colonist> {
+    pub(crate) fn inspected_colonist(&self, hovered_colonist_id: Option<u32>) -> Option<&Colonist> {
         hovered_colonist_id
             .and_then(|id| self.colonist_by_id(id))
             .or_else(|| {
