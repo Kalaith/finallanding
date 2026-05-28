@@ -228,18 +228,78 @@ impl Colonist {
     }
 }
 
-pub fn relationship_label(value: i32) -> &'static str {
-    if value >= 30 {
-        "Close"
-    } else if value >= 10 {
-        "Friendly"
-    } else if value <= -30 {
-        "Hostile"
-    } else if value <= -10 {
-        "Tense"
-    } else {
-        "Neutral"
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RelationshipBand {
+    Hostile,
+    Tense,
+    Neutral,
+    Friendly,
+    Close,
+}
+
+impl RelationshipBand {
+    pub fn from_value(value: i32) -> Self {
+        if value >= 30 {
+            RelationshipBand::Close
+        } else if value >= 10 {
+            RelationshipBand::Friendly
+        } else if value <= -30 {
+            RelationshipBand::Hostile
+        } else if value <= -10 {
+            RelationshipBand::Tense
+        } else {
+            RelationshipBand::Neutral
+        }
     }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            RelationshipBand::Close => "Close",
+            RelationshipBand::Friendly => "Friendly",
+            RelationshipBand::Hostile => "Hostile",
+            RelationshipBand::Tense => "Tense",
+            RelationshipBand::Neutral => "Neutral",
+        }
+    }
+
+    pub fn is_support(self) -> bool {
+        matches!(self, RelationshipBand::Friendly | RelationshipBand::Close)
+    }
+
+    pub fn is_risk(self) -> bool {
+        matches!(self, RelationshipBand::Tense | RelationshipBand::Hostile)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MoodBand {
+    Low,
+    Strained,
+    Steady,
+}
+
+impl MoodBand {
+    pub fn from_mood(mood: f32) -> Self {
+        if mood >= 65.0 {
+            MoodBand::Steady
+        } else if mood >= 35.0 {
+            MoodBand::Strained
+        } else {
+            MoodBand::Low
+        }
+    }
+
+    pub fn face(self) -> &'static str {
+        match self {
+            MoodBand::Steady => ":)",
+            MoodBand::Strained => ":|",
+            MoodBand::Low => ":(",
+        }
+    }
+}
+
+pub fn relationship_label(value: i32) -> &'static str {
+    RelationshipBand::from_value(value).label()
 }
 
 #[cfg(test)]

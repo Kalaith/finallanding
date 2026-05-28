@@ -173,6 +173,8 @@ mod game_state_mission_commands;
 #[path = "game_state_placement_results.rs"]
 mod game_state_placement_results;
 pub(crate) use game_state_placement_results::*;
+#[path = "game_state_pointer_bounds.rs"]
+mod game_state_pointer_bounds;
 #[path = "game_state_priority_commands.rs"]
 mod game_state_priority_commands;
 #[path = "game_state_queries.rs"]

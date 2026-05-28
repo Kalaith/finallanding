@@ -1,4 +1,5 @@
 use super::SOCIAL_TIMELINE_PAGE_SIZE;
+use crate::data::colonist::RelationshipBand;
 use crate::data::event_log::SocialHistoryEntry;
 use crate::systems::summary_system::{ColonyPressureSummary, RelationshipPairSummary};
 use crate::ui::hit_zones::LogFilter;
@@ -76,8 +77,8 @@ pub(super) fn selected_social_history_entry(
 pub(super) fn social_history_matches_filter(entry: &SocialHistoryEntry, filter: LogFilter) -> bool {
     match filter {
         LogFilter::All => true,
-        LogFilter::Tense => entry.strained_pairs > 0 || entry.average_relationship < -5.0,
-        LogFilter::Support => entry.close_pairs > 0 || entry.average_relationship > 8.0,
+        LogFilter::Tense => social_history_signal(entry) == SocialHistorySignal::Tense,
+        LogFilter::Support => social_history_signal(entry) == SocialHistorySignal::Support,
     }
 }
 
@@ -96,12 +97,27 @@ pub(super) fn social_history_matches_query(entry: &SocialHistoryEntry, query: &s
 }
 
 pub(super) fn social_history_color(entry: &SocialHistoryEntry) -> Color {
+    match social_history_signal(entry) {
+        SocialHistorySignal::Tense => style::ALERT_RED,
+        SocialHistorySignal::Support => style::BAR_GREEN,
+        SocialHistorySignal::Neutral => style::HEADING_BLUE,
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SocialHistorySignal {
+    Tense,
+    Support,
+    Neutral,
+}
+
+fn social_history_signal(entry: &SocialHistoryEntry) -> SocialHistorySignal {
     if entry.strained_pairs > 0 || entry.average_relationship < -5.0 {
-        style::ALERT_RED
+        SocialHistorySignal::Tense
     } else if entry.close_pairs > 0 || entry.average_relationship > 8.0 {
-        style::BAR_GREEN
+        SocialHistorySignal::Support
     } else {
-        style::HEADING_BLUE
+        SocialHistorySignal::Neutral
     }
 }
 
@@ -127,13 +143,13 @@ pub(super) fn social_brief_lines(summary: &ColonyPressureSummary) -> SocialBrief
     let detail = if let Some(pair) = summary
         .weakest_pair
         .as_ref()
-        .filter(|pair| pair.value <= -10)
+        .filter(|pair| RelationshipBand::from_value(pair.value).is_risk())
     {
         pair_line("Watch", pair)
     } else if let Some(pair) = summary
         .strongest_pair
         .as_ref()
-        .filter(|pair| pair.value >= 10)
+        .filter(|pair| RelationshipBand::from_value(pair.value).is_support())
     {
         pair_line("Protect", pair)
     } else {

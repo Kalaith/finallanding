@@ -1,10 +1,11 @@
 use crate::data::building::{Building, BuildingType};
 use crate::data::colonist::{Colonist, ColonistState};
 use crate::data::grid::CellType;
+use crate::data::text::truncate_text;
 use crate::data::types::Position;
 use crate::state::game_state::{
     adjacent_positions, average_relationship_between, shared_assignment_pin,
-    shared_social_location, truncate_text, GameplayState,
+    shared_social_location, GameplayState,
 };
 use crate::systems::planning_system::{BuildingPlacementFeedback, PlanningSystem};
 use crate::systems::scenario_system::ScenarioSystem;

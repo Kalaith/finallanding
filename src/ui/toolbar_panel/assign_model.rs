@@ -1,9 +1,8 @@
-use crate::data::colonist::{relationship_label, Colonist, JobPreference};
+use crate::data::assign_roster;
+use crate::data::colonist::{relationship_label, Colonist, JobPreference, RelationshipBand};
 use crate::data::technology::TechnologyState;
 use crate::systems::relationship_directive_system::{PairDirective, RelationshipDirectiveSystem};
 use crate::ui::hit_zones::{AssignRosterFilter, AssignRosterSort};
-
-const ASSIGN_ROSTER_SLOT_COUNT: usize = 5;
 
 pub(super) struct AssignPairAction {
     pub(super) label: String,
@@ -18,20 +17,13 @@ pub(super) fn assign_roster_page_count(
     active_role_filter: Option<JobPreference>,
     active_building_filter: Option<u32>,
 ) -> usize {
-    let selected_exists = selected_colonist_id
-        .and_then(|id| colonists.iter().position(|colonist| colonist.id == id))
-        .is_some();
-    let other_count = colonists
-        .iter()
-        .filter(|colonist| Some(colonist.id) != selected_colonist_id)
-        .filter(|colonist| {
-            assign_roster_filter_matches(colonist, active_filter, active_role_filter)
-                && assign_building_filter_matches(colonist, active_building_filter)
-        })
-        .count();
-    let page_size = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(usize::from(selected_exists));
-
-    ((other_count + page_size - 1) / page_size).max(1)
+    assign_roster::assign_roster_page_count(
+        colonists,
+        selected_colonist_id,
+        active_filter,
+        active_role_filter,
+        active_building_filter,
+    )
 }
 
 pub(super) fn assign_visible_colonists<'a>(
@@ -43,107 +35,15 @@ pub(super) fn assign_visible_colonists<'a>(
     active_role_filter: Option<JobPreference>,
     active_building_filter: Option<u32>,
 ) -> Vec<&'a Colonist> {
-    let mut visible = Vec::new();
-
-    let selected_id =
-        selected_colonist_id.filter(|id| colonists.iter().any(|colonist| colonist.id == *id));
-    if let Some(selected_id) = selected_id {
-        if let Some(colonist) = colonists.iter().find(|colonist| colonist.id == selected_id) {
-            visible.push(colonist);
-        }
-    }
-
-    let open_slots = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(visible.len());
-    let page = page.min(
-        assign_roster_page_count(
-            colonists,
-            selected_colonist_id,
-            active_filter,
-            active_role_filter,
-            active_building_filter,
-        ) - 1,
-    );
-
-    let roster = assign_sorted_roster(
+    assign_roster::assign_visible_colonists(
         colonists,
-        selected_id,
+        selected_colonist_id,
+        page,
         active_filter,
         active_sort,
         active_role_filter,
         active_building_filter,
-    );
-    visible.extend(roster.into_iter().skip(page * open_slots).take(open_slots));
-
-    visible
-}
-
-pub(super) fn assign_sorted_roster<'a>(
-    colonists: &'a [Colonist],
-    selected_id: Option<u32>,
-    active_filter: AssignRosterFilter,
-    active_sort: AssignRosterSort,
-    active_role_filter: Option<JobPreference>,
-    active_building_filter: Option<u32>,
-) -> Vec<&'a Colonist> {
-    let mut roster = colonists
-        .iter()
-        .filter(|colonist| Some(colonist.id) != selected_id)
-        .filter(|colonist| {
-            assign_roster_filter_matches(colonist, active_filter, active_role_filter)
-                && assign_building_filter_matches(colonist, active_building_filter)
-        })
-        .collect::<Vec<_>>();
-
-    match active_sort {
-        AssignRosterSort::Roster => {}
-        AssignRosterSort::Mood => roster.sort_by(|left, right| {
-            left.mood
-                .partial_cmp(&right.mood)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| left.id.cmp(&right.id))
-        }),
-        AssignRosterSort::Bond => roster.sort_by(|left, right| {
-            relationship_pressure_score(right)
-                .cmp(&relationship_pressure_score(left))
-                .then_with(|| left.id.cmp(&right.id))
-        }),
-    }
-
-    roster
-}
-
-pub(super) fn assign_roster_filter_matches(
-    colonist: &Colonist,
-    active_filter: AssignRosterFilter,
-    active_role_filter: Option<JobPreference>,
-) -> bool {
-    let relationship_match = match active_filter {
-        AssignRosterFilter::All => true,
-        AssignRosterFilter::Risk => colonist.relationships.values().any(|value| *value <= -10),
-        AssignRosterFilter::Support => colonist.relationships.values().any(|value| *value >= 10),
-        AssignRosterFilter::Pinned => {
-            colonist.assigned_habitat.is_some() || colonist.assigned_workplace.is_some()
-        }
-    };
-    relationship_match && active_role_filter.is_none_or(|role| colonist.job_preference == role)
-}
-
-pub(super) fn relationship_pressure_score(colonist: &Colonist) -> i32 {
-    colonist
-        .relationships
-        .values()
-        .map(|value| value.abs())
-        .max()
-        .unwrap_or(0)
-}
-
-pub(super) fn assign_building_filter_matches(
-    colonist: &Colonist,
-    building_id: Option<u32>,
-) -> bool {
-    building_id.is_none_or(|id| {
-        colonist.assigned_habitat == Some(id) || colonist.assigned_workplace == Some(id)
-    })
+    )
 }
 
 pub(super) fn assign_role_filter_label(role: Option<JobPreference>) -> &'static str {
@@ -301,7 +201,9 @@ pub(super) fn first_assignment_conflict(
                 candidate.id,
             )
             .unwrap_or(0);
-            (value <= -10).then(|| (candidate.name.clone(), value))
+            RelationshipBand::from_value(value)
+                .is_risk()
+                .then(|| (candidate.name.clone(), value))
         })
         .min_by_key(|(_, value)| *value)
 }

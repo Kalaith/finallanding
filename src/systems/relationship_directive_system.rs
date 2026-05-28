@@ -1,4 +1,4 @@
-use crate::data::colonist::{relationship_label, Colonist};
+use crate::data::colonist::{relationship_label, Colonist, RelationshipBand};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PairDirective {
@@ -48,7 +48,7 @@ impl RelationshipDirectiveSystem {
         second_id: u32,
     ) -> Option<PairDirective> {
         let value = Self::average_relationship(colonists, first_id, second_id)?;
-        if value <= -10 {
+        if RelationshipBand::from_value(value).is_risk() {
             Some(PairDirective::Separate)
         } else {
             Some(PairDirective::Pair)

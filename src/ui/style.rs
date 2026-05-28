@@ -1,3 +1,5 @@
+use crate::data::colonist::{MoodBand, RelationshipBand};
+use crate::data::text;
 use crate::ui::font::draw_text;
 use macroquad::prelude::*;
 use macroquad_toolkit::input::is_hovered_rect;
@@ -78,14 +80,30 @@ pub fn draw_progress_bar(rect: Rect, value: f32, fill: Color) {
 }
 
 pub fn truncate_text(text: &str, max_chars: usize) -> String {
-    if text.chars().count() <= max_chars {
-        return text.to_string();
-    }
+    text::truncate_text(text, max_chars)
+}
 
-    let mut truncated = text
-        .chars()
-        .take(max_chars.saturating_sub(3))
-        .collect::<String>();
-    truncated.push_str("...");
-    truncated
+pub fn mood_face(mood: f32) -> &'static str {
+    MoodBand::from_mood(mood).face()
+}
+
+pub fn mood_color(mood: f32) -> Color {
+    match MoodBand::from_mood(mood) {
+        MoodBand::Steady => BAR_GREEN,
+        MoodBand::Strained => BAR_GOLD,
+        MoodBand::Low => ALERT_RED,
+    }
+}
+
+pub fn relationship_color(value: i32) -> Color {
+    match RelationshipBand::from_value(value) {
+        RelationshipBand::Close | RelationshipBand::Friendly => BAR_GREEN,
+        RelationshipBand::Hostile | RelationshipBand::Tense => ALERT_RED,
+        RelationshipBand::Neutral => TEXT_MUTED,
+    }
+}
+
+pub fn relationship_color_alpha(value: i32, alpha: f32) -> Color {
+    let color = relationship_color(value);
+    Color::new(color.r, color.g, color.b, alpha)
 }

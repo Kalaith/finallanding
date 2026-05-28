@@ -24,13 +24,13 @@ pub fn draw_colonist_inspector(
     let height = 260.0_f32.min(rail.h * 0.48);
     let x = rail.x;
     let y = rail.y + rail.h - height;
-    let accent = mood_color(colonist.mood);
+    let accent = style::mood_color(colonist.mood);
 
     style::draw_panel(Rect::new(x, y, width, height));
     draw_rectangle(x, y, 4.0, height, accent);
 
     draw_text(
-        &truncate(&colonist.name.to_uppercase(), 25),
+        &style::truncate_text(&colonist.name.to_uppercase(), 25),
         x + 14.0,
         y + 31.0,
         18.0,
@@ -97,7 +97,7 @@ pub fn draw_colonist_inspector(
         &format!(
             "{} at {}",
             activity_label(&colonist.current_activity),
-            truncate(&activity_location_label(&colonist.activity_location), 17)
+            style::truncate_text(&activity_location_label(&colonist.activity_location), 17)
         ),
         x + 112.0,
         y + 116.0,
@@ -138,7 +138,7 @@ pub fn draw_colonist_inspector(
         .map(|(name, value)| {
             format!(
                 "{} {} ({:+})",
-                truncate(&name, 16),
+                style::truncate_text(&name, 16),
                 relationship_label(value),
                 value
             )
@@ -146,7 +146,7 @@ pub fn draw_colonist_inspector(
         .unwrap_or_else(|| "No strong tie yet".to_string());
 
     draw_text(
-        &format!("RELATIONSHIP  {}", truncate(&relationship, 24)),
+        &format!("RELATIONSHIP  {}", style::truncate_text(&relationship, 24)),
         x + 18.0,
         y + height - 13.0,
         style::TINY_SIZE,
@@ -283,16 +283,6 @@ fn strongest_relationship(colonist: &Colonist, colonists: &[Colonist]) -> Option
         })
 }
 
-fn mood_color(mood: f32) -> Color {
-    if mood >= 65.0 {
-        GREEN
-    } else if mood >= 35.0 {
-        YELLOW
-    } else {
-        ORANGE
-    }
-}
-
 fn job_color(job: JobPreference) -> Color {
     match job {
         JobPreference::Explorer => style::ACCENT_BLUE,
@@ -301,17 +291,4 @@ fn job_color(job: JobPreference) -> Color {
         JobPreference::Hauler => style::TEXT_MUTED,
         JobPreference::None => style::TEXT_BODY,
     }
-}
-
-fn truncate(text: &str, max_chars: usize) -> String {
-    if text.chars().count() <= max_chars {
-        return text.to_string();
-    }
-
-    let mut truncated = text
-        .chars()
-        .take(max_chars.saturating_sub(3))
-        .collect::<String>();
-    truncated.push_str("...");
-    truncated
 }

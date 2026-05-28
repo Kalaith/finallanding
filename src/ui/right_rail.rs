@@ -335,23 +335,11 @@ fn building_color(building_type: BuildingType) -> Color {
 }
 
 fn mood_face(mood: f32) -> &'static str {
-    if mood >= 65.0 {
-        ":)"
-    } else if mood >= 35.0 {
-        ":|"
-    } else {
-        ":("
-    }
+    style::mood_face(mood)
 }
 
 fn mood_color(mood: f32) -> Color {
-    if mood >= 65.0 {
-        style::BAR_GREEN
-    } else if mood >= 35.0 {
-        style::BAR_GOLD
-    } else {
-        style::ALERT_RED
-    }
+    style::mood_color(mood)
 }
 
 fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
@@ -363,13 +351,7 @@ fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
 }
 
 fn relationship_color(value: i32) -> Color {
-    if value >= 10 {
-        style::BAR_GREEN
-    } else if value <= -10 {
-        style::ALERT_RED
-    } else {
-        style::TEXT_MUTED
-    }
+    style::relationship_color(value)
 }
 
 #[cfg(test)]

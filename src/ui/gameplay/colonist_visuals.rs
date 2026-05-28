@@ -110,28 +110,7 @@ pub(crate) fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
 }
 
 pub(crate) fn social_color(value: i32, alpha: f32) -> Color {
-    if value >= 10 {
-        Color::new(
-            style::BAR_GREEN.r,
-            style::BAR_GREEN.g,
-            style::BAR_GREEN.b,
-            alpha,
-        )
-    } else if value <= -10 {
-        Color::new(
-            style::ALERT_RED.r,
-            style::ALERT_RED.g,
-            style::ALERT_RED.b,
-            alpha,
-        )
-    } else {
-        Color::new(
-            style::TEXT_MUTED.r,
-            style::TEXT_MUTED.g,
-            style::TEXT_MUTED.b,
-            alpha,
-        )
-    }
+    style::relationship_color_alpha(value, alpha)
 }
 
 #[cfg(test)]

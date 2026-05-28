@@ -1,4 +1,4 @@
-use crate::data::colonist::{relationship_label, Colonist, JobPreference};
+use crate::data::colonist::{relationship_label, Colonist, JobPreference, RelationshipBand};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AssignmentPressure {
@@ -59,7 +59,7 @@ impl AssignmentSystem {
 
         let weakest = coworkers.iter().min_by_key(|(_, value)| *value);
         if let Some((name, value)) = weakest {
-            if *value <= -10 {
+            if RelationshipBand::from_value(*value).is_risk() {
                 return RoleAssignmentForecast {
                     target_role,
                     pressure: AssignmentPressure::Tense,
@@ -77,7 +77,7 @@ impl AssignmentSystem {
 
         let strongest = coworkers.iter().max_by_key(|(_, value)| *value);
         if let Some((name, value)) = strongest {
-            if *value >= 10 {
+            if RelationshipBand::from_value(*value).is_support() {
                 return RoleAssignmentForecast {
                     target_role,
                     pressure: AssignmentPressure::Supported,

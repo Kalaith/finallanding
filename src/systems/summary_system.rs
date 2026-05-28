@@ -1,4 +1,4 @@
-use crate::data::colonist::relationship_label;
+use crate::data::colonist::{relationship_label, RelationshipBand};
 use crate::data::event_log::{LogCategory, SocialHistoryEntry};
 use crate::data::game_state::GameState;
 use crate::systems::resource_system::ResourceSystem;
@@ -66,12 +66,13 @@ impl SummarySystem {
                 relationship_total += average_value;
                 relationship_count += 1;
 
-                if average_value >= 10 {
+                let relationship_band = RelationshipBand::from_value(average_value);
+                if relationship_band.is_support() {
                     close_pairs += 1;
                     connected_pairs.push(pair.clone());
                 }
 
-                if average_value <= -10 {
+                if relationship_band.is_risk() {
                     strained_pairs += 1;
                     tense_pairs.push(pair.clone());
                 }
