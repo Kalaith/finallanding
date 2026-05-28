@@ -10,36 +10,36 @@ pub(crate) struct CrashSmokeVent {
 const SMOKE_VENTS: [CrashSmokeVent; 5] = [
     CrashSmokeVent {
         cell: Position { x: 8, y: 5 },
-        strength: 1.0,
+        strength: 1.35,
         seed: 13,
     },
     CrashSmokeVent {
         cell: Position { x: 13, y: 8 },
-        strength: 0.75,
+        strength: 1.0,
         seed: 41,
     },
     CrashSmokeVent {
         cell: Position { x: 18, y: 10 },
-        strength: 0.95,
+        strength: 1.35,
         seed: 79,
     },
     CrashSmokeVent {
         cell: Position { x: 10, y: 13 },
-        strength: 0.6,
+        strength: 0.9,
         seed: 107,
     },
     CrashSmokeVent {
         cell: Position { x: 20, y: 15 },
-        strength: 0.7,
+        strength: 1.1,
         seed: 151,
     },
 ];
 
 pub(crate) fn draw_crash_site_context(iso: IsoView, tick: u64) {
     draw_crash_scar(iso);
-    draw_hull_section(iso, Position::new(4, 3), 8.0, 4.0, HullMood::Main);
-    draw_hull_section(iso, Position::new(14, 6), 7.0, 5.0, HullMood::Aft);
-    draw_hull_section(iso, Position::new(17, 14), 5.0, 3.0, HullMood::Buried);
+    draw_hull_section(iso, Position::new(2, 2), 12.0, 6.0, HullMood::Main);
+    draw_hull_section(iso, Position::new(12, 7), 11.0, 7.0, HullMood::Aft);
+    draw_hull_section(iso, Position::new(15, 15), 8.0, 4.0, HullMood::Buried);
     draw_broken_spine(iso);
     draw_survival_camp(iso);
     draw_scattered_salvage(iso);
@@ -80,10 +80,18 @@ fn draw_crash_scar(iso: IsoView) {
             let center = iso.grid_to_screen(Position::new(x, y));
             draw_iso_diamond(
                 center + vec2(0.0, iso.tile_h * 0.08),
-                iso.tile_w * (0.55 + intensity * 0.55),
-                iso.tile_h * (0.32 + intensity * 0.48),
-                Color::new(0.035, 0.032, 0.025, 0.18 + intensity * 0.28),
+                iso.tile_w * (0.85 + intensity * 0.8),
+                iso.tile_h * (0.54 + intensity * 0.68),
+                Color::new(0.018, 0.016, 0.012, 0.34 + intensity * 0.38),
             );
+            if intensity > 0.62 && (x + y) % 3 == 0 {
+                draw_iso_diamond(
+                    center + vec2(0.0, iso.tile_h * 0.14),
+                    iso.tile_w * 0.72,
+                    iso.tile_h * 0.28,
+                    Color::new(0.58, 0.2, 0.07, 0.22),
+                );
+            }
         }
     }
 }
@@ -100,34 +108,38 @@ fn draw_hull_section(iso: IsoView, origin: Position, width: f32, height: f32, mo
         origin.x + (width * 0.5) as i32,
         origin.y + (height * 0.5) as i32,
     ));
-    let plate_w = iso.tile_w * width * 0.78;
-    let plate_h = iso.tile_h * height * 0.92;
+    let plate_w = iso.tile_w * width * 1.02;
+    let plate_h = iso.tile_h * height * 1.24;
     let wall_h = match mood {
-        HullMood::Main => iso.tile_h * 1.55,
-        HullMood::Aft => iso.tile_h * 1.2,
-        HullMood::Buried => iso.tile_h * 0.72,
+        HullMood::Main => iso.tile_h * 2.35,
+        HullMood::Aft => iso.tile_h * 1.95,
+        HullMood::Buried => iso.tile_h * 1.05,
     };
     let roof = match mood {
-        HullMood::Main => Color::new(0.19, 0.25, 0.27, 0.96),
-        HullMood::Aft => Color::new(0.16, 0.2, 0.22, 0.94),
-        HullMood::Buried => Color::new(0.12, 0.15, 0.15, 0.9),
+        HullMood::Main => Color::new(0.25, 0.34, 0.36, 0.98),
+        HullMood::Aft => Color::new(0.2, 0.28, 0.31, 0.97),
+        HullMood::Buried => Color::new(0.16, 0.21, 0.2, 0.94),
     };
+    let hull_center = center - vec2(0.0, wall_h * 0.45);
+
+    draw_iso_diamond(
+        center + vec2(0.0, wall_h * 0.55),
+        plate_w * 1.06,
+        plate_h * 1.05,
+        Color::new(0.0, 0.0, 0.0, 0.36),
+    );
 
     draw_iso_prism(
-        center - vec2(0.0, wall_h * 0.45),
+        hull_center,
         plate_w,
         plate_h,
         wall_h,
         roof,
-        Color::new(0.08, 0.1, 0.105, 0.98),
-        Color::new(0.055, 0.07, 0.07, 0.98),
+        Color::new(0.055, 0.075, 0.08, 0.99),
+        Color::new(0.035, 0.045, 0.048, 0.99),
     );
-    draw_hull_ribs(
-        center - vec2(0.0, wall_h * 0.45),
-        plate_w,
-        plate_h,
-        width as usize,
-    );
+    draw_hull_ribs(hull_center, plate_w, plate_h, width as usize);
+    draw_hull_breach(hull_center, plate_w, plate_h, mood);
     draw_torn_edges(center, plate_w, plate_h, wall_h, mood);
 }
 
@@ -141,8 +153,8 @@ fn draw_hull_ribs(center: Vec2, width: f32, height: f32, count: usize) {
             center.y + height * 0.16,
             x + width * 0.12,
             center.y + height * 0.42,
-            1.4,
-            Color::new(0.6, 0.65, 0.62, 0.42),
+            2.2,
+            Color::new(0.74, 0.82, 0.78, 0.68),
         );
     }
     draw_line(
@@ -150,9 +162,26 @@ fn draw_hull_ribs(center: Vec2, width: f32, height: f32, count: usize) {
         center.y + height * 0.36,
         center.x + width * 0.42,
         center.y + height * 0.36,
-        1.6,
-        Color::new(0.05, 0.055, 0.055, 0.7),
+        2.4,
+        Color::new(0.02, 0.024, 0.024, 0.86),
     );
+}
+
+fn draw_hull_breach(center: Vec2, width: f32, height: f32, mood: HullMood) {
+    let breach_count = if matches!(mood, HullMood::Buried) {
+        2
+    } else {
+        4
+    };
+    for index in 0..breach_count {
+        let x = center.x - width * 0.32 + index as f32 * width * 0.2;
+        draw_triangle(
+            vec2(x, center.y + height * 0.18),
+            vec2(x + width * 0.08, center.y + height * 0.42),
+            vec2(x - width * 0.06, center.y + height * 0.4),
+            Color::new(0.006, 0.008, 0.008, 0.92),
+        );
+    }
 }
 
 fn draw_torn_edges(center: Vec2, width: f32, height: f32, wall_h: f32, mood: HullMood) {
@@ -160,18 +189,18 @@ fn draw_torn_edges(center: Vec2, width: f32, height: f32, wall_h: f32, mood: Hul
     let spark_color = Color::new(0.9, 0.55, 0.22, 0.78);
     let tear_y = center.y + wall_h * 0.25 + height * 0.2;
 
-    for index in 0..5 {
-        let x = center.x - width * 0.36 + index as f32 * width * 0.18;
+    for index in 0..8 {
+        let x = center.x - width * 0.42 + index as f32 * width * 0.12;
         draw_triangle(
             vec2(x, tear_y),
-            vec2(x + width * 0.06, tear_y + 7.0),
-            vec2(x + width * 0.12, tear_y - 1.5),
+            vec2(x + width * 0.06, tear_y + 12.0),
+            vec2(x + width * 0.13, tear_y - 3.0),
             tear_color,
         );
     }
 
     if matches!(mood, HullMood::Main | HullMood::Aft) {
-        draw_circle(center.x + width * 0.24, tear_y - 4.0, 2.0, spark_color);
+        draw_circle(center.x + width * 0.24, tear_y - 4.0, 4.0, spark_color);
         draw_line(
             center.x + width * 0.22,
             tear_y - 2.0,
@@ -185,10 +214,10 @@ fn draw_torn_edges(center: Vec2, width: f32, height: f32, wall_h: f32, mood: Hul
 
 fn draw_broken_spine(iso: IsoView) {
     let sections = [
-        (Position::new(8, 8), 3.4, 1.2),
-        (Position::new(11, 9), 3.0, 1.1),
-        (Position::new(14, 11), 3.2, 1.2),
-        (Position::new(17, 12), 2.8, 1.0),
+        (Position::new(6, 8), 5.0, 1.7),
+        (Position::new(10, 10), 4.4, 1.5),
+        (Position::new(14, 12), 4.8, 1.6),
+        (Position::new(18, 14), 4.0, 1.4),
     ];
     for (cell, width, height) in sections {
         let center = iso.grid_to_screen(cell);
@@ -196,23 +225,23 @@ fn draw_broken_spine(iso: IsoView) {
             center + vec2(0.0, iso.tile_h * 0.35),
             iso.tile_w * width,
             iso.tile_h * height,
-            Color::new(0.12, 0.16, 0.17, 0.94),
+            Color::new(0.11, 0.15, 0.16, 0.96),
         );
         draw_iso_diamond_lines(
             center + vec2(0.0, iso.tile_h * 0.35),
             iso.tile_w * width,
             iso.tile_h * height,
-            1.2,
-            Color::new(0.62, 0.67, 0.63, 0.34),
+            1.8,
+            Color::new(0.75, 0.82, 0.78, 0.48),
         );
     }
 }
 
 fn draw_survival_camp(iso: IsoView) {
     for (cell, color) in [
-        (Position::new(5, 14), Color::new(0.52, 0.42, 0.26, 0.98)),
-        (Position::new(8, 15), Color::new(0.43, 0.5, 0.48, 0.98)),
-        (Position::new(12, 16), Color::new(0.48, 0.32, 0.24, 0.98)),
+        (Position::new(4, 14), Color::new(0.72, 0.56, 0.27, 0.99)),
+        (Position::new(8, 16), Color::new(0.5, 0.68, 0.67, 0.99)),
+        (Position::new(12, 15), Color::new(0.72, 0.38, 0.25, 0.99)),
     ] {
         draw_emergency_tent(iso.grid_to_screen(cell), iso.tile_w, iso.tile_h, color);
     }
@@ -238,20 +267,20 @@ fn draw_emergency_tent(center: Vec2, tile_w: f32, tile_h: f32, color: Color) {
     let base_y = center.y + tile_h * 0.56;
     draw_iso_diamond(
         center + vec2(0.0, tile_h * 0.58),
-        tile_w * 0.92,
-        tile_h * 0.42,
+        tile_w * 1.34,
+        tile_h * 0.58,
         Color::new(0.04, 0.04, 0.035, 0.35),
     );
     draw_triangle(
-        vec2(center.x - tile_w * 0.34, base_y),
-        vec2(center.x, base_y - tile_h * 0.72),
-        vec2(center.x + tile_w * 0.34, base_y),
+        vec2(center.x - tile_w * 0.48, base_y),
+        vec2(center.x, base_y - tile_h * 1.0),
+        vec2(center.x + tile_w * 0.48, base_y),
         color,
     );
     draw_triangle(
-        vec2(center.x, base_y - tile_h * 0.72),
-        vec2(center.x + tile_w * 0.34, base_y),
-        vec2(center.x + tile_w * 0.46, base_y + tile_h * 0.18),
+        vec2(center.x, base_y - tile_h * 1.0),
+        vec2(center.x + tile_w * 0.48, base_y),
+        vec2(center.x + tile_w * 0.62, base_y + tile_h * 0.24),
         Color::new(color.r * 0.62, color.g * 0.62, color.b * 0.62, color.a),
     );
     draw_line(
@@ -289,9 +318,9 @@ fn draw_supply_container(center: Vec2, tile_w: f32, tile_h: f32, color: Color) {
     let top = Color::new(color.r * 1.08, color.g * 1.08, color.b * 1.08, color.a);
     draw_iso_prism(
         center + vec2(0.0, tile_h * 0.3),
-        tile_w * 1.24,
-        tile_h * 0.46,
-        tile_h * 0.36,
+        tile_w * 1.62,
+        tile_h * 0.58,
+        tile_h * 0.52,
         top,
         Color::new(color.r * 0.62, color.g * 0.62, color.b * 0.62, color.a),
         Color::new(color.r * 0.45, color.g * 0.45, color.b * 0.45, color.a),
@@ -326,15 +355,15 @@ fn draw_scattered_salvage(iso: IsoView) {
 fn draw_half_buried_machine(center: Vec2, tile_w: f32, tile_h: f32) {
     draw_iso_diamond(
         center + vec2(0.0, tile_h * 0.48),
-        tile_w * 0.62,
-        tile_h * 0.24,
+        tile_w * 0.94,
+        tile_h * 0.34,
         Color::new(0.06, 0.065, 0.06, 0.38),
     );
     draw_rectangle(
-        center.x - tile_w * 0.18,
+        center.x - tile_w * 0.28,
         center.y + tile_h * 0.28,
-        tile_w * 0.36,
-        tile_h * 0.22,
+        tile_w * 0.56,
+        tile_h * 0.3,
         Color::new(0.16, 0.18, 0.17, 0.96),
     );
     draw_circle_lines(
@@ -377,17 +406,11 @@ fn draw_exposed_wiring(iso: IsoView, tick: u64) {
         for segment in run.windows(2) {
             let a = iso.grid_to_screen(segment[0]) + vec2(0.0, iso.tile_h * 0.52);
             let b = iso.grid_to_screen(segment[1]) + vec2(0.0, iso.tile_h * 0.52);
-            draw_line(
-                a.x,
-                a.y,
-                b.x,
-                b.y,
-                2.0,
-                Color::new(0.025, 0.03, 0.032, 0.88),
-            );
+            draw_line(a.x, a.y, b.x, b.y, 4.4, Color::new(0.0, 0.0, 0.0, 0.88));
+            draw_line(a.x, a.y, b.x, b.y, 2.0, Color::new(0.86, 0.45, 0.16, 0.74));
             if (tick / 18 + index as u64) % 3 == 0 {
                 let mid = (a + b) * 0.5;
-                draw_circle(mid.x, mid.y, 2.2, Color::new(0.85, 0.52, 0.2, 0.78));
+                draw_circle(mid.x, mid.y, 4.0, Color::new(0.94, 0.62, 0.18, 0.88));
             }
         }
     }
@@ -405,13 +428,13 @@ fn draw_flickering_lights(iso: IsoView, tick: u64) {
         draw_circle(
             center.x,
             center.y + iso.tile_h * 0.18,
-            3.5 + alpha * 3.0,
-            Color::new(color.r, color.g, color.b, alpha * 0.45),
+            7.0 + alpha * 5.0,
+            Color::new(color.r, color.g, color.b, alpha * 0.5),
         );
         draw_circle(
             center.x,
             center.y + iso.tile_h * 0.18,
-            1.9,
+            3.0,
             Color::new(color.r, color.g, color.b, alpha),
         );
     }
@@ -428,11 +451,11 @@ fn draw_smoke_vents(iso: IsoView, tick: u64) {
         );
         for puff in 0..4 {
             let drift = ((tick + vent.seed + puff * 17) % 90) as f32 / 90.0;
-            let x = base.x + (puff as f32 - 1.4) * 6.0 + drift * 8.0;
-            let y = base.y - drift * 44.0 - puff as f32 * 5.0;
-            let radius = (5.0 + drift * 10.0) * vent.strength;
-            let alpha = (0.34 * (1.0 - drift)).max(0.06) * vent.strength;
-            draw_circle(x, y, radius, Color::new(0.32, 0.34, 0.32, alpha));
+            let x = base.x + (puff as f32 - 1.4) * 8.0 + drift * 14.0;
+            let y = base.y - drift * 66.0 - puff as f32 * 7.0;
+            let radius = (8.0 + drift * 16.0) * vent.strength;
+            let alpha = (0.48 * (1.0 - drift)).max(0.1) * vent.strength;
+            draw_circle(x, y, radius, Color::new(0.48, 0.5, 0.46, alpha));
         }
     }
 }
