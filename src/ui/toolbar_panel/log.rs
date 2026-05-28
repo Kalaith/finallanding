@@ -65,7 +65,7 @@ pub(super) fn draw_log_context(
         for (index, row) in timeline.iter().enumerate() {
             let y = context.y + 94.0 + index as f32 * 13.0;
             let rect = log_timeline_row_rect(context, index);
-            if rect.contains(mouse_position().into()) {
+            if style::button_hovered(rect) {
                 hovered_history = Some(row);
                 draw_rectangle(
                     rect.x,
@@ -124,7 +124,7 @@ pub(super) fn draw_log_context(
     for (index, log) in logs.iter().rev().take(2).enumerate() {
         let y = context.y + 91.0 + index as f32 * 20.0;
         let row = Rect::new(context.x + 12.0, y - 14.0, context.w - 24.0, 18.0);
-        if row.contains(mouse_position().into()) {
+        if style::button_hovered(row) {
             hovered_log = Some(log);
             draw_rectangle(
                 row.x,
@@ -162,10 +162,13 @@ pub(super) fn draw_log_search_control(context: Rect, query: &str, active: bool) 
     let search = log_search_rect(context);
     let clear = log_search_clear_rect(context);
     let export = log_search_export_rect(context);
-    let mouse = mouse_position().into();
-    style::draw_button(search, active, search.contains(mouse));
-    style::draw_button(clear, false, !query.is_empty() && clear.contains(mouse));
-    style::draw_button(export, false, export.contains(mouse));
+    style::draw_button(search, active, style::button_hovered(search));
+    style::draw_button(
+        clear,
+        false,
+        !query.is_empty() && style::button_hovered(clear),
+    );
+    style::draw_button(export, false, style::button_hovered(export));
 
     let mut label = if query.is_empty() {
         "SEARCH REPORTS".to_string()
@@ -247,7 +250,7 @@ pub(super) fn draw_log_filter_controls(context: Rect, active_filter: LogFilter) 
     for (index, filter) in LogFilter::all().iter().enumerate() {
         let rect = log_filter_rect(context, index);
         let active = *filter == active_filter;
-        style::draw_button(rect, active, rect.contains(mouse_position().into()));
+        style::draw_button(rect, active, style::button_hovered(rect));
         draw_text(
             filter.label(),
             rect.x + 6.0,
@@ -265,12 +268,15 @@ pub(super) fn draw_log_filter_controls(context: Rect, active_filter: LogFilter) 
 pub(super) fn draw_log_page_controls(context: Rect, current_page: usize, page_count: usize) {
     let previous = log_page_previous_rect(context);
     let next = log_page_next_rect(context);
-    let mouse = mouse_position().into();
     let can_go_previous = current_page > 0;
     let can_go_next = current_page + 1 < page_count;
 
-    style::draw_button(previous, false, can_go_previous && previous.contains(mouse));
-    style::draw_button(next, false, can_go_next && next.contains(mouse));
+    style::draw_button(
+        previous,
+        false,
+        can_go_previous && style::button_hovered(previous),
+    );
+    style::draw_button(next, false, can_go_next && style::button_hovered(next));
     draw_text(
         "<",
         previous.x + 10.0,

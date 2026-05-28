@@ -52,7 +52,7 @@ pub(super) fn draw_assign_context(
     {
         let rect = toolbar_list_item_rect(context, slot);
         let selected = selected_colonist_id == Some(colonist.id);
-        let hovered = rect.contains(mouse_position().into());
+        let hovered = style::button_hovered(rect);
         let pair_action = selected_colonist_id
             .filter(|selected_id| *selected_id != colonist.id)
             .and_then(|selected_id| assign_pair_action(colonists, selected_id, colonist.id));
@@ -216,11 +216,9 @@ pub(super) fn draw_assign_roster_controls(
     hovered_sort: &mut Option<AssignRosterSort>,
     hovered_role_filter: &mut bool,
 ) {
-    let mouse = mouse_position().into();
-
     for (index, filter) in AssignRosterFilter::all().iter().enumerate() {
         let rect = assign_filter_rect(context, index);
-        let hovered = rect.contains(mouse);
+        let hovered = style::button_hovered(rect);
         if hovered {
             *hovered_filter = Some(*filter);
         }
@@ -240,7 +238,7 @@ pub(super) fn draw_assign_roster_controls(
 
     for (index, sort) in AssignRosterSort::all().iter().enumerate() {
         let rect = assign_sort_rect(context, index);
-        let hovered = rect.contains(mouse);
+        let hovered = style::button_hovered(rect);
         if hovered {
             *hovered_sort = Some(*sort);
         }
@@ -259,7 +257,7 @@ pub(super) fn draw_assign_roster_controls(
     }
 
     let role = assign_role_filter_rect(context);
-    let role_hovered = role.contains(mouse);
+    let role_hovered = style::button_hovered(role);
     if role_hovered {
         *hovered_role_filter = true;
     }
@@ -278,7 +276,6 @@ pub(super) fn draw_assign_roster_controls(
 }
 
 pub(super) fn draw_assign_batch_controls(context: Rect, selected_colonist: &Colonist) {
-    let mouse = mouse_position().into();
     let home_enabled = selected_colonist.assigned_habitat.is_some();
     let work_enabled = selected_colonist.assigned_workplace.is_some();
     let mut hovered_action = None;
@@ -290,7 +287,7 @@ pub(super) fn draw_assign_batch_controls(context: Rect, selected_colonist: &Colo
         } else {
             work_enabled
         };
-        let hovered = rect.contains(mouse);
+        let hovered = style::button_hovered(rect);
         if hovered {
             hovered_action = Some(*action);
         }
@@ -320,12 +317,15 @@ pub(super) fn draw_assign_batch_controls(context: Rect, selected_colonist: &Colo
 pub(super) fn draw_assign_page_controls(context: Rect, current_page: usize, page_count: usize) {
     let previous = assign_page_previous_rect(context);
     let next = assign_page_next_rect(context);
-    let mouse = mouse_position().into();
     let can_go_previous = current_page > 0;
     let can_go_next = current_page + 1 < page_count;
 
-    style::draw_button(previous, false, can_go_previous && previous.contains(mouse));
-    style::draw_button(next, false, can_go_next && next.contains(mouse));
+    style::draw_button(
+        previous,
+        false,
+        can_go_previous && style::button_hovered(previous),
+    );
+    style::draw_button(next, false, can_go_next && style::button_hovered(next));
     draw_text(
         "<",
         previous.x + 10.0,

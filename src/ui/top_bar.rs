@@ -24,7 +24,6 @@ pub fn draw_top_bar(
     current_priority: ColonyPriority,
 ) {
     let rect = layout.top_bar();
-    let mouse_pos: Vec2 = mouse_position().into();
 
     style::draw_deep_panel(Rect::new(12.0, 12.0, rect.w.min(840.0), rect.h - 16.0));
 
@@ -68,7 +67,7 @@ pub fn draw_top_bar(
         let button_rect = speed_button_rect(i);
         let is_active = current_speed == *speed;
 
-        style::draw_button(button_rect, is_active, button_rect.contains(mouse_pos));
+        style::draw_button(button_rect, is_active, style::button_hovered(button_rect));
 
         let text_w = measure_text(label, None, 16, 1.0).width;
         draw_text(
@@ -89,7 +88,7 @@ pub fn draw_top_bar(
     for (i, priority) in ColonyPriority::all().iter().enumerate() {
         let button_rect = priority_button_rect(i);
         let is_active = current_priority == *priority;
-        style::draw_button(button_rect, is_active, button_rect.contains(mouse_pos));
+        style::draw_button(button_rect, is_active, style::button_hovered(button_rect));
 
         let label = format!("[{}] {}", priority.shortcut(), priority.short_label());
         let text_w = measure_text(&label, None, 13, 1.0).width;

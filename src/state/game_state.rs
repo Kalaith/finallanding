@@ -42,6 +42,7 @@ use crate::ui::{
     ToolbarResearchData,
 };
 use macroquad::prelude::*;
+use macroquad_toolkit::input::{mouse_position_vec2, InputState};
 use std::path::PathBuf;
 
 const SECONDS_PER_GAME_TICK: f32 = 0.25;
@@ -338,17 +339,18 @@ impl GameplayState {
     }
 
     /// Handle building placement via mouse click
-    fn update_building_placement(&mut self) {
+    fn update_building_placement(&mut self, input: &InputState) {
         // Only allow placement in the game area (not over UI)
-        let (mouse_x, mouse_y) = mouse_position();
+        let mouse_pos = input.mouse_pos;
+        let mouse_x = mouse_pos.x;
+        let mouse_y = mouse_pos.y;
         let game_area = self.layout.game_area();
-        let mouse_pos = vec2(mouse_x, mouse_y);
         let toolbar = self.layout.bottom_toolbar();
 
-        if toolbar.contains(mouse_pos)
-            || toolbar_context_rect(toolbar).contains(mouse_pos)
-            || self.layout.left_panel().contains(mouse_pos)
-            || self.layout.right_panel().contains(mouse_pos)
+        if input.hovered_rect(toolbar)
+            || input.hovered_rect(toolbar_context_rect(toolbar))
+            || input.hovered_rect(self.layout.left_panel())
+            || input.hovered_rect(self.layout.right_panel())
             || mouse_y <= self.layout.top_bar_height
         {
             return;
@@ -365,7 +367,7 @@ impl GameplayState {
             return;
         };
 
-        if is_mouse_button_pressed(MouseButton::Left) {
+        if input.left_pressed {
             let pos = self.iso_view().screen_to_grid(vec2(mouse_x, mouse_y));
             let feedback = PlanningSystem::building_feedback(&self.data, building_type, pos);
             if let Some(reason) = feedback.invalid_reason.as_ref() {
@@ -418,17 +420,18 @@ impl GameplayState {
         }
     }
 
-    fn update_pointer_ui_input(&mut self) {
+    fn update_pointer_ui_input(&mut self, input: &InputState) {
         let assign_room_filter_click =
-            self.toolbar_mode == ToolbarMode::Assign && is_mouse_button_pressed(MouseButton::Right);
-        if !is_mouse_button_pressed(MouseButton::Left) && !assign_room_filter_click {
+            self.toolbar_mode == ToolbarMode::Assign && input.right_pressed;
+        if !input.left_pressed && !assign_room_filter_click {
             return;
         }
 
-        let (mouse_x, mouse_y) = mouse_position();
+        let mouse_x = input.mouse_pos.x;
+        let mouse_y = input.mouse_pos.y;
 
         if assign_room_filter_click {
-            if self.layout.game_area().contains(vec2(mouse_x, mouse_y)) {
+            if input.hovered_rect(self.layout.game_area()) {
                 self.update_assign_building_filter_click();
                 return;
             }
@@ -1026,19 +1029,20 @@ impl GameplayState {
         cleared
     }
 
-    fn update_colonist_selection(&mut self) {
-        if self.selected_building.is_some() || !is_mouse_button_pressed(MouseButton::Left) {
+    fn update_colonist_selection(&mut self, input: &InputState) {
+        if self.selected_building.is_some() || !input.left_pressed {
             return;
         }
 
         let game_area = self.layout.game_area();
-        let (mouse_x, mouse_y) = mouse_position();
-        let mouse_pos = vec2(mouse_x, mouse_y);
+        let mouse_pos = input.mouse_pos;
+        let mouse_x = mouse_pos.x;
+        let mouse_y = mouse_pos.y;
         let toolbar = self.layout.bottom_toolbar();
-        if toolbar.contains(mouse_pos)
-            || toolbar_context_rect(toolbar).contains(mouse_pos)
-            || self.layout.left_panel().contains(mouse_pos)
-            || self.layout.right_panel().contains(mouse_pos)
+        if input.hovered_rect(toolbar)
+            || input.hovered_rect(toolbar_context_rect(toolbar))
+            || input.hovered_rect(self.layout.left_panel())
+            || input.hovered_rect(self.layout.right_panel())
             || mouse_y <= self.layout.top_bar_height
         {
             return;
@@ -1084,17 +1088,15 @@ impl GameplayState {
         )
     }
 
-    fn scenario_restart_transition(&self) -> Option<StateTransition> {
+    fn scenario_restart_transition(&self, input: &InputState) -> Option<StateTransition> {
         if !self.data.scenario.is_finished() {
             return None;
         }
 
         let restart_rect = restart_button_rect(screen_width(), screen_height());
-        let mouse_pos: Vec2 = mouse_position().into();
-        let clicked_restart =
-            is_mouse_button_pressed(MouseButton::Left) && restart_rect.contains(mouse_pos);
+        let clicked_restart = input.left_pressed_rect(restart_rect);
 
-        if clicked_restart || is_key_pressed(KeyCode::R) || is_key_pressed(KeyCode::Enter) {
+        if clicked_restart || is_key_pressed(KeyCode::R) || input.enter_pressed {
             Some(StateTransition::ToGameplay(GameplayState::new()))
         } else {
             None
@@ -1205,8 +1207,7 @@ impl GameplayState {
         draw_text(prompt, x + (w - prompt_width) * 0.5, y + 116.0, 14.0, GRAY);
 
         let button = restart_button_rect(screen_width(), screen_height());
-        let mouse_pos: Vec2 = mouse_position().into();
-        let button_color = if button.contains(mouse_pos) {
+        let button_color = if style::button_hovered(button) {
             Color::new(0.25, 0.38, 0.48, 1.0)
         } else {
             Color::new(0.16, 0.22, 0.28, 1.0)
@@ -1397,7 +1398,9 @@ impl GameplayState {
     /// Draw ghost preview of building at cursor
     fn draw_ghost_preview(&self) {
         if let Some(building_type) = self.selected_building {
-            let (mouse_x, mouse_y) = mouse_position();
+            let mouse = mouse_position_vec2();
+            let mouse_x = mouse.x;
+            let mouse_y = mouse.y;
             let game_area = self.layout.game_area();
             let iso = self.iso_view();
             let pos = if let Some(position) = self.capture_preview_position {
@@ -1840,7 +1843,7 @@ impl GameplayState {
             return;
         };
 
-        let mouse: Vec2 = mouse_position().into();
+        let mouse = mouse_position_vec2();
         draw_tooltip_at(
             mouse + vec2(18.0, 18.0),
             self.layout.game_area(),
@@ -1856,7 +1859,9 @@ impl GameplayState {
 
     fn colonist_id_at_mouse(&self) -> Option<u32> {
         let game_area = self.layout.game_area();
-        let (mouse_x, mouse_y) = mouse_position();
+        let mouse = mouse_position_vec2();
+        let mouse_x = mouse.x;
+        let mouse_y = mouse.y;
         if mouse_x < game_area.x
             || mouse_x > game_area.x + game_area.w
             || mouse_y < game_area.y
@@ -1889,12 +1894,12 @@ impl GameplayState {
 
     fn building_at_mouse(&self) -> Option<&Building> {
         let game_area = self.layout.game_area();
-        let (mouse_x, mouse_y) = mouse_position();
-        if !game_area.contains(vec2(mouse_x, mouse_y)) {
+        let mouse = mouse_position_vec2();
+        if !game_area.contains(mouse) {
             return None;
         }
 
-        let grid_pos = self.iso_view().screen_to_grid(vec2(mouse_x, mouse_y));
+        let grid_pos = self.iso_view().screen_to_grid(mouse);
         self.data.building_system.get_building_at(grid_pos)
     }
 
@@ -2488,18 +2493,20 @@ mod tests {
 
 impl State for GameplayState {
     fn update(&mut self) -> StateTransition {
+        let input = InputState::capture();
+
         // Debug toggle
         if is_key_pressed(KeyCode::F3) {
             self.debug_mode = !self.debug_mode;
         }
         let keyboard_captured = self.update_social_history_search_input();
 
-        if let Some(transition) = self.scenario_restart_transition() {
+        if let Some(transition) = self.scenario_restart_transition(&input) {
             return transition;
         }
 
         // Time speed and priority controls (keyboard)
-        if !keyboard_captured && is_key_pressed(KeyCode::Space) {
+        if !keyboard_captured && input.space_pressed {
             self.data.time.speed = if self.data.time.speed == TimeSpeed::Paused {
                 TimeSpeed::Normal
             } else {
@@ -2516,8 +2523,8 @@ impl State for GameplayState {
             self.set_priority(ColonyPriority::Survey);
         }
 
-        self.update_pointer_ui_input();
-        self.update_colonist_selection();
+        self.update_pointer_ui_input(&input);
+        self.update_colonist_selection(&input);
 
         let elapsed_ticks = self.advance_time();
         if elapsed_ticks > 0 {
@@ -2531,12 +2538,10 @@ impl State for GameplayState {
         }
 
         // Update hovered cell based on mouse position (account for UI offset)
-        let (mouse_x, mouse_y) = mouse_position();
+        let mouse = input.mouse_pos;
         let game_area = self.layout.game_area();
-        let grid_pos = self.iso_view().screen_to_grid(vec2(mouse_x, mouse_y));
-        if game_area.contains(vec2(mouse_x, mouse_y))
-            && self.data.grid.is_in_bounds(grid_pos.x, grid_pos.y)
-        {
+        let grid_pos = self.iso_view().screen_to_grid(mouse);
+        if game_area.contains(mouse) && self.data.grid.is_in_bounds(grid_pos.x, grid_pos.y) {
             self.hovered_cell = Some(grid_pos);
         } else {
             self.hovered_cell = None;
@@ -2546,7 +2551,7 @@ impl State for GameplayState {
         if !keyboard_captured {
             self.update_building_selection();
         }
-        self.update_building_placement();
+        self.update_building_placement(&input);
 
         StateTransition::None
     }

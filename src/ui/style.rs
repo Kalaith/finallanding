@@ -1,5 +1,7 @@
 use crate::ui::font::draw_text;
 use macroquad::prelude::*;
+use macroquad_toolkit::input::is_hovered_rect;
+use macroquad_toolkit::ui::{draw_surface, SurfaceStyle};
 
 pub const PANEL_BG: Color = Color::new(0.075, 0.095, 0.1, 0.9);
 pub const PANEL_BG_DEEP: Color = Color::new(0.04, 0.055, 0.06, 0.94);
@@ -44,6 +46,10 @@ pub fn draw_section_title(text: &str, x: f32, y: f32) {
     draw_text(text, x, y, SECTION_SIZE, HEADING_BLUE);
 }
 
+pub fn button_hovered(rect: Rect) -> bool {
+    is_hovered_rect(rect)
+}
+
 pub fn draw_button(rect: Rect, active: bool, hovered: bool) {
     let color = if active {
         Color::new(0.12, 0.22, 0.25, 0.98)
@@ -52,15 +58,11 @@ pub fn draw_button(rect: Rect, active: bool, hovered: bool) {
     } else {
         Color::new(0.075, 0.095, 0.105, 0.95)
     };
-    draw_rectangle(rect.x, rect.y, rect.w, rect.h, color);
-    draw_rectangle_lines(
-        rect.x,
-        rect.y,
-        rect.w,
-        rect.h,
+    let surface = SurfaceStyle::new(color).with_border(
         if active { 2.0 } else { 1.0 },
         if active { HEADING_BLUE } else { PANEL_BORDER },
     );
+    draw_surface(rect, &surface);
 }
 
 pub fn draw_progress_bar(rect: Rect, value: f32, fill: Color) {

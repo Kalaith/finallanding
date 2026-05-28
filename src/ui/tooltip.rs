@@ -1,13 +1,14 @@
 use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use macroquad::prelude::*;
+use macroquad_toolkit::input::mouse_position_vec2;
 
 const PAD_X: f32 = 10.0;
 const PAD_Y: f32 = 8.0;
 const GAP_FROM_CURSOR: Vec2 = Vec2::new(14.0, 16.0);
 
 pub fn draw_tooltip_near_mouse(bounds: Rect, title: &str, body: &str) {
-    let mouse: Vec2 = mouse_position().into();
+    let mouse = mouse_position_vec2();
     draw_tooltip_at(mouse + GAP_FROM_CURSOR, bounds, title, body);
 }
 

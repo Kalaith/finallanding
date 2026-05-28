@@ -17,7 +17,7 @@ pub fn draw_bottom_toolbar(
 
     for (index, mode) in ToolbarMode::all().iter().enumerate() {
         let button = toolbar_button_rect(rect, index);
-        let hovered = button.contains(mouse_position().into());
+        let hovered = style::button_hovered(button);
         if hovered {
             hovered_mode = Some(*mode);
         }

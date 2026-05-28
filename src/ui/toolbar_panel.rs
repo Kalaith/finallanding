@@ -130,7 +130,7 @@ fn draw_build_context(
         let rect = toolbar_context_item_rect(context, index);
         let can_afford = resources.salvage >= building_type.salvage_cost();
         let selected = selected_building == Some(*building_type);
-        let hovered = rect.contains(mouse_position().into());
+        let hovered = style::button_hovered(rect);
         if hovered {
             hovered_building = Some(*building_type);
         }
@@ -197,7 +197,7 @@ fn draw_colony_context(context: Rect, active_priority: ColonyPriority) {
     let mut hovered_priority = None;
     for (index, priority) in ColonyPriority::all().iter().enumerate() {
         let rect = toolbar_context_item_rect(context, index);
-        let hovered = rect.contains(mouse_position().into());
+        let hovered = style::button_hovered(rect);
         if hovered {
             hovered_priority = Some(*priority);
         }
@@ -236,7 +236,7 @@ fn draw_research_context(
     let mut hovered_plan = None;
     for (index, plan) in mission_plans.iter().enumerate() {
         let rect = toolbar_context_item_rect(context, index);
-        let hovered = rect.contains(mouse_position().into());
+        let hovered = style::button_hovered(rect);
         if hovered {
             hovered_plan = Some(plan);
         }

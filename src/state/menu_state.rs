@@ -1,8 +1,9 @@
 use crate::state::game_state::GameplayState;
 use crate::state::{State, StateTransition};
 use crate::ui::font::{draw_text, measure_text};
-use crate::ui::menu_start_rect;
+use crate::ui::{menu_start_rect, style};
 use macroquad::prelude::*;
+use macroquad_toolkit::input::InputState;
 
 pub struct MenuState {
     // Menu specific data could go here (e.g. animation timers)
@@ -41,14 +42,13 @@ impl State for MenuState {
 // Re-implementing correctly to separate logic for the immutable draw trait constraint
 impl MenuState {
     pub fn update_with_input(&mut self) -> StateTransition {
-        if is_key_pressed(KeyCode::Space) || is_key_pressed(KeyCode::Enter) {
+        let input = InputState::capture();
+        if input.space_pressed || input.enter_pressed {
             return StateTransition::ToGameplay(GameplayState::new());
         }
 
         let btn_rect = menu_start_rect(screen_width(), screen_height());
-        let mouse_pos = mouse_position().into();
-
-        if is_mouse_button_pressed(MouseButton::Left) && btn_rect.contains(mouse_pos) {
+        if input.left_pressed_rect(btn_rect) {
             return StateTransition::ToGameplay(GameplayState::new());
         }
 
@@ -90,16 +90,7 @@ impl MenuState {
 
         // Start Button Visuals
         let btn_rect = menu_start_rect(screen_width(), screen_height());
-        let mouse_pos: Vec2 = mouse_position().into();
-        let is_hovered = btn_rect.contains(mouse_pos);
-
-        let color = if is_hovered {
-            macroquad_toolkit::colors::dark::ACCENT
-        } else {
-            macroquad_toolkit::colors::dark::PANEL
-        };
-
-        draw_rectangle(btn_rect.x, btn_rect.y, btn_rect.w, btn_rect.h, color);
+        style::draw_button(btn_rect, false, style::button_hovered(btn_rect));
 
         let btn_text = "Start Game";
         let btn_dim = measure_text(btn_text, None, 30, 1.0);

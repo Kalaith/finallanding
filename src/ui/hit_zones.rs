@@ -2,7 +2,8 @@ use crate::data::building::BuildingType;
 use crate::data::game_state::TimeSpeed;
 use crate::data::mission::MissionType;
 use crate::data::priority::ColonyPriority;
-use macroquad::prelude::Rect;
+use macroquad::prelude::{vec2, Rect};
+use macroquad_toolkit::input::rect_contains_point;
 
 pub const TOP_BAR_BUTTON_Y: f32 = 10.0;
 pub const TOP_BAR_BUTTON_H: f32 = 30.0;
@@ -576,7 +577,7 @@ pub fn toolbar_mission_at(context: Rect, x: f32, y: f32) -> Option<MissionType> 
 }
 
 fn contains(rect: Rect, x: f32, y: f32) -> bool {
-    x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h
+    rect_contains_point(rect, vec2(x, y))
 }
 
 #[cfg(test)]
