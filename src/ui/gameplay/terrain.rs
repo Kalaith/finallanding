@@ -31,6 +31,8 @@ impl GameplayState {
             }
         }
 
+        draw_crash_site_context(iso, self.data.tick);
+
         // Highlight hovered cell
         if let Some(pos) = self.hovered_cell {
             let center = iso.grid_to_screen(pos);

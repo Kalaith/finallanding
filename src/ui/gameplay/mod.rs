@@ -28,7 +28,9 @@ mod placement_preview;
 mod social;
 mod terrain;
 mod terrain_visuals;
+mod wreckage_visuals;
 
 pub(crate) use building_visuals::*;
 pub(crate) use colonist_visuals::*;
 pub(crate) use terrain_visuals::*;
+pub(crate) use wreckage_visuals::*;

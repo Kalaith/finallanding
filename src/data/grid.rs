@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use super::types::Position;
 
 // Grid configuration constants
-pub const GRID_WIDTH: usize = 20;
-pub const GRID_HEIGHT: usize = 20;
+pub const GRID_WIDTH: usize = 26;
+pub const GRID_HEIGHT: usize = 24;
 pub const CELL_SIZE: f32 = 32.0;
 
 /// Represents the type of terrain in a cell.

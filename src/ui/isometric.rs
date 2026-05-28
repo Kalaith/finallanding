@@ -10,7 +10,7 @@ pub struct IsoView {
 
 impl IsoView {
     pub fn for_area(area: Rect, grid_width: u32, grid_height: u32) -> Self {
-        let tile_w = (area.w / ((grid_width + grid_height) as f32 * 0.52)).clamp(28.0, 52.0);
+        let tile_w = (area.w / ((grid_width + grid_height) as f32 * 0.52)).clamp(24.0, 52.0);
         let tile_h = tile_w * 0.5;
         let map_h = (grid_width + grid_height) as f32 * tile_h * 0.5;
         Self {

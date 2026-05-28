@@ -140,8 +140,12 @@ mod tests {
         let mut state = GameState::new();
 
         assert_eq!(
-            PlanningSystem::invalid_reason(&state, BuildingType::MessHall, Position::new(19, 19))
-                .as_deref(),
+            PlanningSystem::invalid_reason(
+                &state,
+                BuildingType::MessHall,
+                Position::new(state.grid.width as i32 - 1, state.grid.height as i32 - 1)
+            )
+            .as_deref(),
             Some("Footprint leaves the map.")
         );
 
