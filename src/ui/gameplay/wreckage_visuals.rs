@@ -1,5 +1,7 @@
 use super::*;
 
+mod foundation;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct CrashSmokeVent {
     pub(crate) cell: Position,
@@ -37,10 +39,12 @@ const SMOKE_VENTS: [CrashSmokeVent; 5] = [
 
 pub(crate) fn draw_crash_site_context(iso: IsoView, tick: u64) {
     draw_crash_scar(iso);
+    foundation::draw_ship_underlay(iso);
     draw_hull_section(iso, Position::new(2, 2), 12.0, 6.0, HullMood::Main);
     draw_hull_section(iso, Position::new(12, 7), 11.0, 7.0, HullMood::Aft);
     draw_hull_section(iso, Position::new(15, 15), 8.0, 4.0, HullMood::Buried);
     draw_broken_spine(iso);
+    foundation::draw_ship_landmarks(iso, tick);
     draw_survival_camp(iso);
     draw_scattered_salvage(iso);
     draw_exposed_wiring(iso, tick);
