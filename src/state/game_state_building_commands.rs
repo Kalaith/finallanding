@@ -118,9 +118,7 @@ impl GameplayState {
                         ),
                     );
                 }
-                PlacementResult::OutOfBounds
-                | PlacementResult::AreaOccupied
-                | PlacementResult::InvalidBuilding => {
+                PlacementResult::OutOfBounds | PlacementResult::AreaOccupied => {
                     self.data.push_log(
                         LogCategory::System,
                         format!("Cannot place {}", building_type.name()),

@@ -5,6 +5,5 @@ pub(crate) fn placement_result_reason(result: &PlacementResult) -> &'static str 
         PlacementResult::Success(_) => "Placement succeeded.",
         PlacementResult::OutOfBounds => "Footprint leaves the map.",
         PlacementResult::AreaOccupied => "Footprint overlaps blocked or occupied space.",
-        PlacementResult::InvalidBuilding => "Building configuration is invalid.",
     }
 }

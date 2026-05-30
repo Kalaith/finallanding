@@ -35,7 +35,6 @@ impl Game {
                     StateTransition::ToGameplay(new_state) => {
                         self.state = GameStateEnum::Gameplay(new_state);
                     }
-                    StateTransition::Quit => std::process::exit(0),
                     _ => {}
                 }
             }
@@ -45,7 +44,6 @@ impl Game {
                     StateTransition::ToGameplay(new_state) => {
                         self.state = GameStateEnum::Gameplay(new_state);
                     }
-                    StateTransition::Quit => std::process::exit(0),
                     _ => {}
                 }
             }

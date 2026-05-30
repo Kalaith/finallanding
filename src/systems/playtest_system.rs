@@ -99,7 +99,13 @@ impl PlaytestSystem {
     pub fn capture_report_set() -> Vec<PlaytestReport> {
         PlaytestStrategyKind::report_set()
             .iter()
-            .map(|kind| Self::run_strategy_playthrough(*kind))
+            .map(|kind| {
+                if *kind == PlaytestStrategyKind::Reference {
+                    Self::run_reference_playthrough()
+                } else {
+                    Self::run_strategy_playthrough(*kind)
+                }
+            })
             .collect()
     }
 
@@ -108,26 +114,29 @@ impl PlaytestSystem {
         output.push_str(
             "Headless strategy runs from the live simulation. Minutes are estimated at normal speed.\n\n",
         );
-        output.push_str("| Strategy | Band | Outcome | Condition | Minutes | Mood | Supplies | Tech | Missions | Buildings | Incidents |\n");
+        output.push_str("| Strategy | Band | Outcome | Condition | Start | Minutes | Mood | Supplies | Salvage | Tech | Missions | Buildings | Incidents | Proves |\n");
         output.push_str(
-            "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n",
+            "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n",
         );
 
         for report in reports {
             output.push_str(&format!(
-                "| {} | {} | {:?} | {:?} | {:.1} | {:.0} | {} | {}/{} | {} | {} | {} |\n",
+                "| {} | {} | {:?} | {:?} | {} | {:.1} | {:.0} | {} | {} | {}/{} | {} | {} | {} | {} |\n",
                 report.strategy.label(),
                 report.outcome_band().label(),
                 report.outcome,
                 report.condition,
+                report.start_tick,
                 report.estimated_normal_minutes,
                 report.average_mood,
                 report.supplies,
+                report.salvage,
                 report.technologies_unlocked,
                 report.required_technologies,
                 report.missions_completed,
                 report.buildings_placed,
-                report.incidents_triggered
+                report.incidents_triggered,
+                if report.proves_reference_run() { "yes" } else { "no" }
             ));
         }
 
@@ -356,9 +365,7 @@ impl PlaytestSystem {
                 PlacementResult::Success(_) => {
                     state.resources.spend_salvage(building_type.salvage_cost());
                 }
-                PlacementResult::OutOfBounds
-                | PlacementResult::AreaOccupied
-                | PlacementResult::InvalidBuilding => return,
+                PlacementResult::OutOfBounds | PlacementResult::AreaOccupied => return,
             }
         }
     }

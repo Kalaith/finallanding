@@ -21,10 +21,6 @@ impl ResourceSystem {
         .max(0)
     }
 
-    pub fn base_daily_supply_need(state: &GameState) -> i32 {
-        state.colonists.len() as i32
-    }
-
     pub fn storage_capacity(state: &GameState) -> i32 {
         let storage_count = Self::building_count(state, BuildingType::Storage) as i32;
 

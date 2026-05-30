@@ -1,4 +1,3 @@
-use macroquad::prelude::*;
 use macroquad_toolkit::pathfinding::{find_path_with, Heuristic, Pos};
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +6,8 @@ use super::types::Position;
 // Grid configuration constants
 pub const GRID_WIDTH: usize = 26;
 pub const GRID_HEIGHT: usize = 24;
-pub const CELL_SIZE: f32 = 32.0;
+#[cfg(test)]
+const CELL_SIZE: f32 = 32.0;
 
 /// Represents the type of terrain in a cell.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -101,6 +101,7 @@ impl Grid {
     }
 
     /// Sets the cell type at the given grid coordinates.
+    #[cfg(test)]
     pub fn set_cell_type(&mut self, x: i32, y: i32, cell_type: CellType) {
         if let Some(cell) = self.get_cell_mut(x, y) {
             cell.cell_type = cell_type;
@@ -110,6 +111,7 @@ impl Grid {
     // ----- Coordinate Conversion -----
 
     /// Converts world (pixel) coordinates to grid coordinates.
+    #[cfg(test)]
     pub fn world_to_grid(world_x: f32, world_y: f32) -> Position {
         Position::new(
             (world_x / CELL_SIZE).floor() as i32,
@@ -118,66 +120,9 @@ impl Grid {
     }
 
     /// Converts grid coordinates to world (pixel) coordinates (top-left of cell).
+    #[cfg(test)]
     pub fn grid_to_world(grid_x: i32, grid_y: i32) -> (f32, f32) {
         (grid_x as f32 * CELL_SIZE, grid_y as f32 * CELL_SIZE)
-    }
-
-    /// Converts grid coordinates to world (pixel) coordinates (center of cell).
-    pub fn grid_to_world_center(grid_x: i32, grid_y: i32) -> (f32, f32) {
-        (
-            grid_x as f32 * CELL_SIZE + CELL_SIZE / 2.0,
-            grid_y as f32 * CELL_SIZE + CELL_SIZE / 2.0,
-        )
-    }
-
-    // ----- Spatial Utilities -----
-
-    /// Returns the 4 cardinal neighbors of a cell.
-    pub fn get_neighbors(&self, x: i32, y: i32) -> Vec<Position> {
-        let deltas = [(0, -1), (0, 1), (-1, 0), (1, 0)];
-        deltas
-            .iter()
-            .filter_map(|(dx, dy)| {
-                let nx = x + dx;
-                let ny = y + dy;
-                if self.is_in_bounds(nx, ny) {
-                    Some(Position::new(nx, ny))
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
-    /// Returns the 8 neighbors (including diagonals) of a cell.
-    pub fn get_neighbors_8(&self, x: i32, y: i32) -> Vec<Position> {
-        let deltas = [
-            (0, -1),
-            (0, 1),
-            (-1, 0),
-            (1, 0),
-            (-1, -1),
-            (1, -1),
-            (-1, 1),
-            (1, 1),
-        ];
-        deltas
-            .iter()
-            .filter_map(|(dx, dy)| {
-                let nx = x + dx;
-                let ny = y + dy;
-                if self.is_in_bounds(nx, ny) {
-                    Some(Position::new(nx, ny))
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
-    /// Calculates the Manhattan distance between two positions.
-    pub fn manhattan_distance(a: &Position, b: &Position) -> i32 {
-        (a.x - b.x).abs() + (a.y - b.y).abs()
     }
 
     // ----- A* Pathfinding -----
@@ -251,65 +196,6 @@ impl Grid {
         for cell in self.cells.iter_mut() {
             if cell.building_id == Some(building_id) {
                 cell.building_id = None;
-            }
-        }
-    }
-
-    /// Get the building ID at a position (if any)
-    pub fn get_building_at(&self, pos: Position) -> Option<u32> {
-        self.get_cell(pos.x, pos.y)
-            .and_then(|cell| cell.building_id)
-    }
-
-    // ----- Drawing -----
-
-    /// Draws the grid with an optional highlighted cell.
-    pub fn draw(&self, hovered_cell: Option<Position>) {
-        // Draw cells
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let (wx, wy) = Self::grid_to_world(x as i32, y as i32);
-                let cell = &self.cells[y * self.width + x];
-
-                let color = match cell.cell_type {
-                    CellType::Empty => Color::new(0.1, 0.1, 0.12, 1.0),
-                    CellType::Floor => Color::new(0.3, 0.35, 0.4, 1.0),
-                    CellType::Wall => Color::new(0.15, 0.15, 0.2, 1.0),
-                };
-                draw_rectangle(wx, wy, CELL_SIZE, CELL_SIZE, color);
-            }
-        }
-
-        // Draw grid lines
-        let grid_line_color = Color::new(0.25, 0.25, 0.3, 0.5);
-        for y in 0..=self.height {
-            let wy = y as f32 * CELL_SIZE;
-            draw_line(
-                0.0,
-                wy,
-                self.width as f32 * CELL_SIZE,
-                wy,
-                1.0,
-                grid_line_color,
-            );
-        }
-        for x in 0..=self.width {
-            let wx = x as f32 * CELL_SIZE;
-            draw_line(
-                wx,
-                0.0,
-                wx,
-                self.height as f32 * CELL_SIZE,
-                1.0,
-                grid_line_color,
-            );
-        }
-
-        // Highlight hovered cell
-        if let Some(pos) = hovered_cell {
-            if self.is_in_bounds(pos.x, pos.y) {
-                let (wx, wy) = Self::grid_to_world(pos.x, pos.y);
-                draw_rectangle_lines(wx, wy, CELL_SIZE, CELL_SIZE, 2.0, YELLOW);
             }
         }
     }

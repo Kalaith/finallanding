@@ -316,10 +316,7 @@ fn draw_colonist_list(
         );
     }
 
-    let footer = format!(
-        "Mood {:.0} | close {} | tense {}",
-        summary.average_mood, summary.close_pairs, summary.strained_pairs
-    );
+    let footer = social_footer(summary);
     draw_text(
         &style::truncate_text(&footer, 33),
         rect.x + 16.0,
@@ -352,6 +349,27 @@ fn strongest_relationship_value(colonist: &Colonist) -> Option<i32> {
 
 fn relationship_color(value: i32) -> Color {
     style::relationship_color(value)
+}
+
+fn social_footer(summary: &ColonyPressureSummary) -> String {
+    if let Some(pair) = summary.tense_pairs.first() {
+        return format!(
+            "Mood {:.0} | tense {} / {} {:+}",
+            summary.average_mood, pair.first_name, pair.second_name, pair.value
+        );
+    }
+
+    if let Some(pair) = summary.connected_pairs.first() {
+        return format!(
+            "Mood {:.0} | close {} / {} {:+}",
+            summary.average_mood, pair.first_name, pair.second_name, pair.value
+        );
+    }
+
+    format!(
+        "Mood {:.0} | close {} | tense {}",
+        summary.average_mood, summary.close_pairs, summary.strained_pairs
+    )
 }
 
 #[cfg(test)]
@@ -395,5 +413,26 @@ mod tests {
 
         assert_eq!(strongest_relationship_value(&colonist), Some(-31));
         assert_eq!(relationship_color(-31), style::ALERT_RED);
+    }
+
+    #[test]
+    fn test_social_footer_surfaces_specific_pair_pressure() {
+        let summary = ColonyPressureSummary {
+            average_mood: 42.0,
+            average_relationship: -4.0,
+            close_pairs: 0,
+            strained_pairs: 1,
+            connected_pairs: vec![],
+            tense_pairs: vec![crate::systems::summary_system::RelationshipPairSummary {
+                first_name: "Alice".to_string(),
+                second_name: "Bob".to_string(),
+                value: -30,
+                label: "Tense",
+            }],
+            strongest_pair: None,
+            weakest_pair: None,
+        };
+
+        assert!(social_footer(&summary).contains("Alice / Bob -30"));
     }
 }

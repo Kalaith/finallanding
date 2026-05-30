@@ -15,8 +15,6 @@ pub enum PlacementResult {
     OutOfBounds,
     /// Area overlaps with existing building or unwalkable terrain
     AreaOccupied,
-    /// Invalid building type or configuration
-    InvalidBuilding,
 }
 
 /// Manages building placement, storage, and undo operations
@@ -81,24 +79,6 @@ impl BuildingSystem {
         PlacementResult::Success(building_id)
     }
 
-    /// Remove a building by ID
-    pub fn remove_building(&mut self, grid: &mut Grid, building_id: u32) -> bool {
-        if let Some(idx) = self.buildings.iter().position(|b| b.id == building_id) {
-            // Clear grid cells
-            grid.clear_building(building_id);
-
-            // Remove from buildings list
-            self.buildings.remove(idx);
-
-            // Remove from undo stack if present
-            self.undo_stack.retain(|&id| id != building_id);
-
-            true
-        } else {
-            false
-        }
-    }
-
     /// Undo the last placement
     pub fn undo_last_placement(&mut self, grid: &mut Grid) -> Option<u32> {
         if let Some(building_id) = self.undo_stack.pop() {
@@ -147,6 +127,7 @@ impl BuildingSystem {
     }
 
     /// Check if a placement would be valid (for preview)
+    #[cfg(test)]
     pub fn can_place_building(
         &self,
         grid: &Grid,

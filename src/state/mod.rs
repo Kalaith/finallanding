@@ -6,7 +6,6 @@ use crate::state::game_state::GameplayState;
 pub enum StateTransition {
     None,
     ToGameplay(GameplayState),
-    Quit,
 }
 
 pub trait State {

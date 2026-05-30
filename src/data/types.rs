@@ -11,11 +11,3 @@ impl Position {
         Self { x, y }
     }
 }
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Direction {
-    North,
-    South,
-    East,
-    West,
-}

@@ -42,11 +42,6 @@ impl ScenarioSystem {
         }
     }
 
-    pub fn days_remaining(state: &GameState) -> u32 {
-        let (day, _, _) = TimeSystem::get_time_of_day(state.tick);
-        state.scenario.target_day.saturating_sub(day)
-    }
-
     pub fn meets_victory_requirements(state: &GameState) -> bool {
         state.resources.condition == ColonyCondition::Stable
             && state.resources.supplies >= ResourceSystem::daily_supply_need(state).max(1)
@@ -68,6 +63,7 @@ impl ScenarioSystem {
         )
     }
 
+    #[cfg(test)]
     pub fn estimated_real_minutes_to_target(state: &GameState, seconds_per_tick: f32) -> f32 {
         let target_tick =
             state.scenario.target_day.saturating_sub(1) as u64 * TimeSystem::TICKS_PER_DAY;

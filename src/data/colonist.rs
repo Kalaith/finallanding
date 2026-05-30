@@ -85,13 +85,6 @@ impl ActivityLocation {
             _ => None,
         }
     }
-
-    pub fn building_type(&self) -> Option<BuildingType> {
-        match self {
-            ActivityLocation::Building { building_type, .. } => Some(*building_type),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

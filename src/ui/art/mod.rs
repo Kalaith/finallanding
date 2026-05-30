@@ -83,10 +83,6 @@ impl PlaceholderArt {
         }
     }
 
-    pub fn colonist_sprite(&self, colonist_id: u32) -> Option<&Texture2D> {
-        self.colonist_sprite_for_pose(colonist_id, SpritePose::Idle)
-    }
-
     pub fn colonist_sprite_for_pose(
         &self,
         colonist_id: u32,
