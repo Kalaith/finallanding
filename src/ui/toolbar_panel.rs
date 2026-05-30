@@ -51,6 +51,7 @@ pub struct ToolbarResearchData<'a> {
     pub mission_plans: &'a [MissionPlan],
     pub technology: &'a TechnologyState,
     pub active_mission_count: usize,
+    pub required_unlocks: usize,
 }
 
 pub struct ToolbarAssignData<'a> {
@@ -97,6 +98,7 @@ pub fn draw_toolbar_context_panel(layout: &Layout, panel: ToolbarPanelData<'_>) 
             panel.research.mission_plans,
             panel.research.technology,
             panel.research.active_mission_count,
+            panel.research.required_unlocks,
         ),
         ToolbarMode::Assign => draw_assign_context(
             context,
@@ -236,6 +238,7 @@ fn draw_research_context(
     mission_plans: &[MissionPlan],
     technology: &TechnologyState,
     active_mission_count: usize,
+    required_unlocks: usize,
 ) {
     let mut hovered_plan = None;
     for (index, plan) in mission_plans.iter().enumerate() {
@@ -264,14 +267,47 @@ fn draw_research_context(
         );
     }
 
+    for (slot, tech_id) in technology.visible_research_targets(2).iter().enumerate() {
+        let rect = toolbar_context_item_rect(context, slot + 3);
+        let hovered = style::button_hovered(rect);
+        style::draw_button(rect, false, hovered);
+        draw_text(
+            &style::truncate_text(tech_id.name(), 15),
+            rect.x + 10.0,
+            rect.y + 18.0,
+            style::SMALL_SIZE,
+            style::TEXT_PRIMARY,
+        );
+        draw_text(
+            &style::truncate_text(&technology.requirement_progress_text(*tech_id), 19),
+            rect.x + 10.0,
+            rect.y + 34.0,
+            style::TINY_SIZE,
+            style::TEXT_BODY,
+        );
+        if hovered {
+            draw_tooltip_near_mouse(
+                toolbar_tooltip_bounds(context),
+                tech_id.name(),
+                &format!(
+                    "{} {}",
+                    tech_id.effect_text(),
+                    technology.requirement_progress_text(*tech_id)
+                ),
+            );
+        }
+    }
+
     let tech_label = technology
-        .next_locked_tech()
+        .next_research_target()
         .map(|tech| tech.name())
         .unwrap_or("All field tech unlocked");
     draw_text(
         &format!(
-            "Away {} | Tech {}/{} | Next: {}",
+            "Away {} | Goal tech {}/{} | Tree {}/{} | Next: {}",
             active_mission_count,
+            technology.unlocked_count(),
+            required_unlocks,
             technology.unlocked_count(),
             TechId::all().len(),
             tech_label

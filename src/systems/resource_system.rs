@@ -175,6 +175,7 @@ impl ResourceSystem {
 mod tests {
     use super::*;
     use crate::data::colonist::{Colonist, JobPreference, Trait};
+    use crate::data::mission::MissionItem;
     use crate::data::types::Position;
 
     #[test]
@@ -221,6 +222,26 @@ mod tests {
         ));
 
         assert_eq!(ResourceSystem::daily_supply_need(&state), 0);
+    }
+
+    #[test]
+    fn test_nutrient_culture_reduces_daily_need_further() {
+        let mut state = GameState::new();
+        state.technology.add_item(MissionItem::NutrientPods);
+        state.technology.add_item(MissionItem::NutrientPods);
+        state.technology.add_item(MissionItem::MedicinalGel);
+        for id in 0..4 {
+            state.colonists.push(Colonist::new(
+                id,
+                format!("Colonist {}", id),
+                Position::new(id as i32, 0),
+                Trait::HardWorker,
+                JobPreference::Builder,
+            ));
+        }
+
+        assert_eq!(state.technology.daily_supply_reduction(), 2);
+        assert_eq!(ResourceSystem::daily_supply_need(&state), 10);
     }
 
     #[test]

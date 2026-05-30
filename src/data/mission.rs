@@ -21,6 +21,16 @@ impl MissionItem {
         }
     }
 
+    pub fn short_name(&self) -> &'static str {
+        match self {
+            MissionItem::StructuralAlloy => "Alloy",
+            MissionItem::AlienCircuit => "Circuit",
+            MissionItem::MedicinalGel => "Gel",
+            MissionItem::NutrientPods => "Pods",
+            MissionItem::SalvageCache => "Cache",
+        }
+    }
+
     pub fn contributes_to_technology(&self) -> bool {
         !matches!(self, MissionItem::SalvageCache)
     }

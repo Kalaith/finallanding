@@ -104,7 +104,7 @@ pub fn draw_debug_overlay(
             technology.unlocked_count(),
             TechId::all().len(),
             technology
-                .next_locked_tech()
+                .next_research_target()
                 .map(|tech| tech.name())
                 .unwrap_or("Complete")
         ),

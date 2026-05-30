@@ -44,6 +44,9 @@ impl MissionLaunch {
         state.missions.next_id += 1;
         let danger_percent = MissionPlanning::mission_danger_percent(state, mission_type);
         let completes_at_tick = state.tick + definition.duration_minutes;
+        let cooldown_minutes = definition
+            .cooldown_minutes
+            .saturating_sub(state.technology.mission_cooldown_reduction());
         let priority = state.priority.active;
 
         let colonist_name = state.colonists[colonist_index].name.clone();
@@ -62,7 +65,7 @@ impl MissionLaunch {
             danger_percent,
             priority,
         });
-        state.missions.next_launch_tick = state.tick + definition.cooldown_minutes;
+        state.missions.next_launch_tick = state.tick + cooldown_minutes;
 
         state.push_log(
             LogCategory::Mission,
@@ -73,7 +76,7 @@ impl MissionLaunch {
                 definition.duration_minutes,
                 danger_percent,
                 priority.label(),
-                definition.cooldown_minutes
+                cooldown_minutes
             ),
         );
 
@@ -102,6 +105,7 @@ mod tests {
     use super::super::MissionSystem;
     use super::*;
     use crate::data::colonist::{Colonist, Trait};
+    use crate::data::mission::MissionItem;
     use crate::data::types::Position;
 
     fn add_gate(state: &mut GameState) {
@@ -189,6 +193,29 @@ mod tests {
             Err(LaunchMissionError::MissionCooldown {
                 remaining_ticks: MissionType::SupplyRun.definition().cooldown_minutes
             })
+        );
+    }
+
+    #[test]
+    fn test_drone_survey_reduces_mission_cooldown() {
+        let mut state = GameState::new();
+        add_gate(&mut state);
+        state.technology.add_item(MissionItem::AlienCircuit);
+        state.technology.add_item(MissionItem::AlienCircuit);
+        state.technology.add_item(MissionItem::StructuralAlloy);
+        state.colonists.push(Colonist::new(
+            1,
+            "Scout".to_string(),
+            Position::new(3, 3),
+            Trait::FastWalker,
+            JobPreference::Explorer,
+        ));
+
+        MissionSystem::launch_mission(&mut state, MissionType::PerimeterScan).unwrap();
+
+        assert_eq!(
+            state.missions.cooldown_remaining(state.tick),
+            MissionType::PerimeterScan.definition().cooldown_minutes - 10
         );
     }
 }

@@ -121,7 +121,7 @@ impl WorkSystem {
             return;
         }
 
-        let salvage = completed as i32;
+        let salvage = completed as i32 * (1 + state.technology.salvage_recovery_bonus());
         state.resources.add_salvage(salvage);
         state.push_log(
             LogCategory::Resource,
@@ -168,7 +168,7 @@ impl WorkSystem {
             return;
         }
 
-        let salvage = completed as i32;
+        let salvage = completed as i32 * (1 + state.technology.salvage_recovery_bonus());
         state.resources.add_salvage(salvage);
         state.push_log(
             LogCategory::Resource,
@@ -185,6 +185,7 @@ impl WorkSystem {
 mod tests {
     use super::*;
     use crate::data::colonist::{ActivityLocation, Colonist, JobPreference};
+    use crate::data::mission::MissionItem;
     use crate::data::priority::ColonyPriority;
     use crate::data::resources::ResourceState;
     use crate::data::types::Position;
@@ -288,5 +289,41 @@ mod tests {
         WorkSystem::process_hourly_work(&mut state);
 
         assert_eq!(state.resources.exploration_progress, 5);
+    }
+
+    #[test]
+    fn test_fabrication_jigs_improve_salvage_recovery() {
+        let mut state = GameState::new();
+        for item in [
+            MissionItem::StructuralAlloy,
+            MissionItem::StructuralAlloy,
+            MissionItem::StructuralAlloy,
+            MissionItem::AlienCircuit,
+            MissionItem::AlienCircuit,
+        ] {
+            state.technology.add_item(item);
+        }
+        assert_eq!(state.technology.salvage_recovery_bonus(), 1);
+
+        let mut colonist = Colonist::new(
+            1,
+            "Builder".to_string(),
+            Position::new(0, 0),
+            Trait::HardWorker,
+            JobPreference::Builder,
+        );
+        colonist.state = ColonistState::Working;
+        colonist.activity_location = ActivityLocation::Building {
+            building_id: 1,
+            building_type: BuildingType::Workshop,
+        };
+        colonist.mood = 70.0;
+        state.colonists.push(colonist);
+
+        let salvage_before = state.resources.salvage;
+        WorkSystem::process_hourly_work(&mut state);
+        WorkSystem::process_hourly_work(&mut state);
+
+        assert_eq!(state.resources.salvage - salvage_before, 2);
     }
 }

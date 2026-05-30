@@ -117,6 +117,7 @@ impl State for GameplayState {
                     mission_plans: &mission_plans,
                     technology: &self.data.technology,
                     active_mission_count: self.data.missions.active_count(),
+                    required_unlocks: self.data.scenario.required_tech_unlocks,
                 },
                 assign: ToolbarAssignData {
                     colonists: &self.data.colonists,
