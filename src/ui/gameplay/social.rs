@@ -1,4 +1,5 @@
 use super::*;
+use macroquad_toolkit::ui::{draw_ui_text, measure_ui_text};
 
 impl GameplayState {
     pub(crate) fn draw_social_links(&self, hovered_colonist_id: Option<u32>) {
@@ -52,7 +53,7 @@ impl GameplayState {
                 if focused_pair || (shared_location && value.abs() >= 20) {
                     let mid = (first_anchor + second_anchor) * 0.5;
                     let label = format!("{:+}", value);
-                    let width = measure_text(&label, None, 10, 1.0).width;
+                    let width = measure_ui_text(&label, None, 10, 1.0).width;
                     draw_rectangle(
                         mid.x - width * 0.5 - 4.0,
                         mid.y - 11.0,
@@ -60,7 +61,7 @@ impl GameplayState {
                         14.0,
                         Color::new(0.03, 0.04, 0.04, 0.78),
                     );
-                    draw_text(
+                    draw_ui_text(
                         &label,
                         mid.x - width * 0.5,
                         mid.y,

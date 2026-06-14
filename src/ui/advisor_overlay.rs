@@ -1,9 +1,9 @@
 use super::Layout;
 use crate::systems::advisor_system::{AdvisorPlan, AdvisorSeverity};
 use crate::systems::objective_system::{ObjectiveCard, ObjectiveStatus};
-use crate::ui::font::draw_text;
 use crate::ui::style;
 use macroquad::prelude::*;
+use macroquad_toolkit::ui::draw_ui_text;
 
 pub fn draw_advisor_overlay(layout: &Layout, objectives: &[ObjectiveCard], plan: &AdvisorPlan) {
     let rail = layout.left_panel();
@@ -36,14 +36,14 @@ pub fn draw_advisor_overlay(layout: &Layout, objectives: &[ObjectiveCard], plan:
             10.0,
             severity_color(line.severity),
         );
-        draw_text(
+        draw_ui_text(
             &style::truncate_text(&line.title, 25),
             row.x + 34.0,
             row.y + 16.0,
             style::SMALL_SIZE,
             style::TEXT_PRIMARY,
         );
-        draw_text(
+        draw_ui_text(
             &style::truncate_text(&line.detail, 35),
             row.x + 34.0,
             row.y + 31.0,
@@ -81,14 +81,14 @@ fn draw_objective_card(x: f32, y: f32, width: f32, objective: &ObjectiveCard) {
         );
     }
 
-    draw_text(
+    draw_ui_text(
         &style::truncate_text(&objective.title, 23),
         x + 28.0,
         y + 11.0,
         style::TINY_SIZE,
         style::TEXT_PRIMARY,
     );
-    draw_text(
+    draw_ui_text(
         &style::truncate_text(&objective.detail, 29),
         x + 28.0,
         y + 22.0,

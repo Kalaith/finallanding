@@ -1,4 +1,5 @@
 use super::*;
+use macroquad_toolkit::ui::draw_ui_text;
 
 pub(super) fn draw_log_context(
     context: Rect,
@@ -14,14 +15,14 @@ pub(super) fn draw_log_context(
     let mut hovered_history = None;
     draw_log_search_control(context, social_history_query, social_history_search_active);
     let social_brief = social_brief_lines(summary);
-    draw_text(
+    draw_ui_text(
         &social_brief.header,
         context.x + 18.0,
         context.y + 51.0,
         style::TINY_SIZE,
         social_brief.color,
     );
-    draw_text(
+    draw_ui_text(
         &style::truncate_text(&social_brief.detail, 72),
         context.x + 18.0,
         context.y + 68.0,
@@ -39,7 +40,7 @@ pub(super) fn draw_log_context(
         current_page,
     );
     if !social_history.is_empty() {
-        draw_text(
+        draw_ui_text(
             "SOCIAL TIMELINE",
             context.x + 18.0,
             context.y + 82.0,
@@ -52,7 +53,7 @@ pub(super) fn draw_log_context(
         }
 
         if timeline.is_empty() {
-            draw_text(
+            draw_ui_text(
                 "No matching daily reports in this archive.",
                 context.x + 18.0,
                 context.y + 102.0,
@@ -86,21 +87,21 @@ pub(super) fn draw_log_context(
                 draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, style::ACCENT_GOLD);
             }
             draw_rectangle(rect.x, rect.y, 3.0, rect.h, row.color);
-            draw_text(
+            draw_ui_text(
                 &format!("D{}", row.day),
                 rect.x + 9.0,
                 y,
                 style::TINY_SIZE,
                 row.color,
             );
-            draw_text(
+            draw_ui_text(
                 &style::truncate_text(&row.title, 34),
                 rect.x + 39.0,
                 y,
                 style::TINY_SIZE,
                 style::TEXT_BODY,
             );
-            draw_text(
+            draw_ui_text(
                 &row.metrics,
                 rect.x + rect.w - 104.0,
                 y,
@@ -134,14 +135,14 @@ pub(super) fn draw_log_context(
                 Color::new(0.1, 0.14, 0.15, 0.65),
             );
         }
-        draw_text(
+        draw_ui_text(
             category_prefix(log.category),
             context.x + 18.0,
             y,
             style::TINY_SIZE,
             style::HEADING_BLUE,
         );
-        draw_text(
+        draw_ui_text(
             &style::truncate_text(
                 &format!("{:02}:{:02} {}", log.hour, log.minute, log.title),
                 64,
@@ -179,7 +180,7 @@ pub(super) fn draw_log_search_control(context: Rect, query: &str, active: bool) 
         label.push('|');
     }
 
-    draw_text(
+    draw_ui_text(
         &label,
         search.x + 7.0,
         search.y + 12.0,
@@ -190,7 +191,7 @@ pub(super) fn draw_log_search_control(context: Rect, query: &str, active: bool) 
             style::TEXT_PRIMARY
         },
     );
-    draw_text(
+    draw_ui_text(
         "CLR",
         clear.x + 8.0,
         clear.y + 12.0,
@@ -201,7 +202,7 @@ pub(super) fn draw_log_search_control(context: Rect, query: &str, active: bool) 
             style::TEXT_PRIMARY
         },
     );
-    draw_text(
+    draw_ui_text(
         "EXP",
         export.x + 9.0,
         export.y + 12.0,
@@ -219,7 +220,7 @@ pub(super) fn draw_social_report_drilldown(context: Rect, entry: &SocialHistoryE
     );
     style::draw_deep_panel(rect);
     draw_rectangle(rect.x, rect.y, 4.0, rect.h, social_history_color(entry));
-    draw_text(
+    draw_ui_text(
         &format!(
             "DAY {}: {}",
             entry.day,
@@ -230,14 +231,14 @@ pub(super) fn draw_social_report_drilldown(context: Rect, entry: &SocialHistoryE
         style::TINY_SIZE,
         style::TEXT_PRIMARY,
     );
-    draw_text(
+    draw_ui_text(
         &style::truncate_text(&entry.detail, 58),
         rect.x + 12.0,
         rect.y + 37.0,
         style::TINY_SIZE,
         style::TEXT_BODY,
     );
-    draw_text(
+    draw_ui_text(
         &style::truncate_text(&entry.recommendation, 58),
         rect.x + 12.0,
         rect.y + 55.0,
@@ -251,7 +252,7 @@ pub(super) fn draw_log_filter_controls(context: Rect, active_filter: LogFilter) 
         let rect = log_filter_rect(context, index);
         let active = *filter == active_filter;
         style::draw_button(rect, active, style::button_hovered(rect));
-        draw_text(
+        draw_ui_text(
             filter.label(),
             rect.x + 6.0,
             rect.y + 12.0,
@@ -277,7 +278,7 @@ pub(super) fn draw_log_page_controls(context: Rect, current_page: usize, page_co
         can_go_previous && style::button_hovered(previous),
     );
     style::draw_button(next, false, can_go_next && style::button_hovered(next));
-    draw_text(
+    draw_ui_text(
         "<",
         previous.x + 10.0,
         previous.y + 12.0,
@@ -288,7 +289,7 @@ pub(super) fn draw_log_page_controls(context: Rect, current_page: usize, page_co
             style::TEXT_MUTED
         },
     );
-    draw_text(
+    draw_ui_text(
         ">",
         next.x + 10.0,
         next.y + 12.0,
@@ -299,7 +300,7 @@ pub(super) fn draw_log_page_controls(context: Rect, current_page: usize, page_co
             style::TEXT_MUTED
         },
     );
-    draw_text(
+    draw_ui_text(
         &format!("{}/{}", current_page + 1, page_count),
         context.x + context.w - 63.0,
         context.y + 84.0,

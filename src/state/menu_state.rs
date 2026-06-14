@@ -1,9 +1,9 @@
 use crate::state::game_state::GameplayState;
 use crate::state::{State, StateTransition};
-use crate::ui::font::{draw_text, measure_text};
 use crate::ui::{menu_start_rect, style};
 use macroquad::prelude::*;
 use macroquad_toolkit::input::InputState;
+use macroquad_toolkit::ui::{draw_ui_text, measure_ui_text};
 
 pub struct MenuState {
     // Menu specific data could go here (e.g. animation timers)
@@ -28,8 +28,8 @@ impl State for MenuState {
 
         // Title
         let title = "The Final Landing";
-        let title_dim = measure_text(title, None, 50, 1.0);
-        draw_text(
+        let title_dim = measure_ui_text(title, None, 50, 1.0);
+        draw_ui_text(
             title,
             screen_center_x - title_dim.width / 2.0,
             screen_center_y - 100.0,
@@ -63,8 +63,8 @@ impl MenuState {
 
         // Title
         let title = "The Final Landing";
-        let title_dim = measure_text(title, None, 50, 1.0);
-        draw_text(
+        let title_dim = measure_ui_text(title, None, 50, 1.0);
+        draw_ui_text(
             title,
             screen_center_x - title_dim.width / 2.0,
             screen_center_y - 170.0,
@@ -78,8 +78,8 @@ impl MenuState {
             "Priorities shape work pressure, recovery, missions, and relationships.",
         ];
         for (index, line) in premise.iter().enumerate() {
-            let dim = measure_text(line, None, 20, 1.0);
-            draw_text(
+            let dim = measure_ui_text(line, None, 20, 1.0);
+            draw_ui_text(
                 line,
                 screen_center_x - dim.width / 2.0,
                 screen_center_y - 112.0 + index as f32 * 28.0,
@@ -93,8 +93,8 @@ impl MenuState {
         style::draw_button(btn_rect, false, style::button_hovered(btn_rect));
 
         let btn_text = "Start Game";
-        let btn_dim = measure_text(btn_text, None, 30, 1.0);
-        draw_text(
+        let btn_dim = measure_ui_text(btn_text, None, 30, 1.0);
+        draw_ui_text(
             btn_text,
             btn_rect.x + (btn_rect.w - btn_dim.width) / 2.0,
             btn_rect.y + 35.0,
@@ -109,8 +109,8 @@ impl MenuState {
             "1 2 3 set priority | Space pause | M launch recommended mission",
         ];
         for (index, line) in controls.iter().enumerate() {
-            let dim = measure_text(line, None, 16, 1.0);
-            draw_text(
+            let dim = measure_ui_text(line, None, 16, 1.0);
+            draw_ui_text(
                 line,
                 screen_center_x - dim.width / 2.0,
                 screen_center_y + 104.0 + index as f32 * 22.0,

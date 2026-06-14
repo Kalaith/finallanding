@@ -1,4 +1,5 @@
 use super::*;
+use macroquad_toolkit::ui::{draw_ui_text, measure_ui_text};
 
 impl GameplayState {
     pub(crate) fn draw_colonists_with_offset(&self, hovered_colonist_id: Option<u32>) {
@@ -90,7 +91,7 @@ impl GameplayState {
                     let color = social_color(value, 0.95);
                     draw_circle(center_x - 10.0, center_y - 22.0, 5.0, color);
                     draw_circle_lines(center_x - 10.0, center_y - 22.0, 5.0, 1.0, BLACK);
-                    draw_text(
+                    draw_ui_text(
                         if value > 0 { "+" } else { "-" },
                         center_x - 13.0,
                         center_y - 18.0,
@@ -111,7 +112,7 @@ impl GameplayState {
                     2.0,
                     signal_color,
                 );
-                draw_text(
+                draw_ui_text(
                     signal.symbol(),
                     center_x + 8.0,
                     center_y - 25.0,
@@ -136,7 +137,7 @@ impl GameplayState {
                     Color::new(0.0, 0.0, 0.0, 0.62),
                 );
 
-                let name_width = measure_text(&colonist.name, None, 12, 1.0).width;
+                let name_width = measure_ui_text(&colonist.name, None, 12, 1.0).width;
                 draw_rectangle(
                     center_x - name_width * 0.5 - 5.0,
                     y + 28.0,
@@ -144,7 +145,7 @@ impl GameplayState {
                     16.0,
                     Color::new(0.03, 0.04, 0.04, 0.76),
                 );
-                draw_text(
+                draw_ui_text(
                     &colonist.name,
                     center_x - name_width / 2.0,
                     y + 40.0,

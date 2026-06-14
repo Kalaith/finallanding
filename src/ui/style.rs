@@ -1,8 +1,8 @@
 use crate::data::colonist::{MoodBand, RelationshipBand};
 use crate::data::text;
-use crate::ui::font::draw_text;
 use macroquad::prelude::*;
 use macroquad_toolkit::input::is_hovered_rect;
+use macroquad_toolkit::ui::draw_ui_text;
 use macroquad_toolkit::ui::{draw_surface, SurfaceStyle};
 
 pub const PANEL_BG: Color = Color::new(0.075, 0.095, 0.1, 0.9);
@@ -45,7 +45,7 @@ pub fn draw_deep_panel(rect: Rect) {
 }
 
 pub fn draw_section_title(text: &str, x: f32, y: f32) {
-    draw_text(text, x, y, SECTION_SIZE, HEADING_BLUE);
+    draw_ui_text(text, x, y, SECTION_SIZE, HEADING_BLUE);
 }
 
 pub fn button_hovered(rect: Rect) -> bool {

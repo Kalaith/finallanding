@@ -1,4 +1,5 @@
 use super::*;
+use macroquad_toolkit::ui::{draw_ui_text, measure_ui_text};
 
 impl GameplayState {
     pub(crate) fn draw_buildings(&self) {
@@ -55,7 +56,7 @@ impl GameplayState {
                 building.position.y + height as i32 / 2,
             ));
             if let Some((assignment_label, assignment_color)) = assignment_marker {
-                let marker_width = measure_text(assignment_label, None, 10, 1.0).width + 10.0;
+                let marker_width = measure_ui_text(assignment_label, None, 10, 1.0).width + 10.0;
                 draw_rectangle(
                     label_pos.x - marker_width * 0.5,
                     label_pos.y - 29.0,
@@ -71,7 +72,7 @@ impl GameplayState {
                     1.0,
                     assignment_color,
                 );
-                draw_text(
+                draw_ui_text(
                     assignment_label,
                     label_pos.x - marker_width * 0.5 + 5.0,
                     label_pos.y - 18.0,
@@ -79,8 +80,8 @@ impl GameplayState {
                     assignment_color,
                 );
             }
-            let label_width = measure_text(name, None, 12, 1.0).width;
-            draw_text(
+            let label_width = measure_ui_text(name, None, 12, 1.0).width;
+            draw_ui_text(
                 name,
                 label_pos.x - label_width * 0.5,
                 label_pos.y - 8.0,

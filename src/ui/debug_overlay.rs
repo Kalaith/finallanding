@@ -6,8 +6,8 @@ use crate::data::resources::ResourceState;
 use crate::data::scenario::ScenarioOutcome;
 use crate::data::technology::{TechId, TechnologyState};
 use crate::data::types::Position;
-use crate::ui::font::draw_text;
 use macroquad::prelude::*;
+use macroquad_toolkit::ui::draw_ui_text;
 
 /// Draw debug overlay with game state information
 pub fn draw_debug_overlay(
@@ -47,11 +47,11 @@ pub fn draw_debug_overlay(
     } else {
         RED
     };
-    draw_text(&format!("FPS: {}", fps), x, y, 16.0, fps_color);
+    draw_ui_text(&format!("FPS: {}", fps), x, y, 16.0, fps_color);
 
     // Tick
-    draw_text(&format!("Tick: {}", tick), x, y + line_height, 16.0, WHITE);
-    draw_text(
+    draw_ui_text(&format!("Tick: {}", tick), x, y + line_height, 16.0, WHITE);
+    draw_ui_text(
         &format!("Priority: {}", priority.label()),
         x + 130.0,
         y + line_height,
@@ -61,7 +61,7 @@ pub fn draw_debug_overlay(
 
     // Hovered cell
     if let Some(pos) = hovered_cell {
-        draw_text(
+        draw_ui_text(
             &format!("Cell: ({}, {})", pos.x, pos.y),
             x,
             y + line_height * 2.0,
@@ -69,18 +69,18 @@ pub fn draw_debug_overlay(
             YELLOW,
         );
     } else {
-        draw_text("Cell: --", x, y + line_height * 2.0, 16.0, GRAY);
+        draw_ui_text("Cell: --", x, y + line_height * 2.0, 16.0, GRAY);
     }
 
     // Building count
-    draw_text(
+    draw_ui_text(
         &format!("Buildings: {}", building_count),
         x,
         y + line_height * 3.0,
         16.0,
         WHITE,
     );
-    draw_text(
+    draw_ui_text(
         &format!(
             "Resources: supplies {}/{} salvage {} meals {} need/day {} status {} | {}",
             resources.supplies,
@@ -96,8 +96,8 @@ pub fn draw_debug_overlay(
         13.0,
         LIGHTGRAY,
     );
-    draw_text(objective, x, y + line_height * 6.4, 12.0, LIGHTGRAY);
-    draw_text(
+    draw_ui_text(objective, x, y + line_height * 6.4, 12.0, LIGHTGRAY);
+    draw_ui_text(
         &format!(
             "Missions away {} | Tech {}/{} | Next {}",
             active_mission_count,
@@ -113,7 +113,7 @@ pub fn draw_debug_overlay(
         12.0,
         GRAY,
     );
-    draw_text(
+    draw_ui_text(
         &format!(
             "Progress: explore {}/8 workshop {}/6 kitchen {}/4 hauling {}/5",
             resources.exploration_progress,
@@ -146,15 +146,15 @@ pub fn draw_debug_overlay(
         }
     }
 
-    draw_text("Colonist States:", x, y + line_height * 7.8, 14.0, WHITE);
-    draw_text(
+    draw_ui_text("Colonist States:", x, y + line_height * 7.8, 14.0, WHITE);
+    draw_ui_text(
         &format!("  Idle: {}  Moving: {}", idle, moving),
         x,
         y + line_height * 8.8,
         14.0,
         LIGHTGRAY,
     );
-    draw_text(
+    draw_ui_text(
         &format!(
             "  Work: {}  Eat: {}  Sleep: {}  Mission: {}",
             working, eating, sleeping, on_mission
@@ -165,7 +165,7 @@ pub fn draw_debug_overlay(
         LIGHTGRAY,
     );
 
-    draw_text("Colonists:", x, y + line_height * 11.3, 14.0, WHITE);
+    draw_ui_text("Colonists:", x, y + line_height * 11.3, 14.0, WHITE);
 
     for (i, colonist) in colonists.iter().take(6).enumerate() {
         let row_y = y + line_height * 12.3 + i as f32 * 30.0;
@@ -174,7 +174,7 @@ pub fn draw_debug_overlay(
             .recovery_minutes_remaining(tick)
             .map(|remaining| format!(" hurt {}m", remaining))
             .unwrap_or_default();
-        draw_text(
+        draw_ui_text(
             &format!(
                 "{} {:?} mood {:.0} @ {}{}",
                 colonist.name, colonist.current_activity, colonist.mood, location, health
@@ -186,7 +186,7 @@ pub fn draw_debug_overlay(
         );
 
         if let Some((other_name, value)) = strongest_relationship(colonist, colonists) {
-            draw_text(
+            draw_ui_text(
                 &format!(
                     "  notable: {} {} ({:+})",
                     other_name,
@@ -201,7 +201,7 @@ pub fn draw_debug_overlay(
         }
     }
 
-    draw_text("[F3] to hide debug", x, y + 405.0, 12.0, GRAY);
+    draw_ui_text("[F3] to hide debug", x, y + 405.0, 12.0, GRAY);
 }
 
 fn activity_location_label(location: &ActivityLocation) -> String {

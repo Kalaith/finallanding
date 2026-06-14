@@ -1,4 +1,5 @@
 use super::*;
+use macroquad_toolkit::ui::draw_ui_text;
 
 impl GameplayState {
     pub(crate) fn draw_ghost_preview(&self) {
@@ -42,7 +43,7 @@ impl GameplayState {
             let outline_color = if can_place { GREEN } else { RED };
             let label_pos = iso.grid_to_screen(pos);
 
-            draw_text(
+            draw_ui_text(
                 &format!(
                     "{} {}x{} | {} salvage",
                     building_type.name(),
@@ -84,7 +85,7 @@ impl GameplayState {
         draw_rectangle(x, y, 4.0, height, status_color);
         draw_rectangle_lines(x, y, width, height, 1.0, Color::new(0.45, 0.5, 0.55, 0.85));
 
-        draw_text(
+        draw_ui_text(
             &format!(
                 "{} | {}x{} | {} salvage",
                 feedback.building_type.name(),
@@ -97,14 +98,14 @@ impl GameplayState {
             14.0,
             WHITE,
         );
-        draw_text(
+        draw_ui_text(
             &format!("Helps: {}", feedback.helps),
             x + 12.0,
             y + 43.0,
             12.0,
             LIGHTGRAY,
         );
-        draw_text(
+        draw_ui_text(
             &truncate_text(feedback.purpose, 48),
             x + 12.0,
             y + 63.0,
@@ -113,14 +114,14 @@ impl GameplayState {
         );
 
         if let Some(reason) = feedback.invalid_reason.as_ref() {
-            draw_text(
+            draw_ui_text(
                 &format!("Blocked: {}", truncate_text(reason, 39)),
                 x + 12.0,
                 y + 88.0,
                 12.0,
                 ORANGE,
             );
-            draw_text(
+            draw_ui_text(
                 "Move the footprint or pick another building.",
                 x + 12.0,
                 y + 108.0,
@@ -128,14 +129,14 @@ impl GameplayState {
                 GRAY,
             );
         } else {
-            draw_text(
+            draw_ui_text(
                 &format!("Impact: {}", truncate_text(feedback.impact, 42)),
                 x + 12.0,
                 y + 88.0,
                 12.0,
                 LIGHTGRAY,
             );
-            draw_text("Click to place this plan.", x + 12.0, y + 108.0, 11.0, GRAY);
+            draw_ui_text("Click to place this plan.", x + 12.0, y + 108.0, 11.0, GRAY);
         }
     }
 }

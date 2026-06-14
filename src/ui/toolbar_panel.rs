@@ -8,7 +8,6 @@ use crate::data::technology::{TechId, TechnologyState};
 use crate::systems::assignment_system::AssignmentSystem;
 use crate::systems::mission_system::MissionPlan;
 use crate::systems::summary_system::ColonyPressureSummary;
-use crate::ui::font::draw_text;
 use crate::ui::hit_zones::{
     assign_batch_rect, assign_filter_rect, assign_page_next_rect, assign_page_previous_rect,
     assign_role_filter_rect, assign_sort_rect, log_filter_rect, log_page_next_rect,
@@ -20,6 +19,7 @@ use crate::ui::hit_zones::{
 use crate::ui::style;
 use crate::ui::tooltip::draw_tooltip_near_mouse;
 use macroquad::prelude::*;
+use macroquad_toolkit::ui::draw_ui_text;
 
 pub const SOCIAL_TIMELINE_PAGE_SIZE: usize = 3;
 
@@ -149,7 +149,7 @@ fn draw_build_context(
             14.0,
             Color::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0),
         );
-        draw_text(
+        draw_ui_text(
             &style::truncate_text(building_type.name(), 12),
             rect.x + 30.0,
             rect.y + 18.0,
@@ -160,7 +160,7 @@ fn draw_build_context(
                 style::TEXT_MUTED
             },
         );
-        draw_text(
+        draw_ui_text(
             &format!("{} salvage", building_type.salvage_cost()),
             rect.x + 30.0,
             rect.y + 34.0,
@@ -178,7 +178,7 @@ fn draw_build_context(
         ToolbarMode::Objects => "Work objects produce salvage and survey returns.",
         _ => "Plans reserve salvage and define colony space.",
     };
-    draw_text(
+    draw_ui_text(
         helper,
         context.x + 18.0,
         context.y + 111.0,
@@ -208,14 +208,14 @@ fn draw_colony_context(context: Rect, active_priority: ColonyPriority) {
             hovered_priority = Some(*priority);
         }
         style::draw_button(rect, *priority == active_priority, hovered);
-        draw_text(
+        draw_ui_text(
             priority.short_label(),
             rect.x + 10.0,
             rect.y + 18.0,
             style::SMALL_SIZE,
             style::TEXT_PRIMARY,
         );
-        draw_text(
+        draw_ui_text(
             &style::truncate_text(priority.description(), 26),
             rect.x + 10.0,
             rect.y + 34.0,
@@ -248,14 +248,14 @@ fn draw_research_context(
             hovered_plan = Some(plan);
         }
         style::draw_button(rect, plan.recommended, hovered);
-        draw_text(
+        draw_ui_text(
             plan.definition.short_name,
             rect.x + 10.0,
             rect.y + 18.0,
             style::SMALL_SIZE,
             style::TEXT_PRIMARY,
         );
-        draw_text(
+        draw_ui_text(
             &format!(
                 "{}m | {}%",
                 plan.definition.duration_minutes, plan.danger_percent
@@ -271,14 +271,14 @@ fn draw_research_context(
         let rect = toolbar_context_item_rect(context, slot + 3);
         let hovered = style::button_hovered(rect);
         style::draw_button(rect, false, hovered);
-        draw_text(
+        draw_ui_text(
             &style::truncate_text(tech_id.name(), 15),
             rect.x + 10.0,
             rect.y + 18.0,
             style::SMALL_SIZE,
             style::TEXT_PRIMARY,
         );
-        draw_text(
+        draw_ui_text(
             &style::truncate_text(&technology.requirement_progress_text(*tech_id), 19),
             rect.x + 10.0,
             rect.y + 34.0,
@@ -302,7 +302,7 @@ fn draw_research_context(
         .next_research_target()
         .map(|tech| tech.name())
         .unwrap_or("All field tech unlocked");
-    draw_text(
+    draw_ui_text(
         &format!(
             "Away {} | Goal tech {}/{} | Tree {}/{} | Next: {}",
             active_mission_count,

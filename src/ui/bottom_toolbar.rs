@@ -1,10 +1,10 @@
 use super::Layout;
 use crate::data::building::BuildingType;
-use crate::ui::font::{draw_text, measure_text};
 use crate::ui::hit_zones::{toolbar_button_rect, ToolbarMode};
 use crate::ui::style;
 use crate::ui::tooltip::draw_tooltip_near_mouse;
 use macroquad::prelude::*;
+use macroquad_toolkit::ui::{draw_ui_text, measure_ui_text};
 
 pub fn draw_bottom_toolbar(
     layout: &Layout,
@@ -24,8 +24,8 @@ pub fn draw_bottom_toolbar(
         let active = active_mode == *mode;
         style::draw_button(button, active, hovered);
         let icon = mode.icon();
-        let icon_width = measure_text(icon, None, 21, 1.0).width;
-        draw_text(
+        let icon_width = measure_ui_text(icon, None, 21, 1.0).width;
+        draw_ui_text(
             icon,
             button.x + (button.w - icon_width) * 0.5,
             button.y + 24.0,
@@ -33,8 +33,8 @@ pub fn draw_bottom_toolbar(
             style::HEADING_BLUE,
         );
         let label = mode.label();
-        let label_width = measure_text(label, None, style::SMALL_SIZE as u16, 1.0).width;
-        draw_text(
+        let label_width = measure_ui_text(label, None, style::SMALL_SIZE as u16, 1.0).width;
+        draw_ui_text(
             label,
             button.x + (button.w - label_width) * 0.5,
             button.y + 47.0,
@@ -50,8 +50,8 @@ pub fn draw_bottom_toolbar(
             building.salvage_cost(),
             building.planning_role()
         );
-        let helper_width = measure_text(&helper, None, style::TINY_SIZE as u16, 1.0).width;
-        draw_text(
+        let helper_width = measure_ui_text(&helper, None, style::TINY_SIZE as u16, 1.0).width;
+        draw_ui_text(
             &helper,
             rect.x + (rect.w - helper_width) * 0.5,
             rect.y - 8.0,

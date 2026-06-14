@@ -5,9 +5,9 @@ use crate::data::game_state::GameState;
 use crate::data::resources::ResourceState;
 use crate::systems::summary_system::ColonyPressureSummary;
 use crate::ui::art::PlaceholderArt;
-use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use macroquad::prelude::*;
+use macroquad_toolkit::ui::{draw_ui_text, measure_ui_text};
 
 struct ResourceRow {
     label: &'static str,
@@ -114,7 +114,7 @@ fn draw_minimap(rect: Rect, state: &GameState) {
             style::ACCENT_GOLD,
         );
         draw_circle(map.x + map.w - 10.0, map.y + 12.0, 4.0, style::ACCENT_GOLD);
-        draw_text(
+        draw_ui_text(
             &format!("{} away", mission_count),
             map.x + 10.0,
             map.y + map.h - 8.0,
@@ -132,7 +132,7 @@ fn draw_resources(rect: Rect, resources: &ResourceState, storage_capacity: i32, 
     for (index, row) in rows.iter().enumerate() {
         let y = rect.y + 54.0 + index as f32 * 25.0;
         draw_circle(rect.x + 22.0, y - 4.0, 4.0, row.color);
-        draw_text(
+        draw_ui_text(
             row.label,
             rect.x + 36.0,
             y,
@@ -143,8 +143,8 @@ fn draw_resources(rect: Rect, resources: &ResourceState, storage_capacity: i32, 
                 style::TEXT_BODY
             },
         );
-        let width = measure_text(&row.value_text, None, style::SMALL_SIZE as u16, 1.0).width;
-        draw_text(
+        let width = measure_ui_text(&row.value_text, None, style::SMALL_SIZE as u16, 1.0).width;
+        draw_ui_text(
             &row.value_text,
             rect.x + rect.w - width - 16.0,
             y,
@@ -160,7 +160,7 @@ fn draw_resources(rect: Rect, resources: &ResourceState, storage_capacity: i32, 
             row.progress,
             row.color,
         );
-        draw_text(
+        draw_ui_text(
             &style::truncate_text(&row.detail, 22),
             rect.x + rect.w - 56.0,
             y + 12.0,
@@ -240,8 +240,8 @@ fn draw_colonist_list(
     let capacity = 10;
     style::draw_section_title("COLONISTS", rect.x + 16.0, rect.y + 29.0);
     let count_label = format!("{} / {}", colonists.len(), capacity);
-    let count_width = measure_text(&count_label, None, style::SMALL_SIZE as u16, 1.0).width;
-    draw_text(
+    let count_width = measure_ui_text(&count_label, None, style::SMALL_SIZE as u16, 1.0).width;
+    draw_ui_text(
         &count_label,
         rect.x + rect.w - count_width - 16.0,
         rect.y + 29.0,
@@ -279,7 +279,7 @@ fn draw_colonist_list(
             1.0,
             style::PANEL_BORDER,
         );
-        draw_text(
+        draw_ui_text(
             &style::truncate_text(&colonist.name, 18),
             rect.x + 48.0,
             y,
@@ -288,8 +288,8 @@ fn draw_colonist_list(
         );
         if let Some(value) = strongest_relationship_value(colonist) {
             let chip = format!("{} {:+}", relationship_label(value), value);
-            let chip_width = measure_text(&chip, None, style::TINY_SIZE as u16, 1.0).width;
-            draw_text(
+            let chip_width = measure_ui_text(&chip, None, style::TINY_SIZE as u16, 1.0).width;
+            draw_ui_text(
                 &chip,
                 rect.x + rect.w - chip_width - 42.0,
                 y,
@@ -298,8 +298,8 @@ fn draw_colonist_list(
             );
         }
         let mood = mood_face(colonist.mood);
-        let mood_width = measure_text(mood, None, style::BODY_SIZE as u16, 1.0).width;
-        draw_text(
+        let mood_width = measure_ui_text(mood, None, style::BODY_SIZE as u16, 1.0).width;
+        draw_ui_text(
             mood,
             rect.x + rect.w - mood_width - 17.0,
             y,
@@ -317,7 +317,7 @@ fn draw_colonist_list(
     }
 
     let footer = social_footer(summary);
-    draw_text(
+    draw_ui_text(
         &style::truncate_text(&footer, 33),
         rect.x + 16.0,
         rect.y + rect.h - 18.0,

@@ -1,4 +1,5 @@
 use super::*;
+use macroquad_toolkit::ui::draw_ui_text;
 
 pub(super) fn draw_assign_context(
     context: Rect,
@@ -80,7 +81,7 @@ pub(super) fn draw_assign_context(
                     assignment_pressure_color(forecast.pressure)
                 }),
         );
-        draw_text(
+        draw_ui_text(
             &style::truncate_text(&colonist.name, 11),
             rect.x + 10.0,
             rect.y + 18.0,
@@ -98,7 +99,7 @@ pub(super) fn draw_assign_context(
                 .as_ref()
                 .map(|warning| format!("{} {}", warning.label, selected_assignment_label(colonist)))
                 .unwrap_or_else(|| selected_assignment_label(colonist));
-            draw_text(
+            draw_ui_text(
                 &style::truncate_text(&label, 17),
                 rect.x + 10.0,
                 rect.y + 34.0,
@@ -114,7 +115,7 @@ pub(super) fn draw_assign_context(
                 hovered_directive = Some(action.detail);
                 hovered_name = Some(colonist.name.clone());
             }
-            draw_text(
+            draw_ui_text(
                 &style::truncate_text(&action.label, 16),
                 rect.x + 10.0,
                 rect.y + 34.0,
@@ -129,7 +130,7 @@ pub(super) fn draw_assign_context(
                 hovered_forecast = Some(forecast.clone());
                 hovered_name = Some(colonist.name.clone());
             }
-            draw_text(
+            draw_ui_text(
                 &style::truncate_text(
                     &format!(
                         "{} -> {}",
@@ -170,7 +171,7 @@ pub(super) fn draw_assign_context(
         .as_ref()
         .map(|warning| warning.detail.clone())
         .unwrap_or(footer);
-    draw_text(
+    draw_ui_text(
         &style::truncate_text(&footer, 76),
         context.x + 18.0,
         context.y + 111.0,
@@ -223,7 +224,7 @@ pub(super) fn draw_assign_roster_controls(
             *hovered_filter = Some(*filter);
         }
         style::draw_button(rect, *filter == active_filter, hovered);
-        draw_text(
+        draw_ui_text(
             filter.label(),
             rect.x + 5.0,
             rect.y + 12.0,
@@ -243,7 +244,7 @@ pub(super) fn draw_assign_roster_controls(
             *hovered_sort = Some(*sort);
         }
         style::draw_button(rect, *sort == active_sort, hovered);
-        draw_text(
+        draw_ui_text(
             sort.label(),
             rect.x + 5.0,
             rect.y + 12.0,
@@ -262,7 +263,7 @@ pub(super) fn draw_assign_roster_controls(
         *hovered_role_filter = true;
     }
     style::draw_button(role, active_role_filter.is_some(), role_hovered);
-    draw_text(
+    draw_ui_text(
         &format!("R:{}", assign_role_filter_label(active_role_filter)),
         role.x + 4.0,
         role.y + 12.0,
@@ -292,7 +293,7 @@ pub(super) fn draw_assign_batch_controls(context: Rect, selected_colonist: &Colo
             hovered_action = Some(*action);
         }
         style::draw_button(rect, false, enabled && hovered);
-        draw_text(
+        draw_ui_text(
             action.label(),
             rect.x + 5.0,
             rect.y + 12.0,
@@ -326,7 +327,7 @@ pub(super) fn draw_assign_page_controls(context: Rect, current_page: usize, page
         can_go_previous && style::button_hovered(previous),
     );
     style::draw_button(next, false, can_go_next && style::button_hovered(next));
-    draw_text(
+    draw_ui_text(
         "<",
         previous.x + 10.0,
         previous.y + 12.0,
@@ -337,7 +338,7 @@ pub(super) fn draw_assign_page_controls(context: Rect, current_page: usize, page
             style::TEXT_MUTED
         },
     );
-    draw_text(
+    draw_ui_text(
         ">",
         next.x + 10.0,
         next.y + 12.0,
@@ -348,7 +349,7 @@ pub(super) fn draw_assign_page_controls(context: Rect, current_page: usize, page
             style::TEXT_MUTED
         },
     );
-    draw_text(
+    draw_ui_text(
         &format!("{}/{}", current_page + 1, page_count),
         context.x + context.w - 63.0,
         context.y + 25.0,

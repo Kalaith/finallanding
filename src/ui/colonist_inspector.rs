@@ -4,9 +4,9 @@ use crate::data::colonist::{
 };
 use crate::data::schedule::ActivityType;
 use crate::ui::art::PlaceholderArt;
-use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use macroquad::prelude::*;
+use macroquad_toolkit::ui::{draw_ui_text, measure_ui_text};
 
 pub fn draw_colonist_inspector(
     layout: &Layout,
@@ -29,7 +29,7 @@ pub fn draw_colonist_inspector(
     style::draw_panel(Rect::new(x, y, width, height));
     draw_rectangle(x, y, 4.0, height, accent);
 
-    draw_text(
+    draw_ui_text(
         &style::truncate_text(&colonist.name.to_uppercase(), 25),
         x + 14.0,
         y + 31.0,
@@ -79,21 +79,21 @@ pub fn draw_colonist_inspector(
         1.0,
         style::PANEL_BORDER,
     );
-    draw_text(
+    draw_ui_text(
         job_label(colonist.job_preference),
         x + 112.0,
         y + 74.0,
         style::BODY_SIZE,
         style::TEXT_BODY,
     );
-    draw_text(
+    draw_ui_text(
         state_label(colonist.state),
         x + 112.0,
         y + 96.0,
         style::SMALL_SIZE,
         style::BAR_GREEN,
     );
-    draw_text(
+    draw_ui_text(
         &format!(
             "{} at {}",
             activity_label(&colonist.current_activity),
@@ -104,7 +104,7 @@ pub fn draw_colonist_inspector(
         style::TINY_SIZE,
         style::TEXT_MUTED,
     );
-    draw_text(
+    draw_ui_text(
         &format!("Injury: {}", injury_label(colonist, current_tick)),
         x + 112.0,
         y + 134.0,
@@ -145,7 +145,7 @@ pub fn draw_colonist_inspector(
         })
         .unwrap_or_else(|| "No strong tie yet".to_string());
 
-    draw_text(
+    draw_ui_text(
         &format!("RELATIONSHIP  {}", style::truncate_text(&relationship, 24)),
         x + 18.0,
         y + height - 13.0,
@@ -190,8 +190,8 @@ fn draw_relationship_portraits(x: f32, y: f32, colonist: &Colonist, art: &Placeh
             },
         );
         let value_text = format!("{:+}", value);
-        let width = measure_text(&value_text, None, 9, 1.0).width;
-        draw_text(
+        let width = measure_ui_text(&value_text, None, 9, 1.0).width;
+        draw_ui_text(
             &value_text,
             rect.x + (rect.w - width) * 0.5,
             rect.y + 44.0,
@@ -205,7 +205,7 @@ fn draw_relationship_portraits(x: f32, y: f32, colonist: &Colonist, art: &Placeh
     }
 
     if colonist.relationships.is_empty() {
-        draw_text(
+        draw_ui_text(
             "No ties yet",
             x,
             y + 22.0,
@@ -216,7 +216,7 @@ fn draw_relationship_portraits(x: f32, y: f32, colonist: &Colonist, art: &Placeh
 }
 
 fn draw_labeled_bar(x: f32, y: f32, label: &str, value: f32, color: Color) {
-    draw_text(label, x, y + 9.0, style::TINY_SIZE, style::TEXT_BODY);
+    draw_ui_text(label, x, y + 9.0, style::TINY_SIZE, style::TEXT_BODY);
     style::draw_progress_bar(Rect::new(x + 72.0, y, 150.0, 9.0), value, color);
 }
 

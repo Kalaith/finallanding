@@ -9,7 +9,6 @@ use crate::state::game_state::{
 };
 use crate::systems::planning_system::{BuildingPlacementFeedback, PlanningSystem};
 use crate::systems::scenario_system::ScenarioSystem;
-use crate::ui::font::{draw_text, measure_text};
 use crate::ui::style;
 use crate::ui::{
     draw_iso_diamond, draw_iso_diamond_lines, draw_iso_prism, draw_tooltip_at, restart_button_rect,
