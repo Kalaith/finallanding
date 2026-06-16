@@ -1,3 +1,5 @@
+#![allow(clippy::large_enum_variant, clippy::too_many_arguments)]
+
 use macroquad::prelude::*;
 
 mod data;

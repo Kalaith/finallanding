@@ -112,7 +112,7 @@ pub fn assign_roster_page_count(
         .count();
     let page_size = ASSIGN_ROSTER_SLOT_COUNT.saturating_sub(usize::from(selected_exists));
 
-    ((other_count + page_size - 1) / page_size).max(1)
+    other_count.div_ceil(page_size).max(1)
 }
 
 pub fn assign_visible_colonist_indices(
@@ -157,15 +157,15 @@ pub fn assign_visible_colonist_indices(
     indices
 }
 
-pub fn assign_visible_colonists<'a>(
-    colonists: &'a [Colonist],
+pub fn assign_visible_colonists(
+    colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
     page: usize,
     active_filter: AssignRosterFilter,
     active_sort: AssignRosterSort,
     active_role_filter: Option<JobPreference>,
     active_building_filter: Option<u32>,
-) -> Vec<&'a Colonist> {
+) -> Vec<&Colonist> {
     assign_visible_colonist_indices(
         colonists,
         selected_colonist_id,

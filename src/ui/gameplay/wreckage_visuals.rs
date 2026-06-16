@@ -412,7 +412,7 @@ fn draw_exposed_wiring(iso: IsoView, tick: u64) {
             let b = iso.grid_to_screen(segment[1]) + vec2(0.0, iso.tile_h * 0.52);
             draw_line(a.x, a.y, b.x, b.y, 4.4, Color::new(0.0, 0.0, 0.0, 0.88));
             draw_line(a.x, a.y, b.x, b.y, 2.0, Color::new(0.86, 0.45, 0.16, 0.74));
-            if (tick / 18 + index as u64) % 3 == 0 {
+            if (tick / 18 + index as u64).is_multiple_of(3) {
                 let mid = (a + b) * 0.5;
                 draw_circle(mid.x, mid.y, 4.0, Color::new(0.94, 0.62, 0.18, 0.88));
             }

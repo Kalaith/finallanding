@@ -1,17 +1,12 @@
 use super::building::BuildingType;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ColonyPriority {
     Recovery,
+    #[default]
     Stockpile,
     Survey,
-}
-
-impl Default for ColonyPriority {
-    fn default() -> Self {
-        Self::Stockpile
-    }
 }
 
 impl ColonyPriority {

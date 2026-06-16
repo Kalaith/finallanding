@@ -119,19 +119,10 @@ impl TechId {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct TechnologyState {
     pub item_counts: HashMap<MissionItem, u32>,
     pub unlocked: Vec<TechId>,
-}
-
-impl Default for TechnologyState {
-    fn default() -> Self {
-        Self {
-            item_counts: HashMap::new(),
-            unlocked: Vec::new(),
-        }
-    }
 }
 
 impl TechnologyState {

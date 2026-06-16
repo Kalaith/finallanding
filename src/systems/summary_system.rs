@@ -99,8 +99,8 @@ impl SummarySystem {
             0.0
         };
 
-        connected_pairs.sort_by(|left, right| right.value.cmp(&left.value));
-        tense_pairs.sort_by(|left, right| left.value.cmp(&right.value));
+        connected_pairs.sort_by_key(|pair| std::cmp::Reverse(pair.value));
+        tense_pairs.sort_by_key(|left| left.value);
         connected_pairs.truncate(3);
         tense_pairs.truncate(3);
 

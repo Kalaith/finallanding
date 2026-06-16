@@ -380,12 +380,14 @@ mod tests {
 
     #[test]
     fn test_resource_rows_use_real_gameplay_tracks() {
-        let mut resources = ResourceState::default();
-        resources.supplies = 5;
-        resources.prepared_meals = 2;
-        resources.exploration_progress = 17;
-        resources.workshop_progress = 23;
-        resources.hauling_progress = 31;
+        let resources = ResourceState {
+            supplies: 5,
+            prepared_meals: 2,
+            exploration_progress: 17,
+            workshop_progress: 23,
+            hauling_progress: 31,
+            ..Default::default()
+        };
 
         let rows = resource_rows(&resources, 40, 4);
         let labels = rows.iter().map(|row| row.label).collect::<Vec<_>>();

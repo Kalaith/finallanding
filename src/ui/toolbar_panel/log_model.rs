@@ -24,7 +24,7 @@ pub fn social_history_page_count(
         .filter(|entry| social_history_matches_filter(entry, filter))
         .filter(|entry| social_history_matches_query(entry, query))
         .count();
-    ((count + SOCIAL_TIMELINE_PAGE_SIZE - 1) / SOCIAL_TIMELINE_PAGE_SIZE).max(1)
+    count.div_ceil(SOCIAL_TIMELINE_PAGE_SIZE).max(1)
 }
 
 pub(super) fn social_timeline_rows(

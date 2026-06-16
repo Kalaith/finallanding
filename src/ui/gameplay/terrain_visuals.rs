@@ -37,15 +37,15 @@ pub(crate) fn terrain_detail(cell_type: Option<CellType>, x: i32, y: i32) -> Ter
     }
 
     let seed = terrain_seed(x, y);
-    if seed % 31 == 0 {
+    if seed.is_multiple_of(31) {
         TerrainDetail::HullPanel
-    } else if seed % 29 == 0 {
+    } else if seed.is_multiple_of(29) {
         TerrainDetail::SupplyCrate
-    } else if seed % 23 == 0 {
+    } else if seed.is_multiple_of(23) {
         TerrainDetail::Scrap
-    } else if seed % 19 == 0 {
+    } else if seed.is_multiple_of(19) {
         TerrainDetail::Scorch
-    } else if seed % 13 == 0 {
+    } else if seed.is_multiple_of(13) {
         TerrainDetail::Brush
     } else {
         TerrainDetail::None

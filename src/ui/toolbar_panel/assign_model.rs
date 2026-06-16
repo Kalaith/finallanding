@@ -26,15 +26,15 @@ pub(super) fn assign_roster_page_count(
     )
 }
 
-pub(super) fn assign_visible_colonists<'a>(
-    colonists: &'a [Colonist],
+pub(super) fn assign_visible_colonists(
+    colonists: &[Colonist],
     selected_colonist_id: Option<u32>,
     page: usize,
     active_filter: AssignRosterFilter,
     active_sort: AssignRosterSort,
     active_role_filter: Option<JobPreference>,
     active_building_filter: Option<u32>,
-) -> Vec<&'a Colonist> {
+) -> Vec<&Colonist> {
     assign_roster::assign_visible_colonists(
         colonists,
         selected_colonist_id,

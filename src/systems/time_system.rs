@@ -16,7 +16,7 @@ impl TimeSystem {
 
     pub fn is_day(tick: u64) -> bool {
         let (_, hour, _) = Self::get_time_of_day(tick);
-        hour >= 6 && hour < 20 // 6 AM to 8 PM is day
+        (6..20).contains(&hour) // 6 AM to 8 PM is day
     }
 
     pub fn is_night(tick: u64) -> bool {

@@ -31,20 +31,14 @@ impl Game {
         match &mut self.state {
             GameStateEnum::Gameplay(state) => {
                 let transition = state.update();
-                match transition {
-                    StateTransition::ToGameplay(new_state) => {
-                        self.state = GameStateEnum::Gameplay(new_state);
-                    }
-                    _ => {}
+                if let StateTransition::ToGameplay(new_state) = transition {
+                    self.state = GameStateEnum::Gameplay(new_state);
                 }
             }
             GameStateEnum::Menu(state) => {
                 let transition = state.update_with_input();
-                match transition {
-                    StateTransition::ToGameplay(new_state) => {
-                        self.state = GameStateEnum::Gameplay(new_state);
-                    }
-                    _ => {}
+                if let StateTransition::ToGameplay(new_state) = transition {
+                    self.state = GameStateEnum::Gameplay(new_state);
                 }
             }
         }

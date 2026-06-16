@@ -158,7 +158,7 @@ pub fn draw_colonist_inspector(
 
 fn draw_relationship_portraits(x: f32, y: f32, colonist: &Colonist, art: &PlaceholderArt) {
     let mut relationships = colonist.relationships.iter().collect::<Vec<_>>();
-    relationships.sort_by(|left, right| right.1.abs().cmp(&left.1.abs()));
+    relationships.sort_by_key(|(_, value)| std::cmp::Reverse(value.abs()));
 
     for (index, (other_id, value)) in relationships.into_iter().take(5).enumerate() {
         let px = x + index as f32 * 43.0;

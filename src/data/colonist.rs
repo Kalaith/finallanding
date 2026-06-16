@@ -62,20 +62,15 @@ pub enum ColonistState {
     OnMission { mission_id: u32 },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ActivityLocation {
+    #[default]
     None,
     Building {
         building_id: u32,
         building_type: BuildingType,
     },
     Ground(Position),
-}
-
-impl Default for ActivityLocation {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl ActivityLocation {

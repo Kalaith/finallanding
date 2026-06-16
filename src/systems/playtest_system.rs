@@ -54,14 +54,14 @@ impl PlaytestSystem {
             Self::update_priority(&mut state, kind);
             Self::maybe_launch_mission(&mut state, &mut strategy);
 
-            if state.tick % TimeSystem::TICKS_PER_DAY == 0 {
+            if state.tick.is_multiple_of(TimeSystem::TICKS_PER_DAY) {
                 let (day, _, _) = TimeSystem::get_time_of_day(state.tick);
                 SummarySystem::summarize_previous_day(&mut state, day);
                 ResourceSystem::handle_new_day(&mut state);
                 Self::manage_build_plan(&mut state, kind);
             }
 
-            if state.tick % TimeSystem::TICKS_PER_HOUR == 0 {
+            if state.tick.is_multiple_of(TimeSystem::TICKS_PER_HOUR) {
                 IncidentSystem::process_hourly_incidents(&mut state);
                 Self::process_hour(&mut state);
                 Self::manage_build_plan(&mut state, kind);
@@ -441,7 +441,8 @@ mod tests {
         assert_eq!(no_habitats.outcome_band(), PlaytestOutcomeBand::Limp);
         assert_ne!(no_habitats.outcome, ScenarioOutcome::Victory);
 
-        for kind in [PlaytestStrategyKind::NoMissions] {
+        {
+            let kind = PlaytestStrategyKind::NoMissions;
             let report = PlaytestSystem::run_strategy_playthrough(kind);
             assert_eq!(
                 report.outcome_band(),

@@ -33,20 +33,17 @@ impl GameplayState {
             && mouse_x <= right_panel.x + right_panel.w
             && mouse_y >= right_panel.y
             && mouse_y <= right_panel.y + right_panel.h
-        {
-            return;
-        }
+        {}
     }
 
     pub(super) fn update_toolbar_click(&mut self, mouse_x: f32, mouse_y: f32) -> bool {
         let toolbar = self.layout.bottom_toolbar();
         if let Some(mode) = toolbar_mode_at(toolbar, mouse_x, mouse_y) {
             self.toolbar_mode = mode;
-            if !mode.uses_building_choices() {
-                self.selected_building = None;
-            } else if self
-                .selected_building
-                .is_some_and(|building| !toolbar_buildings_for_mode(mode).contains(&building))
+            if !mode.uses_building_choices()
+                || self
+                    .selected_building
+                    .is_some_and(|building| !toolbar_buildings_for_mode(mode).contains(&building))
             {
                 self.selected_building = None;
             }

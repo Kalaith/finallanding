@@ -137,7 +137,7 @@ impl MissionResolution {
                     _ => MissionItem::SalvageCache,
                 },
                 ColonyPriority::Stockpile => match roll {
-                    0 | 1 | 2 => MissionItem::SalvageCache,
+                    0..=2 => MissionItem::SalvageCache,
                     3 | 4 => MissionItem::NutrientPods,
                     _ => MissionItem::StructuralAlloy,
                 },

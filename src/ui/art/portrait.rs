@@ -59,7 +59,7 @@ pub(super) fn generate_portrait(profile: SurvivorArtProfile, index: usize) -> Im
     fill_rect_scaled(&mut image, 23, 26, 7, 1, darken_color(profile.hair, 0.1));
     fill_rect_scaled(&mut image, 35, 26, 7, 1, darken_color(profile.hair, 0.1));
 
-    if index % 2 == 0 {
+    if index.is_multiple_of(2) {
         fill_rect_scaled(&mut image, 22, 17, 20, 3, profile.hair);
         fill_rect_scaled(&mut image, 25, 14, 14, 2, lighten_color(profile.hair, 0.12));
     } else {
@@ -121,7 +121,6 @@ mod tests {
     fn test_portrait_generation_uses_opaque_pixels() {
         let image = generate_portrait(SURVIVOR_ART_PROFILES[0], 0);
 
-        assert!(PORTRAIT_SIZE >= 128);
         assert_eq!(image.width, PORTRAIT_SIZE);
         assert_eq!(image.height, PORTRAIT_SIZE);
         assert!(image.get_pixel(64, 56).a > 0.9);

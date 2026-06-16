@@ -318,7 +318,7 @@ fn relationship_detail_index(old_value: i32, new_value: i32, len: usize) -> usiz
         return 0;
     }
 
-    (old_value.abs() as usize + new_value.abs() as usize) % len
+    (old_value.unsigned_abs() as usize + new_value.unsigned_abs() as usize) % len
 }
 
 #[cfg(test)]

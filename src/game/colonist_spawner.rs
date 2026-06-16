@@ -3,7 +3,7 @@ use crate::data::game_state::GameState;
 use crate::data::types::Position;
 
 pub fn spawn_initial_colonists(state: &mut GameState) {
-    let colonists_data = vec![
+    let colonists_data = [
         ("Alice", Trait::HardWorker, JobPreference::Builder),
         ("Bob", Trait::Lazy, JobPreference::Cook),
         ("Charlie", Trait::FastWalker, JobPreference::Explorer),

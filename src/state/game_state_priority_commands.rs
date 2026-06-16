@@ -14,7 +14,7 @@ impl GameplayState {
         );
     }
 
-    /// Handle building placement via mouse click
+    // Handle building placement via mouse click
 
     pub(super) fn handle_colony_toolbar_click(
         &mut self,
