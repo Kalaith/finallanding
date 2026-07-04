@@ -1,6 +1,7 @@
 #![allow(clippy::large_enum_variant, clippy::too_many_arguments)]
 
 use macroquad::prelude::*;
+use macroquad_toolkit::capture;
 
 mod data;
 mod game;
@@ -11,12 +12,15 @@ mod ui;
 use game::Game;
 
 fn window_conf() -> Conf {
+    // Built by hand (not capture::capture_window_conf) to keep TFL_FULLSCREEN
+    // support; high_dpi stays at its false default, so captures are already
+    // pixel-aligned.
     Conf {
         window_title: "The Final Landing".to_owned(),
-        window_width: env_i32("TFL_WINDOW_WIDTH", 1280),
-        window_height: env_i32("TFL_WINDOW_HEIGHT", 720),
+        window_width: capture::env_i32("TFL_WINDOW_WIDTH", 1280),
+        window_height: capture::env_i32("TFL_WINDOW_HEIGHT", 720),
         window_resizable: true,
-        fullscreen: env_bool("TFL_FULLSCREEN", false),
+        fullscreen: capture::env_bool("TFL_FULLSCREEN", false),
         ..Default::default()
     }
 }
@@ -29,24 +33,25 @@ async fn main() {
     }
 
     let mut game: Game = Game::new().await;
-    let capture_path = env_string("TFL_CAPTURE_PATH");
-    let capture_after_frames = env_u32("TFL_CAPTURE_FRAMES", 8).max(1);
-    let mut rendered_frames = 0;
+
+    // Screenshot harness: when TFL_CAPTURE_PATH is set, render deterministic
+    // frames, write a PNG, and exit. Scenes are seeded via the TFL_START_* /
+    // TFL_SEED_* env vars (see state::game_state_setup), not the scene field.
+    if let Some(mut config) = capture::CaptureConfig::from_env("TFL") {
+        config.frames = capture::env_u32("TFL_CAPTURE_FRAMES", 8).max(1);
+        capture::run_capture(&config, |_dt| {
+            clear_background(BLACK);
+            game.update();
+            game.draw();
+        })
+        .await;
+        return;
+    }
 
     loop {
         clear_background(BLACK);
-
         game.update();
         game.draw();
-        rendered_frames += 1;
-
-        if let Some(path) = capture_path.as_ref() {
-            if rendered_frames >= capture_after_frames {
-                get_screen_data().export_png(path);
-                break;
-            }
-        }
-
         next_frame().await
     }
 }
@@ -54,7 +59,7 @@ async fn main() {
 fn export_playthrough_report_if_requested() -> bool {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let Some(path) = env_string("TFL_PLAYTHROUGH_REPORT_PATH") else {
+        let Some(path) = capture::env_string("TFL_PLAYTHROUGH_REPORT_PATH") else {
             return false;
         };
 
@@ -71,36 +76,5 @@ fn export_playthrough_report_if_requested() -> bool {
     #[cfg(target_arch = "wasm32")]
     {
         false
-    }
-}
-
-fn env_i32(name: &str, fallback: i32) -> i32 {
-    env_string(name)
-        .and_then(|value| value.parse::<i32>().ok())
-        .unwrap_or(fallback)
-}
-
-fn env_u32(name: &str, fallback: u32) -> u32 {
-    env_string(name)
-        .and_then(|value| value.parse::<u32>().ok())
-        .unwrap_or(fallback)
-}
-
-fn env_bool(name: &str, fallback: bool) -> bool {
-    env_string(name)
-        .map(|value| value != "0" && !value.eq_ignore_ascii_case("false"))
-        .unwrap_or(fallback)
-}
-
-fn env_string(name: &str) -> Option<String> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        std::env::var(name).ok()
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        let _ = name;
-        None
     }
 }
