@@ -1,5 +1,5 @@
 use super::*;
-use macroquad_toolkit::ui::draw_ui_text;
+use macroquad_toolkit::ui::{draw_ui_text, format_clock};
 
 pub(super) fn draw_log_context(
     context: Rect,
@@ -144,7 +144,7 @@ pub(super) fn draw_log_context(
         );
         draw_ui_text(
             &style::truncate_text(
-                &format!("{:02}:{:02} {}", log.hour, log.minute, log.title),
+                &format!("{} {}", format_clock(log.hour, log.minute), log.title),
                 64,
             ),
             context.x + 52.0,

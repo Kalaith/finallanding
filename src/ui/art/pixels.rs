@@ -1,4 +1,5 @@
 use macroquad::prelude::{Color, Image};
+use macroquad_toolkit::colors::mix;
 
 pub(super) fn fill_rect(image: &mut Image, x: i32, y: i32, width: i32, height: i32, color: Color) {
     for yy in y..(y + height) {
@@ -105,31 +106,19 @@ pub(super) fn transparent() -> Color {
 }
 
 pub(super) fn mix_color(base: Color, top: Color, amount: f32) -> Color {
-    let amount = amount.clamp(0.0, 1.0);
-    Color::new(
-        base.r + (top.r - base.r) * amount,
-        base.g + (top.g - base.g) * amount,
-        base.b + (top.b - base.b) * amount,
-        base.a + (top.a - base.a) * amount,
-    )
+    mix(base, top, amount)
 }
 
+// `macroquad_toolkit::colors::darken`/`lighten` are additive (channel +/- amount),
+// but this pixel art shading wants a multiplicative blend toward black/white so
+// existing sprite/portrait shading amounts keep their current look. Built on the
+// shared `mix` primitive rather than hand-rolled per-channel lerp arithmetic.
 pub(super) fn darken_color(color: Color, amount: f32) -> Color {
-    Color::new(
-        (color.r * (1.0 - amount)).clamp(0.0, 1.0),
-        (color.g * (1.0 - amount)).clamp(0.0, 1.0),
-        (color.b * (1.0 - amount)).clamp(0.0, 1.0),
-        color.a,
-    )
+    mix(color, Color::new(0.0, 0.0, 0.0, color.a), amount)
 }
 
 pub(super) fn lighten_color(color: Color, amount: f32) -> Color {
-    Color::new(
-        (color.r + (1.0 - color.r) * amount).clamp(0.0, 1.0),
-        (color.g + (1.0 - color.g) * amount).clamp(0.0, 1.0),
-        (color.b + (1.0 - color.b) * amount).clamp(0.0, 1.0),
-        color.a,
-    )
+    mix(color, Color::new(1.0, 1.0, 1.0, color.a), amount)
 }
 
 fn noise_value(x: u32, y: u32, seed: u32) -> u8 {

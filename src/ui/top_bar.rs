@@ -11,7 +11,7 @@ use crate::ui::hit_zones::{
 };
 use crate::ui::style;
 use macroquad::prelude::*;
-use macroquad_toolkit::ui::{draw_ui_text, measure_ui_text};
+use macroquad_toolkit::ui::{draw_ui_text, format_clock, measure_ui_text};
 
 /// Draw the top bar with time and speed controls
 pub fn draw_top_bar(
@@ -38,7 +38,7 @@ pub fn draw_top_bar(
 
     // Time display
     let (day, hour, minute) = TimeSystem::get_time_of_day(tick);
-    let time_str = format!("Day {}, {:02}:{:02}", day, hour, minute);
+    let time_str = format!("Day {}, {}", day, format_clock(hour, minute));
     let is_night = TimeSystem::is_night(tick);
     let time_color = if is_night {
         Color::new(0.6, 0.7, 1.0, 1.0)

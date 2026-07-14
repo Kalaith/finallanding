@@ -38,6 +38,7 @@ use crate::ui::{
     ToolbarMode, ToolbarPanelData, ToolbarResearchData,
 };
 use macroquad::prelude::*;
+use macroquad_toolkit::debug::DebugOverlay;
 use macroquad_toolkit::input::InputState;
 use std::path::PathBuf;
 
@@ -60,8 +61,8 @@ pub struct GameplayState {
     pub(crate) time_accumulator: f32,
     /// UI layout configuration
     pub(crate) layout: Layout,
-    /// Debug overlay visible
-    pub(crate) debug_mode: bool,
+    /// Smoothed FPS/frame-time overlay with colony stat lines, toggled by F3.
+    pub(crate) debug_overlay: DebugOverlay,
     /// Active bottom-toolbar mode.
     pub(crate) toolbar_mode: ToolbarMode,
     /// Current page in the Assign mode roster.
@@ -124,7 +125,7 @@ impl GameplayState {
             time_events: TimeEventCollector::new(),
             time_accumulator: 0.0,
             layout: Layout::default(),
-            debug_mode: false,
+            debug_overlay: DebugOverlay::new(),
             toolbar_mode,
             assign_roster_page: 0,
             assign_roster_filter: AssignRosterFilter::All,

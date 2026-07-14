@@ -5,8 +5,9 @@ impl State for GameplayState {
         let input = InputState::capture();
 
         // Debug toggle
+        self.debug_overlay.record_frame(get_frame_time());
         if is_key_pressed(KeyCode::F3) {
-            self.debug_mode = !self.debug_mode;
+            self.debug_overlay.toggle();
         }
         let keyboard_captured = self.update_social_history_search_input();
 
@@ -144,8 +145,9 @@ impl State for GameplayState {
         draw_bottom_toolbar(&self.layout, self.toolbar_mode, self.selected_building);
 
         // Debug overlay
-        if self.debug_mode {
+        if self.debug_overlay.visible {
             draw_debug_overlay(
+                &self.debug_overlay,
                 self.data.tick,
                 &self.data.colonists,
                 self.hovered_cell,

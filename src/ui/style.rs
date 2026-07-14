@@ -1,6 +1,7 @@
 use crate::data::colonist::{MoodBand, RelationshipBand};
 use crate::data::text;
 use macroquad::prelude::*;
+use macroquad_toolkit::colors::with_alpha;
 use macroquad_toolkit::input::is_hovered_rect;
 use macroquad_toolkit::ui::draw_ui_text;
 use macroquad_toolkit::ui::{draw_surface, SurfaceStyle};
@@ -104,6 +105,5 @@ pub fn relationship_color(value: i32) -> Color {
 }
 
 pub fn relationship_color_alpha(value: i32, alpha: f32) -> Color {
-    let color = relationship_color(value);
-    Color::new(color.r, color.g, color.b, alpha)
+    with_alpha(relationship_color(value), alpha)
 }
