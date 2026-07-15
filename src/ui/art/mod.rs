@@ -1,6 +1,5 @@
 use macroquad::prelude::*;
 
-mod pixels;
 mod portrait;
 mod profiles;
 mod sprite;

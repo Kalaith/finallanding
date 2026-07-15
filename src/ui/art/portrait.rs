@@ -1,12 +1,15 @@
-use super::pixels::*;
 use super::profiles::SurvivorArtProfile;
-use macroquad::prelude::{Color, Image};
+use macroquad::prelude::{Color, Image, BLANK};
+use macroquad_toolkit::colors::{mix, shade, tint};
+use macroquad_toolkit::raster::{
+    add_noise, draw_line_pixels, fill_circle, fill_ellipse, fill_rect,
+};
 
 const PORTRAIT_SIZE: u16 = 128;
 const PORTRAIT_SCALE: i32 = PORTRAIT_SIZE as i32 / 64;
 
 pub(super) fn generate_portrait(profile: SurvivorArtProfile, index: usize) -> Image {
-    let mut image = Image::gen_image_color(PORTRAIT_SIZE, PORTRAIT_SIZE, transparent());
+    let mut image = Image::gen_image_color(PORTRAIT_SIZE, PORTRAIT_SIZE, BLANK);
     let bg = Color::new(0.05, 0.065, 0.065, 1.0);
     fill_rect(
         &mut image,
@@ -27,16 +30,16 @@ pub(super) fn generate_portrait(profile: SurvivorArtProfile, index: usize) -> Im
             Color::new(0.12, 0.16, 0.17, 1.0),
         );
     }
-    fill_circle_scaled(&mut image, 32, 34, 28, mix_color(bg, profile.accent, 0.18));
-    fill_rect_scaled(&mut image, 14, 48, 36, 12, darken_color(profile.suit, 0.24));
+    fill_circle_scaled(&mut image, 32, 34, 28, mix(bg, profile.accent, 0.18));
+    fill_rect_scaled(&mut image, 14, 48, 36, 12, shade(profile.suit, 0.24));
     fill_rect_scaled(&mut image, 18, 44, 28, 14, profile.suit);
-    fill_rect_scaled(&mut image, 22, 44, 6, 15, darken_color(profile.suit, 0.16));
-    fill_rect_scaled(&mut image, 37, 44, 6, 15, darken_color(profile.suit, 0.16));
+    fill_rect_scaled(&mut image, 22, 44, 6, 15, shade(profile.suit, 0.16));
+    fill_rect_scaled(&mut image, 37, 44, 6, 15, shade(profile.suit, 0.16));
     fill_rect_scaled(&mut image, 25, 40, 14, 9, profile.skin);
-    fill_circle_scaled(&mut image, 22, 30, 4, darken_color(profile.skin, 0.12));
-    fill_circle_scaled(&mut image, 42, 30, 4, darken_color(profile.skin, 0.12));
+    fill_circle_scaled(&mut image, 22, 30, 4, shade(profile.skin, 0.12));
+    fill_circle_scaled(&mut image, 42, 30, 4, shade(profile.skin, 0.12));
     fill_circle_scaled(&mut image, 32, 28, 15, profile.skin);
-    fill_rect_scaled(&mut image, 22, 33, 20, 7, darken_color(profile.skin, 0.08));
+    fill_rect_scaled(&mut image, 22, 33, 20, 7, shade(profile.skin, 0.08));
     fill_ellipse_scaled(&mut image, 32, 20, 17, 10, profile.hair);
     fill_rect_scaled(&mut image, 19, 23, 6, 10, profile.hair);
     fill_rect_scaled(&mut image, 39, 23, 6, 10, profile.hair);
@@ -54,27 +57,20 @@ pub(super) fn generate_portrait(profile: SurvivorArtProfile, index: usize) -> Im
     let eye_color = Color::new(0.04, 0.05, 0.05, 1.0);
     fill_rect_scaled(&mut image, 26, 28, 3, 2, eye_color);
     fill_rect_scaled(&mut image, 36, 28, 3, 2, eye_color);
-    fill_rect_scaled(&mut image, 29, 31, 2, 4, darken_color(profile.skin, 0.18));
+    fill_rect_scaled(&mut image, 29, 31, 2, 4, shade(profile.skin, 0.18));
     fill_rect_scaled(&mut image, 30, 36, 7, 1, Color::new(0.22, 0.12, 0.10, 0.85));
-    fill_rect_scaled(&mut image, 23, 26, 7, 1, darken_color(profile.hair, 0.1));
-    fill_rect_scaled(&mut image, 35, 26, 7, 1, darken_color(profile.hair, 0.1));
+    fill_rect_scaled(&mut image, 23, 26, 7, 1, shade(profile.hair, 0.1));
+    fill_rect_scaled(&mut image, 35, 26, 7, 1, shade(profile.hair, 0.1));
 
     if index.is_multiple_of(2) {
         fill_rect_scaled(&mut image, 22, 17, 20, 3, profile.hair);
-        fill_rect_scaled(&mut image, 25, 14, 14, 2, lighten_color(profile.hair, 0.12));
+        fill_rect_scaled(&mut image, 25, 14, 14, 2, tint(profile.hair, 0.12));
     } else {
         fill_rect_scaled(&mut image, 21, 15, 23, 4, profile.hair);
         fill_rect_scaled(&mut image, 39, 18, 5, 10, profile.hair);
-        fill_rect_scaled(&mut image, 24, 13, 13, 2, lighten_color(profile.hair, 0.12));
+        fill_rect_scaled(&mut image, 24, 13, 13, 2, tint(profile.hair, 0.12));
     }
-    fill_rect_scaled(
-        &mut image,
-        14,
-        60,
-        36,
-        1,
-        mix_color(bg, profile.accent, 0.44),
-    );
+    fill_rect_scaled(&mut image, 14, 60, 36, 1, mix(bg, profile.accent, 0.44));
 
     add_noise(&mut image, index as u32, 0.035);
     image

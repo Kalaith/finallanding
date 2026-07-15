@@ -29,8 +29,10 @@ pub const SMALL_SIZE: f32 = 12.0;
 pub const TINY_SIZE: f32 = 10.0;
 
 pub fn draw_panel(rect: Rect) {
-    draw_rectangle(rect.x, rect.y, rect.w, rect.h, PANEL_BG);
-    draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, PANEL_BORDER);
+    let surface = SurfaceStyle::new(PANEL_BG).with_border(1.0, PANEL_BORDER);
+    draw_surface(rect, &surface);
+    // Header strip inset inside the border; `SurfaceHeader` has no inset, so
+    // keep this local to preserve the exact geometry.
     draw_rectangle(
         rect.x + 1.0,
         rect.y + 1.0,
@@ -41,8 +43,8 @@ pub fn draw_panel(rect: Rect) {
 }
 
 pub fn draw_deep_panel(rect: Rect) {
-    draw_rectangle(rect.x, rect.y, rect.w, rect.h, PANEL_BG_DEEP);
-    draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 1.0, PANEL_BORDER);
+    let surface = SurfaceStyle::new(PANEL_BG_DEEP).with_border(1.0, PANEL_BORDER);
+    draw_surface(rect, &surface);
 }
 
 pub fn draw_section_title(text: &str, x: f32, y: f32) {

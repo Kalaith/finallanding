@@ -1,7 +1,8 @@
-use super::pixels::*;
 use super::profiles::SurvivorArtProfile;
 use super::SpritePose;
-use macroquad::prelude::{Color, Image};
+use macroquad::prelude::{Color, Image, BLANK};
+use macroquad_toolkit::colors::shade;
+use macroquad_toolkit::raster::{draw_line_pixels, fill_circle, fill_ellipse, fill_rect};
 
 const SPRITE_WIDTH: u16 = 32;
 const SPRITE_HEIGHT: u16 = 64;
@@ -11,7 +12,7 @@ pub(super) fn generate_sprite(
     index: usize,
     pose: SpritePose,
 ) -> Image {
-    let mut image = Image::gen_image_color(SPRITE_WIDTH, SPRITE_HEIGHT, transparent());
+    let mut image = Image::gen_image_color(SPRITE_WIDTH, SPRITE_HEIGHT, BLANK);
 
     if pose == SpritePose::Sleeping {
         fill_ellipse(&mut image, 16, 55, 12, 4, Color::new(0.0, 0.0, 0.0, 0.28));
@@ -120,7 +121,7 @@ pub(super) fn generate_sprite(
             draw_line_pixels(&mut image, 20, 31, 12, 38, profile.suit);
             fill_rect(&mut image, 10, 24, 12, 3, profile.hair);
             fill_rect(&mut image, 11, 36, 10, 2, Color::new(0.10, 0.08, 0.08, 1.0));
-            fill_rect(&mut image, 12, 40, 9, 2, darken_color(profile.suit, 0.2));
+            fill_rect(&mut image, 12, 40, 9, 2, shade(profile.suit, 0.2));
         }
         SpritePose::Sleeping => {}
     }
