@@ -49,6 +49,7 @@ impl ResourceSystem {
         habitat_count * (2 + state.technology.habitat_capacity_bonus())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn can_afford_building(state: &GameState, building_type: BuildingType) -> bool {
         state.resources.salvage >= building_type.salvage_cost()
     }

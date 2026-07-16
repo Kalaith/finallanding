@@ -6,8 +6,11 @@ pub mod mission_system;
 pub mod mood_system;
 pub mod objective_system;
 pub mod planning_system;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod playtest_report;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod playtest_strategy;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod playtest_system;
 pub mod proximity_system;
 pub mod relationship_directive_system;
