@@ -1,0 +1,26 @@
+{
+  "title": "The Final Landing",
+  "status": { "text": "Playable", "class": "playable" },
+  "canvas_rendering": "pixelated",
+  "about": [
+    "Guide a small crashed colony by shaping where people live, work, and recover. You influence the settlement through buildings, priorities, and space while relationships emerge from the choices you make."
+  ],
+  "controls": [
+    { "key": "Mouse", "desc": "Place buildings and use UI controls" },
+    { "key": "Q-W-E-R-T", "desc": "Select building tools" },
+    { "key": "1-3", "desc": "Adjust priority modes" },
+    { "key": "Space", "desc": "Pause / resume time" },
+    { "key": "Z", "desc": "Undo placement" },
+    { "key": "Esc", "desc": "Cancel current tool" }
+  ],
+  "details": [
+    { "label": "Genre", "value": "Colony Simulation" },
+    { "label": "Engine", "value": "Macroquad" },
+    { "label": "Platform", "value": "Browser, Windows" }
+  ],
+  "download": {
+    "href": "finallanding_windows.zip",
+    "label": "Windows Build"
+  },
+  "repository": "https://github.com/Kalaith/finallanding"
+}
